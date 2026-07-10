@@ -31,7 +31,7 @@ Someone seeking an understandable monthly picture of income, expenses, category 
 
 ### Portfolio objective
 
-The product should demonstrate thoughtful product, design, and engineering practice through useful demo data, privacy-conscious analytics, complete edge states, clear tradeoffs, and responsive UI. This is an evaluation objective, not a user persona.
+The product should demonstrate thoughtful product, design, and engineering practice through useful empty states, privacy-conscious analytics, complete edge states, clear tradeoffs, and responsive UI. This is an evaluation objective, not a user persona.
 
 ## Core user stories
 
@@ -40,7 +40,7 @@ The product should demonstrate thoughtful product, design, and engineering pract
 - Use default categories and create, rename, or archive custom categories.
 - Create monthly category budgets and monitor progress or overspending.
 - Review monthly trends and category breakdowns.
-- Change base currency and theme, inspect exchange-rate freshness, and reset demo data.
+- Change base currency and theme, and inspect exchange-rate freshness.
 - Start anonymously, then sign up/sign in to back up and synchronize existing data.
 - Open the CSV export CTA and see a Pro-feature preview.
 
@@ -53,6 +53,8 @@ Primary navigation:
 3. Budgets
 4. Reports
 5. Settings
+
+The same five labels are used on mobile bottom navigation and the browser left rail. Category management is a Settings sub-area; it is not a sixth primary route. Sync/backup and export are also Settings sub-areas.
 
 ### Dashboard
 
@@ -83,7 +85,14 @@ Primary navigation:
 - Category management.
 - Exchange-rate status.
 - Optional account/sync entry points.
-- Demo-data reset.
+- Local-data and sync status.
+
+### Shared UI rules
+
+- Use the working product name **Personal Finance Dashboard** in product UI; generated concept placeholder names are not part of scope.
+- Use the labels Dashboard, Transactions, Budgets, Reports, and Settings consistently across platforms.
+- Browser Transactions uses a persistent split-pane workspace; mobile uses a full-screen transaction form.
+- Conflict resolution is a compact modal or detail panel over visible product context, not a full-viewport takeover.
 
 ## UI direction
 
@@ -101,6 +110,7 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Compact left navigation and a header action for adding a transaction.
 - Preserve dashboard hierarchy while using the wider layout for a side-by-side spending trend, category breakdown, recent activity, and budget attention.
 - Do not duplicate mobile navigation patterns merely to fill space.
+- Use a persistent split-pane workspace for Transactions: the list remains visible while the selected transaction or new-transaction form occupies the detail pane. Mobile uses a full-screen transaction form.
 
 ## Product rules and edge cases
 
@@ -113,7 +123,7 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Anonymous data persists locally. Sign-up/sign-in must retain and upload existing local data.
 - Initial sync never silently discards local or cloud data. Same-record concurrent edits and suspected duplicates require a user decision; unresolved items remain visible.
 - Authentication includes sign-up, sign-in, password reset, sign-out, loading, invalid-credential, and offline states.
-- Demo-data reset requires confirmation. For signed-in users, clearly state its local/cloud impact before confirmation.
+- Destructive data actions require explicit confirmation and clearly state their local/cloud impact before confirmation.
 - Empty states lead to the next relevant action: add a transaction, create a budget, or select a reporting period.
 
 ## Analytics and privacy
@@ -137,3 +147,4 @@ Never send transaction amounts, descriptions, categories, or other financial con
 - Shared household finances.
 - Investments, loans, debt tracking, or financial advice.
 - CSV download, payments, and subscription enforcement.
+- Pre-populated demo data and demo-data reset.
