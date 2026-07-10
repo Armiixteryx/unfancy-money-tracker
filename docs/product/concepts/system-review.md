@@ -8,7 +8,7 @@ Check that the individual concepts behave like one product before implementation
 
 ### Product shell
 
-- Working product name: **Personal Finance Dashboard**. Do not use the generated placeholder names Finora, FinTrack, or FinanceApp in product UI.
+- Working product name: **Unfancy Money Tracker**. Do not use the generated placeholder names Finora, FinTrack, or FinanceApp in product UI.
 - Primary navigation is the same on mobile and browser: **Dashboard, Transactions, Budgets, Reports, Settings**.
 - Mobile uses a five-item bottom navigation. Browser uses a left navigation rail.
 - Use **Dashboard**, **Transactions**, **Budgets**, and **Reports** consistently; do not alternate with Overview, Activity, Plans, Home, Budget, or Insights.

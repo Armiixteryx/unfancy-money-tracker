@@ -1,6 +1,6 @@
 # Product concepts
 
-Visual concepts for the core user stories in the Personal Finance Dashboard. Each story is explored as a mobile and browser experience before implementation.
+Visual concepts for the core user stories in Unfancy Money Tracker. Each story is explored as a mobile and browser experience before implementation.
 
 The cross-screen consistency pass is documented in [system-review.md](system-review.md).
 

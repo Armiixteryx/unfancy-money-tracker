@@ -1,8 +1,8 @@
-# Personal Finance Dashboard — Agent Guide
+# Unfancy Money Tracker — Agent Guide
 
 ## Project purpose
 
-Build a polished, cross-platform personal-finance tracker for individuals. It is a portfolio project intended to demonstrate product, design, and engineering judgment.
+Build Unfancy Money Tracker, a polished, cross-platform personal-finance tracker for individuals. It is a portfolio project intended to demonstrate product, design, and engineering judgment.
 
 The source of truth for product scope is [docs/product/personal-finance-dashboard-v1.md](docs/product/personal-finance-dashboard-v1.md). Read it before changing product behavior.
 

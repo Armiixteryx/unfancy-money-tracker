@@ -1,4 +1,4 @@
-# Personal Finance Dashboard — V1 Product Definition
+# Unfancy Money Tracker — V1 Product Definition
 
 ## Product summary
 
@@ -89,7 +89,7 @@ The same five labels are used on mobile bottom navigation and the browser left r
 
 ### Shared UI rules
 
-- Use the working product name **Personal Finance Dashboard** in product UI; generated concept placeholder names are not part of scope.
+- Use the working product name **Unfancy Money Tracker** in product UI; generated concept placeholder names are not part of scope.
 - Use the labels Dashboard, Transactions, Budgets, Reports, and Settings consistently across platforms.
 - Browser Transactions uses a persistent split-pane workspace; mobile uses a full-screen transaction form.
 - Conflict resolution is a compact modal or detail panel over visible product context, not a full-viewport takeover.
