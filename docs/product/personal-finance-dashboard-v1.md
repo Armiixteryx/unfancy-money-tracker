@@ -126,8 +126,8 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.
 - Anonymous data persists locally. Sign-up/sign-in must retain and upload existing local data.
 - Initial sync never silently discards local or cloud data. Same-record concurrent edits require a user choice; unrelated records may finish syncing while conflicts remain visible. Suspected duplicate candidates are preserved and available for later review.
-- Authentication includes email/password sign-up and sign-in, password reset by one-time email link, email verification reminders, persistent multi-device sessions, sign-out, loading, generic invalid-credential, and offline cached-session states.
-- New accounts may sync immediately after signup; email verification is not required before v1 sync.
+- Authentication includes email/password sign-up and sign-in, Cognito confirmation, password reset by one-time email code, persistent multi-device sessions, sign-out, loading, generic invalid-credential, and offline cached-session states.
+- New accounts must complete email confirmation before cloud sync begins.
 - Signing out while offline warns that unsynced changes will be lost and requires confirmation before clearing the local account cache.
 - Account deletion is not included in v1.
 - Destructive data actions require explicit confirmation and clearly state their local/cloud impact before confirmation.
@@ -147,7 +147,7 @@ Allowed event properties are limited to platform, app version, surface, action r
 
 - Transaction CRUD, filtering, category management, budget calculations, and reports work across web, iOS, and Android.
 - Base-currency conversion covers current, cached, unavailable-rate, latest-current-aggregate, and transaction-date historical-report states with correct rounding and original-currency display.
-- Anonymous use, account creation/sign-in, local-to-cloud merge, user-resolved sync conflicts, password recovery, persistent multi-device sessions, sign-out, offline cached sessions, and offline sign-out warnings are represented and testable.
+- Anonymous use, account creation/sign-in, email confirmation, local-to-cloud merge, user-resolved sync conflicts, password recovery codes, persistent multi-device sessions, sign-out, offline cached sessions, and offline sign-out warnings are represented and testable.
 - Empty, loading, invalid-input, destructive-confirmation, and Pro-preview states are present.
 - Money validation, currency precision, category deletion reassignment, UUID seeding, and budget uniqueness follow the domain model.
 - Analytics is consent-gated, events fire once per intended action, replay is masked, and no sensitive financial data is collected.

@@ -12,17 +12,17 @@ Unfancy Money Tracker starts as an anonymous local-first app and can optionally 
 
 ### Authentication behavior
 
-Support email/password sign-up, sign-in, sign-out, session refresh, password reset, and email verification. New accounts may begin cloud sync immediately after signup; verification is requested afterward and is not a prerequisite for v1 sync.
+Use an Amazon Cognito User Pool for email/password sign-up, sign-in, sign-out, session refresh, account confirmation, password reset, and session revocation. New accounts must complete Cognito email confirmation before cloud sync begins.
 
-Password reset uses a short-lived, one-time email link. The app never reveals an existing password. Authentication errors use generic safe wording so they do not reveal whether an email address is registered.
+Password reset uses Cognito’s short-lived, one-time email confirmation code. The app never reveals an existing password. Authentication errors use generic safe wording so they do not reveal whether an email address is registered.
 
 The app preserves the email exactly as entered at its boundary. It does not lowercase, apply provider-specific dot rules, or apply plus-address transformations.
 
-New sign-up and sign-in operations require connectivity. A previously authenticated user may continue offline through the locally cached session and encrypted dataset defined by ADR 0004.
+New sign-up, account confirmation, password reset, and sign-in operations require connectivity. A previously authenticated user may continue offline through the locally cached session and encrypted dataset defined by ADR 0004.
 
 ### Session model
 
-Define provider-agnostic authentication interfaces for:
+Keep the provider-agnostic authentication interfaces, with the AWS implementation backed by Cognito:
 
 - `AuthClient`: sign-up, sign-in, refresh, sign-out, password reset, verification, and session retrieval;
 - `AuthSession`: account identifier, session status, verification status, and provider expiry metadata;
@@ -54,7 +54,7 @@ Account deletion is deferred from v1 and requires a later decision before implem
 
 - Sign-up success, duplicate-account responses, invalid email, weak password, loading, verification reminder, and offline states.
 - Sign-in success, generic invalid-credential errors, session refresh, revoked sessions, provider expiry, and multiple-device sessions.
-- Password-reset request, expired link, reused link, successful reset, and offline reset behavior.
+- Password-reset request, expired code, reused code, successful reset, and offline reset behavior.
 - Cached-session access and queued mutations while offline.
 - Anonymous-to-account dataset preservation and merge handoff.
 - Online sign-out cache clearing and offline sign-out warning and discard behavior.
