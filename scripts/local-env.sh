@@ -72,20 +72,26 @@ case "${1:-help}" in
     done
     ;;
   sam-api)
+    require_docker
     require_sam
     if [[ ! -f sam/template.yaml ]]; then
       echo "sam/template.yaml is not available yet. Complete the AWS adapter milestone first." >&2
       exit 1
     fi
-    sam local start-api --template sam/template.yaml --env-vars sam/env.local.json --host 127.0.0.1 --port "${SAM_PORT:-3001}"
+    sam validate --template sam/template.yaml --lint
+    sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
+    sam local start-api --template .aws-sam/build/template.yaml --env-vars sam/env.local.json --host 127.0.0.1 --port "${SAM_PORT:-3001}"
     ;;
   sam-lambda)
+    require_docker
     require_sam
     if [[ ! -f sam/template.yaml ]]; then
       echo "sam/template.yaml is not available yet. Complete the AWS adapter milestone first." >&2
       exit 1
     fi
-    sam local start-lambda --template sam/template.yaml --host 127.0.0.1 --port "${SAM_LAMBDA_PORT:-3002}"
+    sam validate --template sam/template.yaml --lint
+    sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
+    sam local start-lambda --template .aws-sam/build/template.yaml --host 127.0.0.1 --port "${SAM_LAMBDA_PORT:-3002}"
     ;;
   localstack-start)
     require_docker
@@ -134,4 +140,3 @@ Set LOCAL_ENV_FILE=.env.local to use a local override file.
 HELP
     ;;
 esac
-

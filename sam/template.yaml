@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Local-only SAM routes for Unfancy Money Tracker sync boundary
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Timeout: 30
+    MemorySize: 512
+
+Resources:
+  SyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ..
+      Handler: src/server/handlers/sync.handler
+      Events:
+        Push:
+          Type: HttpApi
+          Properties:
+            Path: /sync/push
+            Method: post
+        Pull:
+          Type: HttpApi
+          Properties:
+            Path: /sync/pull
+            Method: post
+        ResolveConflict:
+          Type: HttpApi
+          Properties:
+            Path: /sync/conflicts/resolve
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/server/handlers/sync.ts

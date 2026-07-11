@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS sync_records (
   record_id UUID NOT NULL,
   revision BIGINT NOT NULL CHECK (revision >= 0),
   base_revision BIGINT NOT NULL CHECK (base_revision >= 0),
+  base_revision BIGINT NOT NULL CHECK (base_revision >= 0),
   operation TEXT NOT NULL CHECK (operation IN ('upsert', 'delete')),
   payload JSONB,
   tombstone BOOLEAN NOT NULL DEFAULT FALSE,
@@ -40,6 +41,8 @@ CREATE TABLE IF NOT EXISTS sync_changes (
 CREATE INDEX IF NOT EXISTS sync_changes_dataset_cursor_idx
   ON sync_changes (dataset_id, sequence);
 
+ALTER TABLE sync_changes ADD COLUMN IF NOT EXISTS base_revision BIGINT NOT NULL DEFAULT 0 CHECK (base_revision >= 0);
+
 CREATE TABLE IF NOT EXISTS sync_idempotency (
   dataset_id UUID NOT NULL REFERENCES datasets(dataset_id) ON DELETE CASCADE,
   idempotency_key UUID NOT NULL,
@@ -47,4 +50,3 @@ CREATE TABLE IF NOT EXISTS sync_idempotency (
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (dataset_id, idempotency_key)
 );
-
