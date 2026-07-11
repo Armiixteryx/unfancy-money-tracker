@@ -27,10 +27,12 @@
     "expo": "~54.0.0",
     "expo-linking": "~8.0.0",
     "expo-router": "~6.0.0",
+    "expo-secure-store": "~15.0.0",
     "expo-status-bar": "~3.0.0",
     "idb": "^8.0.0",
     "nativewind": "^4.2.1",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-hook-form": "^7.65.0",
     "react-native": "0.81.4",
     "react-native-mmkv": "^3.3.0",
@@ -50,4 +52,3 @@
     "vitest": "^3.2.4"
   }
 }
-
