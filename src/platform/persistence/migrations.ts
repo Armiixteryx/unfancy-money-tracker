@@ -30,6 +30,7 @@ function migrateV0ToV1(input: UnknownRecord, idFactory: IdFactory): UnknownRecor
   migrated.categoryDeletionTombstones = Array.isArray(migrated.categoryDeletionTombstones)
     ? migrated.categoryDeletionTombstones
     : [];
+  migrated.recordTombstones = Array.isArray(migrated.recordTombstones) ? migrated.recordTombstones : [];
   migrated.preferences = isRecord(migrated.preferences)
     ? {
         baseCurrency: migrated.preferences.baseCurrency ?? "USD",
@@ -76,4 +77,3 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = uuid): Data
 
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }
-

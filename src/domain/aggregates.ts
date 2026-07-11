@@ -1,0 +1,75 @@
+import Decimal from "decimal.js";
+
+import { type CurrencyCode } from "./currency";
+import { addMoney, createMoney, type Money } from "./money";
+import type { Budget, Category, Transaction } from "./types";
+
+export type CurrencyAggregate = {
+  currency: CurrencyCode;
+  income: Money;
+  expenses: Money;
+  transactionCount: number;
+};
+
+export type CategoryAggregate = {
+  categoryId: string;
+  categoryName: string;
+  currency: CurrencyCode;
+  spent: Money;
+};
+
+export function currentCalendarMonth(date = new Date()): `${number}-${number}` {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` as `${number}-${number}`;
+}
+
+export function aggregateMonthByCurrency(
+  transactions: readonly Transaction[],
+  month: string
+): CurrencyAggregate[] {
+  const aggregates = new Map<CurrencyCode, CurrencyAggregate>();
+  for (const transaction of transactions) {
+    if (!transaction.date.startsWith(month)) continue;
+    const current = aggregates.get(transaction.currency) ?? {
+      currency: transaction.currency,
+      income: createMoney("0", transaction.currency),
+      expenses: createMoney("0", transaction.currency),
+      transactionCount: 0
+    };
+    const amount = createMoney(transaction.amount, transaction.currency);
+    aggregates.set(transaction.currency, {
+      ...current,
+      income: transaction.type === "income" ? addMoney(current.income, amount) : current.income,
+      expenses: transaction.type === "expense" ? addMoney(current.expenses, amount) : current.expenses,
+      transactionCount: current.transactionCount + 1
+    });
+  }
+  return [...aggregates.values()].sort((left, right) => left.currency.localeCompare(right.currency));
+}
+
+export function aggregateCategorySpending(
+  transactions: readonly Transaction[],
+  categories: readonly Category[],
+  month: string
+): CategoryAggregate[] {
+  const aggregates = new Map<string, CategoryAggregate>();
+  for (const transaction of transactions) {
+    if (transaction.type !== "expense" || !transaction.date.startsWith(month)) continue;
+    const category = categories.find((candidate) => candidate.id === transaction.categoryId);
+    const categoryName = category?.name ?? "Archived category";
+    const key = `${transaction.categoryId}:${transaction.currency}`;
+    const current = aggregates.get(key) ?? {
+      categoryId: transaction.categoryId,
+      categoryName,
+      currency: transaction.currency,
+      spent: createMoney("0", transaction.currency)
+    };
+    aggregates.set(key, { ...current, spent: addMoney(current.spent, createMoney(transaction.amount, transaction.currency)) });
+  }
+  return [...aggregates.values()].sort((left, right) => new Decimal(right.spent.amount).comparedTo(left.spent.amount));
+}
+
+export function totalBudgetForMonth(budgets: readonly Budget[], month: string, currency: CurrencyCode): Money | null {
+  const matching = budgets.filter((budget) => budget.month === month && budget.currency === currency);
+  if (matching.length === 0) return null;
+  return matching.reduce((total, budget) => addMoney(total, createMoney(budget.amount, currency)), createMoney("0", currency));
+}

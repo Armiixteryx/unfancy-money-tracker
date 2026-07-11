@@ -127,3 +127,26 @@ export function convertMoney(money: Money, targetCurrency: CurrencyCode, rate: s
 export function sumMoney(values: readonly Money[], currency: CurrencyCode): Money {
   return values.reduce<Money>((total, value) => addMoney(total, value), createMoney("0", currency));
 }
+
+const CURRENCY_SYMBOLS: Partial<Record<CurrencyCode, string>> = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  CAD: "CA$",
+  AUD: "A$",
+  CHF: "CHF",
+  CNY: "CN¥",
+  BRL: "R$",
+  MXN: "MX$",
+  COP: "COP$",
+  CLP: "CLP$",
+  PEN: "S/",
+  ARS: "ARS$",
+  UYU: "UYU$",
+  VES: "Bs."
+};
+
+export function formatMoneyForDisplay(money: Money): string {
+  return `${CURRENCY_SYMBOLS[money.currency] ?? money.currency} ${money.amount}`;
+}

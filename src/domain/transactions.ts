@@ -32,6 +32,15 @@ export function createTransaction(
   };
 }
 
+export function updateTransaction(
+  existing: Transaction,
+  input: TransactionInput,
+  dependencies: { now?: () => string; categories: readonly Category[] }
+): Transaction {
+  const next = createTransaction(input, { ...dependencies, idFactory: () => existing.id });
+  return { ...next, id: existing.id, createdAt: existing.createdAt };
+}
+
 export type TransactionFilters = {
   query?: string;
   type?: TransactionType | "all";
@@ -58,4 +67,3 @@ export function filterTransactions(
     })
     .sort((left, right) => right.date.localeCompare(left.date) || right.createdAt.localeCompare(left.createdAt));
 }
-

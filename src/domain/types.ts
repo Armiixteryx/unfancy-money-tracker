@@ -88,7 +88,7 @@ export type Dataset = {
   categories: readonly Category[];
   budgets: readonly Budget[];
   categoryDeletionTombstones: readonly RecordTombstone[];
+  recordTombstones: readonly RecordTombstone[];
   preferences: Preferences;
   sync: SyncMetadata;
 };
-

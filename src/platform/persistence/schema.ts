@@ -118,9 +118,9 @@ export const datasetEnvelopeSchema = z.object({
   categories: z.array(categorySchema),
   budgets: z.array(budgetSchema),
   categoryDeletionTombstones: z.array(tombstoneSchema),
+  recordTombstones: z.array(tombstoneSchema),
   preferences: preferencesSchema,
   sync: syncSchema
 });
 
 export type PersistedDataset = z.infer<typeof datasetEnvelopeSchema>;
-

@@ -51,7 +51,8 @@ describe("dataset persistence", () => {
       datasetId: "00000000-0000-4000-8000-000000000099",
       transactions: [],
       categories: [],
-      budgets: []
+      budgets: [],
+      recordTombstones: []
     };
     const migrated = migrateSnapshot(legacy, () => "00000000-0000-4000-8000-000000000098");
 
@@ -61,4 +62,3 @@ describe("dataset persistence", () => {
     expect(migrated.sync.outbox).toEqual([]);
   });
 });
-

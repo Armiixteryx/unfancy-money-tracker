@@ -1,0 +1,83 @@
+import { useEffect, useState, type PropsWithChildren } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { useDatasetStore } from "../features/sync/store/useDatasetStore";
+import { colors } from "../ui/theme";
+
+function HydrationScreen() {
+  return (
+    <View accessible accessibilityLabel="Loading your local data" style={styles.centered}>
+      <View style={styles.spinner} />
+      <Text style={styles.title}>Loading your local data</Text>
+      <Text style={styles.description}>Your financial records stay on this device until you choose otherwise.</Text>
+    </View>
+  );
+}
+
+function RecoveryScreen() {
+  const retryHydration = useDatasetStore((state) => state.retryHydration);
+  const resetLocalData = useDatasetStore((state) => state.resetLocalData);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  return (
+    <View style={styles.centered}>
+      <View style={[styles.spinner, styles.recoveryIcon]} />
+      <Text accessibilityRole="header" style={styles.title}>Local data needs attention</Text>
+      <Text style={styles.description}>
+        We preserved the unreadable snapshot and blocked the app from opening partial data. Retry, recover from sync, or reset this local copy.
+      </Text>
+      <View style={styles.actions}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retry local data" onPress={() => void retryHydration()} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Retry</Text>
+        </Pressable>
+        {confirmReset ? (
+          <View style={styles.confirmation}>
+            <Text style={styles.confirmationText}>Resetting removes this local copy. Continue?</Text>
+            <View style={styles.confirmationActions}>
+              <Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => void resetLocalData()} style={styles.dangerButton}>
+                <Text style={styles.dangerButtonText}>Reset local data</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Reset local data" onPress={() => setConfirmReset(true)} style={styles.dangerButton}>
+            <Text style={styles.dangerButtonText}>Reset local data</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+export function DatasetHydrationGate({ children }: PropsWithChildren) {
+  const hydration = useDatasetStore((state) => state.hydration);
+  const initialize = useDatasetStore((state) => state.initialize);
+
+  useEffect(() => {
+    void initialize();
+  }, [initialize]);
+
+  if (hydration.status === "loading") return <HydrationScreen />;
+  if (hydration.status === "recovery") return <RecoveryScreen />;
+  return <>{children}</>;
+}
+
+const styles = StyleSheet.create({
+  centered: { alignItems: "center", backgroundColor: colors.canvas, flex: 1, justifyContent: "center", padding: 32 },
+  spinner: { backgroundColor: colors.emerald, borderRadius: 999, height: 48, marginBottom: 24, opacity: 0.85, width: 48 },
+  recoveryIcon: { backgroundColor: colors.coral },
+  title: { color: colors.navy, fontSize: 22, fontWeight: "800", textAlign: "center" },
+  description: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 10, maxWidth: 520, textAlign: "center" },
+  actions: { alignItems: "center", gap: 12, marginTop: 24, width: "100%" },
+  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 12, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  secondaryButtonText: { color: colors.navy, fontSize: 15, fontWeight: "700" },
+  dangerButton: { alignItems: "center", backgroundColor: colors.coral, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  dangerButtonText: { color: colors.surface, fontSize: 15, fontWeight: "700" },
+  confirmation: { alignItems: "center", borderColor: "#F4C7C7", borderRadius: 14, borderWidth: 1, gap: 12, maxWidth: 520, padding: 16, width: "100%" },
+  confirmationText: { color: colors.navy, fontSize: 14, textAlign: "center" },
+  confirmationActions: { flexDirection: "row", gap: 10 }
+});
+
