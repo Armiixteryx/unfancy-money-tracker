@@ -1,30 +1,19 @@
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 
+import { AppTabBar } from "../../src/ui/AppTabBar";
 import { colors } from "../../src/ui/theme";
 
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.navy,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: "700" },
-        tabBarStyle:
-          Platform.OS === "web"
-            ? {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderRightWidth: 1,
-                height: "100%",
-                left: 0,
-                paddingTop: 24,
-                position: "absolute",
-                top: 0,
-                width: 232
-              }
-            : { backgroundColor: colors.surface, borderTopColor: colors.border, height: 76, paddingTop: 8 }
+        tabBarStyle: Platform.OS === "web" ? { display: "none" } : { backgroundColor: colors.surface, borderTopColor: colors.border, height: 76, paddingTop: 8 }
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Dashboard", tabBarLabel: "Dashboard" }} />
@@ -35,4 +24,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
