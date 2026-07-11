@@ -55,7 +55,7 @@ case "${1:-help}" in
   migrate)
     require_docker
     compose up -d postgres
-    until compose exec -T postgres pg_isready -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}" >/dev/null 2>&1; do
+    until compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}" -c "SELECT 1" >/dev/null 2>&1; do
       sleep 1
     done
     for migration in docker/postgres/migrations/*.sql; do
