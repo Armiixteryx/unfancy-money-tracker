@@ -1,5 +1,5 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { colors } from "./theme";
 
@@ -80,7 +80,10 @@ function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 export function AppTabBar(props: BottomTabBarProps) {
-  return Platform.OS === "web" ? <WebSideNav {...props} /> : <MobileTabBar {...props} />;
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 768;
+
+  return isDesktopWeb ? <WebSideNav {...props} /> : <MobileTabBar {...props} />;
 }
 
 const styles = StyleSheet.create({

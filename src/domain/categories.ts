@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 
+import { categoryInputSchema, type CategoryInput } from "./validation";
 import type { Category, CategoryKind, UUID } from "./types";
 
 const DEFAULT_EXPENSE_NAMES = [
@@ -44,4 +45,33 @@ export function findUncategorizedCategory(categories: readonly Category[], kind:
     throw new Error(`Missing protected Uncategorized category for ${kind}`);
   }
   return category;
+}
+
+export function createCategory(
+  input: CategoryInput,
+  dependencies: { idFactory?: () => UUID; now?: () => string } = {}
+): Category {
+  const parsed = categoryInputSchema.parse(input);
+  const now = dependencies.now?.() ?? new Date().toISOString();
+
+  return {
+    id: dependencies.idFactory?.() ?? uuid(),
+    kind: parsed.kind,
+    name: parsed.name,
+    isSystem: false,
+    isArchived: false,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+export function renameCategory(category: Category, name: string, now = new Date().toISOString()): Category {
+  const parsed = categoryInputSchema.shape.name.parse(name);
+  if (category.isSystem) throw new Error("Protected categories cannot be renamed");
+  return { ...category, name: parsed, updatedAt: now };
+}
+
+export function archiveCategory(category: Category, now = new Date().toISOString()): Category {
+  if (category.isSystem) throw new Error("Protected categories cannot be archived");
+  return { ...category, isArchived: true, updatedAt: now };
 }

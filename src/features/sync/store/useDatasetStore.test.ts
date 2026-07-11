@@ -63,4 +63,21 @@ describe("local dataset store", () => {
 
     expect(result).toEqual({ ok: false, message: "Category type must match transaction type" });
   });
+
+  it("persists budgets, preferences, and category reassignment locally", async () => {
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    await store.getState().initialize();
+    const expenseCategory = store.getState().dataset?.categories.find((category) => category.kind === "expense" && !category.isSystem);
+    if (!expenseCategory) return;
+
+    const budget = await store.getState().addBudget({ categoryId: expenseCategory.id, month: "2026-07", amount: "100", currency: "USD" });
+    expect(budget.ok).toBe(true);
+    const preference = await store.getState().setPreferences({ baseCurrency: "EUR" });
+    expect(preference.ok).toBe(true);
+    const deleted = await store.getState().deleteCategory(expenseCategory.id);
+    expect(deleted.ok).toBe(true);
+    expect(store.getState().dataset?.categories.some((category) => category.id === expenseCategory.id)).toBe(false);
+    expect(store.getState().dataset?.budgets[0]?.categoryId).toBe(deleted.ok ? deleted.value.id : "");
+    expect(store.getState().dataset?.preferences.baseCurrency).toBe("EUR");
+  });
 });

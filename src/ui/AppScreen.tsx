@@ -1,4 +1,4 @@
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "./theme";
@@ -11,6 +11,8 @@ type AppScreenProps = {
 
 export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 768;
 
   return (
     <ScrollView
@@ -19,7 +21,7 @@ export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
         {
           paddingTop: Math.max(insets.top, 24),
           paddingBottom: Math.max(insets.bottom, 32),
-          paddingLeft: Platform.OS === "web" ? 260 : 24,
+          paddingLeft: isDesktopWeb ? 260 : 24,
           paddingRight: 24
         }
       ]}
@@ -84,4 +86,3 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.navy, fontSize: 20, fontWeight: "800", textAlign: "center" },
   emptyDescription: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 8, maxWidth: 420, textAlign: "center" }
 });
-

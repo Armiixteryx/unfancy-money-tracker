@@ -61,9 +61,15 @@ export const budgetInputSchema = z
 
 export type BudgetInput = z.infer<typeof budgetInputSchema>;
 
+export const categoryInputSchema = z.object({
+  kind: z.enum(["income", "expense"]),
+  name: z.string().trim().min(1, "Category name is required").max(80, "Category name is too long")
+});
+
+export type CategoryInput = z.infer<typeof categoryInputSchema>;
+
 export function assertCategoryMatchesTransaction(categoryKind: CategoryKind, transactionType: TransactionType): void {
   if (categoryKind !== transactionType) {
     throw new Error("Category type must match transaction type");
   }
 }
-
