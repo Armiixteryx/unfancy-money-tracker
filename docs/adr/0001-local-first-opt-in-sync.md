@@ -10,7 +10,7 @@ The product should be immediately usable without an account while supporting bac
 
 ## Decision
 
-Persist anonymous user data locally by default. Offer optional email-and-password sign-up/sign-in from Settings. On first sync, merge local and cloud data rather than replacing either dataset. Present same-record conflicts and duplicate candidates for explicit user resolution.
+Persist anonymous user data locally by default. Offer optional email-and-password sign-up/sign-in from Settings. On first sync, merge local and cloud data rather than replacing either dataset. Present same-record conflicts for explicit user resolution. Preserve duplicate candidates with different UUIDs and allow users to review them later without blocking unrelated sync.
 
 ## Consequences
 

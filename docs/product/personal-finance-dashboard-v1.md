@@ -19,7 +19,7 @@ The app is anonymous and local-first by default. Users may optionally create an 
 | Budgets | One expense-category budget per calendar month; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts and convert aggregates to a user-selected base currency with live rates and half-up rounding |
 | Data and identity | Anonymous local use first; optional email/password account enables sync |
-| Initial sync | Merge local and cloud data; ask the user to resolve conflicts or duplicate candidates |
+| Initial sync | Merge local and cloud data; require choices for same-record conflicts while preserving duplicate candidates for later review |
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
 
@@ -125,7 +125,7 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Keep original transaction amount/currency for display. Convert aggregate figures to base currency using the latest live rate.
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.
 - Anonymous data persists locally. Sign-up/sign-in must retain and upload existing local data.
-- Initial sync never silently discards local or cloud data. Same-record concurrent edits and suspected duplicates require a user decision; unresolved items remain visible.
+- Initial sync never silently discards local or cloud data. Same-record concurrent edits require a user choice; unrelated records may finish syncing while conflicts remain visible. Suspected duplicate candidates are preserved and available for later review.
 - Authentication includes sign-up, sign-in, password reset, sign-out, loading, invalid-credential, and offline states.
 - Destructive data actions require explicit confirmation and clearly state their local/cloud impact before confirmation.
 - Empty states lead to the next relevant action: add a transaction, create a budget, or select a reporting period.
