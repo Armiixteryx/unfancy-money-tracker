@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: unfancy-money-tracker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-unfancy_local}
+      POSTGRES_USER: ${POSTGRES_USER:-unfancy_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unfancy_local_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - unfancy-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: unfancy-money-tracker-mailhog
+    restart: unless-stopped
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_HTTP_PORT:-8025}:8025"
+
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: unfancy-money-tracker-localstack
+    profiles: ["localstack"]
+    environment:
+      SERVICES: ${LOCALSTACK_SERVICES:-cognito-idp,apigateway,lambda,secretsmanager,ses,sts}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      DEBUG: ${LOCALSTACK_DEBUG:-0}
+      PERSISTENCE: "1"
+    ports:
+      - "${LOCALSTACK_PORT:-4566}:4566"
+    volumes:
+      - unfancy-localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  unfancy-postgres-data:
+  unfancy-localstack-data:
+
