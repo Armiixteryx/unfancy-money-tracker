@@ -17,7 +17,7 @@ The app is anonymous and local-first by default. Users may optionally create an 
 | Transaction fields | Positive amount, income/expense type, category, description, date, currency |
 | Categories | UUID-backed income and expense categories; defaults plus custom create, rename, archive, and delete |
 | Budgets | One expense-category budget per calendar month; no rollover |
-| Currency | Preserve original currency; store canonical decimal amounts and convert aggregates to a user-selected base currency with live rates and half-up rounding |
+| Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
 | Data and identity | Anonymous local use first; optional email/password account enables sync |
 | Initial sync | Merge local and cloud data; require choices for same-record conflicts while preserving duplicate candidates for later review |
 | Insights | Descriptive reporting only; no financial advice |
@@ -122,7 +122,7 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Transaction amounts are canonical decimal strings, dates use `YYYY-MM-DD`, and converted aggregates use half-up rounding at the target currency’s ISO precision.
 - Income never consumes a category budget.
 - Budgets apply only to expense transactions inside their selected calendar month, do not roll over, and may be exceeded.
-- Keep original transaction amount/currency for display. Convert aggregate figures to base currency using the latest live rate.
+- Keep original transaction amount/currency for display. Convert dashboard and budget aggregates using the latest available rate; convert historical reports using the rate published on each transaction date.
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.
 - Anonymous data persists locally. Sign-up/sign-in must retain and upload existing local data.
 - Initial sync never silently discards local or cloud data. Same-record concurrent edits require a user choice; unrelated records may finish syncing while conflicts remain visible. Suspected duplicate candidates are preserved and available for later review.
@@ -142,7 +142,7 @@ Never send transaction amounts, descriptions, categories, or other financial con
 ## Acceptance checks
 
 - Transaction CRUD, filtering, category management, budget calculations, and reports work across web, iOS, and Android.
-- Base-currency conversion covers current, cached, and unavailable-rate states with correct rounding and original-currency display.
+- Base-currency conversion covers current, cached, unavailable-rate, latest-current-aggregate, and transaction-date historical-report states with correct rounding and original-currency display.
 - Anonymous use, account creation/sign-in, local-to-cloud merge, user-resolved sync conflicts, password recovery, persistent multi-device sessions, sign-out, offline cached sessions, and offline sign-out warnings are represented and testable.
 - Empty, loading, invalid-input, destructive-confirmation, and Pro-preview states are present.
 - Money validation, currency precision, category deletion reassignment, UUID seeding, and budget uniqueness follow the domain model.

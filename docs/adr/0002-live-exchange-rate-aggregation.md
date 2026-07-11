@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted; historical-report semantics superseded by ADR 0007.
 
 ## Context
 
@@ -10,7 +10,7 @@ Users may record transactions in multiple currencies while expecting a readable 
 
 ## Decision
 
-Preserve each transaction's entered amount and currency. Convert dashboard, budget, and report aggregates to the user's selected base currency using live exchange rates. Cache rates locally and display their freshness.
+Preserve each transaction's entered amount and currency. Convert dashboard and budget aggregates to the user's selected base currency using the latest available exchange rate. Historical reports use transaction-date rates as defined by ADR 0007. Cache rates locally and display their freshness.
 
 ## Consequences
 
