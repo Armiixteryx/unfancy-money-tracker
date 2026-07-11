@@ -40,16 +40,16 @@ Check that the individual concepts behave like one product before implementation
 - Settings exposes preference, local-data, exchange-rate, and optional sync controls.
 - Empty, loading, offline, validation, and conflict states have clear next actions.
 
-### Corrections required before implementation
+### Corrections applied
 
-- Normalize navigation labels and icons to the five-item primary IA.
-- Replace generated placeholder branding and domains with the working product name.
-- Remove the Accounts item from the CSV concept and any future concepts.
-- Represent Categories as a Settings sub-area in browser navigation while retaining category pickers in transaction/budget flows.
-- Keep the final sync concept without “Continue locally” actions or a full-width “Merge and sync” footer; conflict choices remain explicit.
-- Keep the Settings concept without demo-data reset; first launch and empty states remain empty.
-- Apply one date, currency, amount, and category-copy convention across concepts.
+- Navigation labels and icons now follow the five-item primary IA in the linked artwork.
+- Placeholder branding and domains were replaced with Unfancy Money Tracker treatment.
+- The Accounts item was removed from the CSV concept.
+- Categories are represented as a Settings sub-area while category pickers remain available in transaction/budget flows.
+- Sync artwork keeps conflict choices explicit without “Continue locally” actions or a full-width “Merge and sync” footer.
+- Settings artwork has no demo-data reset; empty-first behavior remains the product rule.
+- Date, currency, amount, and category conventions were normalized across the linked artwork.
 
 ## Review outcome
 
-The visual direction is coherent enough to begin implementation after the corrections above are reflected in the UI shell and shared components. The individual concepts remain useful as reference artifacts, but generated images are not implementation specifications.
+The visual direction is coherent enough to begin implementation of the shared UI shell. The individual concepts remain reference artifacts, while the system decisions in this document and the product definition are the implementation source of truth.
