@@ -18,7 +18,7 @@ Persist one JSON snapshot per dataset under an app-owned, dataset-scoped key. Th
 
 - schema version and dataset UUID;
 - transactions, categories, budgets, and category deletion tombstones;
-- base-currency and theme preferences;
+- base-currency, theme, and account-wide analytics-consent preferences;
 - sync metadata and record-level tombstones required by ADR 0001.
 
 Do not persist derived aggregates, TanStack Query cache data, navigation state, or transient form state. Canonical decimal strings and UUIDs are stored exactly as defined by ADR 0003; money is never converted to a JavaScript number for persistence.

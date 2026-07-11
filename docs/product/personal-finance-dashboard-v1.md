@@ -135,9 +135,13 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 
 ## Analytics and privacy
 
-Track dashboard/report views, transaction and budget creation, transaction filtering, sync-account intent/completion, and CSV-export/upgrade interest.
+Analytics is opt-in and disabled by default. After an explicit choice, the consent preference syncs across the user’s signed-in devices. Anonymous analytics uses a random distinct ID and links to an opaque account subject only after signup/sign-in.
 
-Never send transaction amounts, descriptions, categories, or other financial contents to analytics.
+Track dashboard/report views, transaction and budget creation, transaction filtering, sync-account intent/completion, CSV-export/upgrade interest, and safe authentication funnel statuses.
+
+Use automatic capture and masked session replay with strict redaction. Mask all user-entered text and financial values, including amounts, descriptions, categories, dates, chart values, and transaction rows. Opting out stops future capture and flushes already queued analytics events.
+
+Allowed event properties are limited to platform, app version, surface, action result, generic error code, and sync status. Never send transaction amounts, descriptions, categories, dates, currencies, transaction IDs, email addresses, credentials, tokens, provider error bodies, or other financial contents to analytics, replay, logs, or error reports.
 
 ## Acceptance checks
 
@@ -146,7 +150,7 @@ Never send transaction amounts, descriptions, categories, or other financial con
 - Anonymous use, account creation/sign-in, local-to-cloud merge, user-resolved sync conflicts, password recovery, persistent multi-device sessions, sign-out, offline cached sessions, and offline sign-out warnings are represented and testable.
 - Empty, loading, invalid-input, destructive-confirmation, and Pro-preview states are present.
 - Money validation, currency precision, category deletion reassignment, UUID seeding, and budget uniqueness follow the domain model.
-- Analytics events fire once per intended action and contain no sensitive financial data.
+- Analytics is consent-gated, events fire once per intended action, replay is masked, and no sensitive financial data is collected.
 
 ## Out of scope for v1
 
