@@ -1,0 +1,53 @@
+{
+  "name": "unfancy-money-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "local:start": "./scripts/local-env.sh start",
+    "local:stop": "./scripts/local-env.sh stop",
+    "local:reset": "./scripts/local-env.sh reset",
+    "local:migrate": "./scripts/local-env.sh migrate",
+    "local:seed": "./scripts/local-env.sh seed",
+    "local:sam": "./scripts/local-env.sh sam-api",
+    "local:verify": "./scripts/local-env.sh verify"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.0",
+    "@tanstack/react-query": "^5.90.0",
+    "decimal.js": "^10.6.0",
+    "expo": "~54.0.0",
+    "expo-linking": "~8.0.0",
+    "expo-router": "~6.0.0",
+    "expo-status-bar": "~3.0.0",
+    "idb": "^8.0.0",
+    "nativewind": "^4.2.1",
+    "react": "19.1.0",
+    "react-hook-form": "^7.65.0",
+    "react-native": "0.81.4",
+    "react-native-mmkv": "^3.3.0",
+    "react-native-reanimated": "~4.1.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "tailwindcss": "^3.4.17",
+    "uuid": "^11.1.0",
+    "zod": "^4.1.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "eslint": "^8.57.0",
+    "eslint-config-expo": "~9.2.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
+
