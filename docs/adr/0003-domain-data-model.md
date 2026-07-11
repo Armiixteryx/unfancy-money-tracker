@@ -34,7 +34,7 @@ Category UUIDs are retained by transactions; transactions do not store a categor
 
 Budgets are unique by `(calendar month, expense category UUID)`, apply only to expense transactions in that month, use the user’s base currency, do not roll over, and may be exceeded. Income never contributes to a category budget.
 
-Original transaction amounts and currencies are preserved. Dashboard, budget, and report totals are derived values converted to the selected base currency. Conversion uses the latest available rate or a cached stale rate when offline; if no rate exists, the aggregate remains unavailable rather than showing a misleading combined total. Converted values use half-up rounding at the target currency’s ISO precision.
+Original transaction amounts and currencies are preserved. Dashboard and budget aggregates are derived values converted to the selected base currency using the latest available rate, including a visibly stale cached rate when offline. Historical reports use the rate published on each transaction date; for weekends and holidays, use the nearest prior published rate and retain its effective date. If no usable rate exists, preserve original-currency values and mark the combined aggregate unavailable rather than showing a misleading total. Same-currency conversion uses a rate of `1`. Converted values use `decimal.js` and half-up rounding at the target currency’s ISO precision.
 
 ### Persistence and sync
 
@@ -59,5 +59,6 @@ User preferences for base currency and theme are part of the account-synced stat
 - Test category kind filtering, rename and archive behavior, protected `Uncategorized`, deletion reassignment, and persistent deletion tombstones.
 - Test duplicate same-name categories remain distinct during sync.
 - Test budget uniqueness, month boundaries, expense-only calculations, base-currency behavior, and overspending.
+- Test latest-rate conversion for dashboard and budget aggregates, transaction-date conversion for historical reports, prior-rate weekend/holiday fallback, stale cached rates, unavailable aggregates, same-currency conversion, and effective-date display.
 - Test persisted-state versioning, invalid-data rejection, tombstone retention, and migration compatibility.
 - Confirm logs and analytics never contain financial amounts, descriptions, categories, or other sensitive values.
