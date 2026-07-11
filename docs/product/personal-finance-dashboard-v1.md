@@ -15,9 +15,9 @@ The app is anonymous and local-first by default. Users may optionally create an 
 | Target user | General individual tracking income, expenses, and monthly budgets |
 | Financial model | One consolidated view; no financial accounts or transfers |
 | Transaction fields | Positive amount, income/expense type, category, description, date, currency |
-| Categories | Default categories plus custom create, rename, and archive |
+| Categories | UUID-backed income and expense categories; defaults plus custom create, rename, archive, and delete |
 | Budgets | One expense-category budget per calendar month; no rollover |
-| Currency | Preserve original currency; convert aggregates to a user-selected base currency with live rates |
+| Currency | Preserve original currency; store canonical decimal amounts and convert aggregates to a user-selected base currency with live rates and half-up rounding |
 | Data and identity | Anonymous local use first; optional email/password account enables sync |
 | Initial sync | Merge local and cloud data; ask the user to resolve conflicts or duplicate candidates |
 | Insights | Descriptive reporting only; no financial advice |
@@ -37,7 +37,7 @@ The product should demonstrate thoughtful product, design, and engineering pract
 
 - View current-month income, expenses, remaining budget, recent transactions, and category spending.
 - Add, edit, delete, search, and filter income and expense transactions.
-- Use default categories and create, rename, or archive custom categories.
+- Use UUID-backed income and expense categories; create, rename, archive, or delete categories.
 - Create monthly category budgets and monitor progress or overspending.
 - Review monthly trends and category breakdowns.
 - Change base currency and theme, and inspect exchange-rate freshness.
@@ -116,6 +116,10 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 
 - Transaction amount must be positive. Required fields are type, amount, category, description, date, and currency.
 - Archived categories cannot be selected for new transactions, but remain visible on historic transactions and reports.
+- Default categories are seeded with new UUIDs per dataset. Income has one default Income category; expense defaults are Food, Housing, Transport, Shopping, Utilities, Entertainment, Health, Education, and Subscriptions.
+- Uncategorized is a protected system category. Deleting another category moves its transactions and budgets to Uncategorized and records a deletion tombstone; deleted defaults are not silently reseeded.
+- Transactions retain the category UUID rather than a category-name snapshot, so renames update historical labels and reports.
+- Transaction amounts are canonical decimal strings, dates use `YYYY-MM-DD`, and converted aggregates use half-up rounding at the target currency’s ISO precision.
 - Income never consumes a category budget.
 - Budgets apply only to expense transactions inside their selected calendar month, do not roll over, and may be exceeded.
 - Keep original transaction amount/currency for display. Convert aggregate figures to base currency using the latest live rate.
@@ -138,6 +142,7 @@ Never send transaction amounts, descriptions, categories, or other financial con
 - Base-currency conversion covers current, cached, and unavailable-rate states with correct rounding and original-currency display.
 - Anonymous use, account creation/sign-in, local-to-cloud merge, user-resolved sync conflicts, password recovery, sign-out, and offline recovery are represented and testable.
 - Empty, loading, invalid-input, destructive-confirmation, and Pro-preview states are present.
+- Money validation, currency precision, category deletion reassignment, UUID seeding, and budget uniqueness follow the domain model.
 - Analytics events fire once per intended action and contain no sensitive financial data.
 
 ## Out of scope for v1

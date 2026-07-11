@@ -29,7 +29,7 @@ The cross-screen consistency pass is documented in [system-review.md](system-rev
   - Review monthly spending trends, category breakdowns, and factual insights.
 - [x] Categories — mobile and browser
   - [Categories concept](categories-mobile-browser.png)
-  - Create, rename, archive, and select custom categories.
+  - Create, rename, archive, and delete categories; deleted categories reassign records to protected Uncategorized.
 - [x] Settings — mobile and browser
   - [Settings concept](settings-mobile-browser.png)
   - Change currency and theme, manage local data, and view sync status.
