@@ -11,6 +11,7 @@ export type SyncChange = {
   baseRevision: number;
   payload: unknown | null;
   tombstone: boolean;
+  revision: number;
 };
 
 export type SyncConflict = {
@@ -24,7 +25,8 @@ export type SyncConflict = {
 };
 
 export type PushRequest = { datasetId: string; changes: readonly SyncChange[] };
-export type PushResponse = { acknowledged: readonly string[]; conflicts: readonly SyncConflict[]; cursor: string };
+export type AcknowledgedChange = { idempotencyKey: string; recordType: SyncRecordType; recordId: string; revision: number };
+export type PushResponse = { acknowledged: readonly string[]; acknowledgedChanges: readonly AcknowledgedChange[]; conflicts: readonly SyncConflict[]; cursor: string };
 export type PullRequest = { datasetId: string; cursor: string };
 export type PullResponse = { changes: readonly SyncChange[]; cursor: string };
 export type ResolveConflictRequest = { datasetId: string; conflict: SyncConflict; choice: "keep_local" | "keep_cloud" };
@@ -43,7 +45,8 @@ export const syncChangeSchema = z.object({
   operation: z.enum(["upsert", "delete"]),
   baseRevision: z.number().int().nonnegative(),
   payload: z.unknown().nullable(),
-  tombstone: z.boolean()
+  tombstone: z.boolean(),
+  revision: z.number().int().nonnegative()
 });
 
 export const pushRequestSchema = z.object({ datasetId: z.string().uuid(), changes: z.array(syncChangeSchema).max(100) });
@@ -67,4 +70,3 @@ export interface SyncClient {
   pull(request: PullRequest): Promise<PullResponse>;
   resolveConflict(request: ResolveConflictRequest): Promise<PushResponse>;
 }
-

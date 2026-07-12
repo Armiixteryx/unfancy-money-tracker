@@ -1,7 +1,6 @@
-import { v4 as uuid } from "uuid";
-
 import { seedDefaultCategories } from "../../domain/categories";
 import type { Dataset, UUID } from "../../domain/types";
+import { createUuid } from "../identifiers/createUuid";
 import { datasetEnvelopeSchema } from "./schema";
 import type { HydrationState, PersistenceAdapter, PersistenceRecoveryCode } from "./types";
 import { CURRENT_SCHEMA_VERSION } from "./version";
@@ -17,7 +16,7 @@ export class PersistenceWriteError extends Error {
 }
 
 export function createEmptyDataset(
-  idFactory: () => UUID = uuid,
+  idFactory: () => UUID = createUuid,
   now: string = new Date().toISOString()
 ): Dataset {
   return {
@@ -34,6 +33,7 @@ export function createEmptyDataset(
       inboxCursor: null,
       outbox: [],
       conflicts: [],
+      revisions: {},
       lastSyncedAt: null,
       reason: null
     }
@@ -80,6 +80,10 @@ export class DatasetPersistence {
 
   hydrate(): Promise<HydrationState> {
     return hydrateDataset(this.adapter);
+  }
+
+  async hasSnapshot(): Promise<boolean> {
+    return (await this.adapter.readSnapshot()) !== null;
   }
 
   save(dataset: Dataset): Promise<void> {

@@ -18,7 +18,7 @@ describe("privacy analytics", () => {
     await client.setConsent(true);
     await client.capture("dashboard_viewed", { surface: "dashboard", actionResult: "success", errorCode: "safe", syncStatus: "synced", appVersion: "override" });
     expect(requests).toHaveLength(1);
-    const body = JSON.parse(String(requests[0].body)) as { properties: Record<string, unknown> };
+    const body = JSON.parse(String(requests[0]!.body)) as { properties: Record<string, unknown> };
     expect(body.properties.surface).toBe("dashboard");
     expect(body.properties.platform).toBe("web");
     expect(body.properties.appVersion).toBe("override");

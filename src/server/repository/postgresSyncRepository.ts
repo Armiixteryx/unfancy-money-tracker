@@ -1,11 +1,11 @@
 import { Pool, type PoolClient } from "pg";
 
-import type { PullResponse, PushResponse, ResolveConflictRequest, SyncChange, SyncConflict } from "../../platform/sync/types";
+import type { AcknowledgedChange, PullResponse, PushResponse, ResolveConflictRequest, SyncChange, SyncConflict } from "../../platform/sync/types";
 import type { SyncRepository } from "./syncRepository";
 
 type RecordRow = { revision: string; payload: unknown | null; tombstone: boolean };
 type DatasetRow = { revision: string; owner_subject: string };
-type ChangeRow = { idempotency_key: string; record_type: SyncChange["recordType"]; record_id: string; operation: SyncChange["operation"]; base_revision: string; payload: unknown | null; tombstone: boolean; sequence: string };
+type ChangeRow = { idempotency_key: string; record_type: SyncChange["recordType"]; record_id: string; operation: SyncChange["operation"]; base_revision: string; revision: string; payload: unknown | null; tombstone: boolean; sequence: string };
 
 export class PostgresSyncRepository implements SyncRepository {
   private readonly pool: Pool;
@@ -20,15 +20,19 @@ export class PostgresSyncRepository implements SyncRepository {
       await client.query("BEGIN");
       await this.ensureDataset(client, ownerSubject, datasetId);
       const acknowledged: string[] = [];
+      const acknowledgedChanges: AcknowledgedChange[] = [];
       const conflicts: SyncConflict[] = [];
 
       for (const change of changes) {
-        const idempotency = await client.query<{ idempotency_key: string }>(
-          "SELECT idempotency_key FROM sync_idempotency WHERE dataset_id = $1 AND idempotency_key = $2",
+        const idempotency = await client.query<{ idempotency_key: string; response: unknown }>(
+          "SELECT idempotency_key, response FROM sync_idempotency WHERE dataset_id = $1 AND idempotency_key = $2",
           [datasetId, change.idempotencyKey]
         );
         if (idempotency.rowCount) {
           acknowledged.push(change.idempotencyKey);
+          const response = idempotency.rows[0]?.response;
+          const revision = typeof response === "object" && response !== null && "revision" in response && typeof response.revision === "number" ? response.revision : change.revision;
+          acknowledgedChanges.push({ idempotencyKey: change.idempotencyKey, recordType: change.recordType, recordId: change.recordId, revision });
           continue;
         }
 
@@ -68,11 +72,12 @@ export class PostgresSyncRepository implements SyncRepository {
           [datasetId, change.idempotencyKey, JSON.stringify({ revision })]
         );
         acknowledged.push(change.idempotencyKey);
+        acknowledgedChanges.push({ idempotencyKey: change.idempotencyKey, recordType: change.recordType, recordId: change.recordId, revision });
       }
 
       const cursor = await this.currentCursor(client, datasetId);
       await client.query("COMMIT");
-      return { acknowledged, conflicts, cursor };
+      return { acknowledged, acknowledgedChanges, conflicts, cursor };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -86,7 +91,7 @@ export class PostgresSyncRepository implements SyncRepository {
     try {
       await this.assertOwner(client, ownerSubject, datasetId);
       const rows = await client.query<ChangeRow>(
-        `SELECT idempotency_key, entity_type AS record_type, record_id, operation, base_revision, payload, tombstone, sequence
+        `SELECT idempotency_key, entity_type AS record_type, record_id, operation, base_revision, revision, payload, tombstone, sequence
          FROM sync_changes WHERE dataset_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT 500`,
         [datasetId, cursor]
       );
@@ -96,6 +101,7 @@ export class PostgresSyncRepository implements SyncRepository {
         recordId: row.record_id,
         operation: row.operation,
         baseRevision: Number.parseInt(row.base_revision, 10),
+        revision: Number.parseInt(row.revision, 10),
         payload: row.payload,
         tombstone: row.tombstone
       }));
@@ -115,7 +121,8 @@ export class PostgresSyncRepository implements SyncRepository {
       operation: payload === null ? "delete" : "upsert",
       baseRevision: request.conflict.cloudRevision,
       payload,
-      tombstone: payload === null
+      tombstone: payload === null,
+      revision: request.conflict.cloudRevision + 1
     }]);
   }
 

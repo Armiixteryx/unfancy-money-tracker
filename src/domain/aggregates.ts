@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import { type CurrencyCode } from "./currency";
 import { addMoney, convertMoney, createMoney, type Money } from "./money";
 import type { Budget, Category, Transaction } from "./types";
+import type { RateRecord } from "../platform/exchange-rates/types";
 
 type AggregateRateRecord = {
   base: CurrencyCode;

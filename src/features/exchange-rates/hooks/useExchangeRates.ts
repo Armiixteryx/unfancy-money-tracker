@@ -37,6 +37,10 @@ export function useExchangeRates(baseCurrency: CurrencyCode, requests: readonly 
     uniqueRequests.forEach((request, index) => {
       const query = queries[index];
       const key = `${request.currency}:${request.date ?? "latest"}`;
+      if (!query) {
+        result.set(key, { state: "unavailable" });
+        return;
+      }
       const state: RateQueryState = query.isPending
         ? "loading"
         : query.data?.status === "stale"

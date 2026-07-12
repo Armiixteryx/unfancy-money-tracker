@@ -1,10 +1,10 @@
 import Decimal from "decimal.js";
-import { v4 as uuid } from "uuid";
 
 import { addMoney, createMoney, normalizeMoneyAmount, subtractMoney, type Money } from "./money";
 import type { CurrencyCode } from "./currency";
 import { budgetInputSchema, type BudgetInput } from "./validation";
 import type { Budget, CalendarMonth, Category, Transaction, UUID } from "./types";
+import { createUuid } from "../platform/identifiers/createUuid";
 
 export type BudgetProgressStatus = "on_track" | "attention" | "over_budget";
 
@@ -29,7 +29,7 @@ export function createBudget(
 
   const now = dependencies.now?.() ?? new Date().toISOString();
   return {
-    id: dependencies.idFactory?.() ?? uuid(),
+    id: dependencies.idFactory?.() ?? createUuid(),
     categoryId: parsed.categoryId,
     month: parsed.month as CalendarMonth,
     amount: normalizeMoneyAmount(parsed.amount, parsed.currency, { allowNegative: false, allowZero: false }),

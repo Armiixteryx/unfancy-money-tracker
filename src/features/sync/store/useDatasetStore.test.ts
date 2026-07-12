@@ -43,6 +43,9 @@ describe("local dataset store", () => {
     expect(deleted.ok).toBe(true);
     expect(store.getState().dataset?.transactions).toHaveLength(0);
     expect(store.getState().dataset?.recordTombstones).toHaveLength(1);
+    expect(store.getState().dataset?.sync.outbox).toHaveLength(1);
+    expect(store.getState().dataset?.sync.outbox[0]?.operation).toBe("delete");
+    expect(store.getState().dataset?.sync.outbox[0]?.tombstone).toBe(true);
   });
 
   it("rejects a category from the wrong transaction kind at the domain boundary", async () => {

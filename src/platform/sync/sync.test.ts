@@ -11,10 +11,9 @@ describe("local sync adapter", () => {
     const sync = new LocalSyncClient();
     const pushed = await sync.push({
       datasetId,
-      changes: [{ idempotencyKey, recordType: "category", recordId, operation: "upsert", baseRevision: 0, payload: { name: "Synthetic" }, tombstone: false }]
+      changes: [{ idempotencyKey, recordType: "category", recordId, operation: "upsert", baseRevision: 0, payload: { name: "Synthetic" }, tombstone: false, revision: 1 }]
     });
     expect(pushed.acknowledged).toEqual([idempotencyKey]);
     expect((await sync.pull({ datasetId, cursor: "0" })).changes).toHaveLength(1);
   });
 });
-

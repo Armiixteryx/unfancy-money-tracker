@@ -56,9 +56,10 @@ describe("dataset persistence", () => {
     };
     const migrated = migrateSnapshot(legacy, () => "00000000-0000-4000-8000-000000000098");
 
-    expect(migrated.schemaVersion).toBe(1);
+    expect(migrated.schemaVersion).toBe(2);
     expect(migrated.datasetId).toBe(legacy.datasetId);
     expect(migrated.preferences.baseCurrency).toBe("USD");
     expect(migrated.sync.outbox).toEqual([]);
+    expect(migrated.sync.revisions).toEqual({});
   });
 });

@@ -1,7 +1,6 @@
-import { v4 as uuid } from "uuid";
-
 import { categoryInputSchema, type CategoryInput } from "./validation";
 import type { Category, CategoryKind, UUID } from "./types";
+import { createUuid } from "../platform/identifiers/createUuid";
 
 const DEFAULT_EXPENSE_NAMES = [
   "Food",
@@ -18,7 +17,7 @@ const DEFAULT_EXPENSE_NAMES = [
 type CategoryIdFactory = () => UUID;
 
 export function seedDefaultCategories(
-  idFactory: CategoryIdFactory = uuid,
+  idFactory: CategoryIdFactory = createUuid,
   now: string = new Date().toISOString()
 ): Category[] {
   const definitions: readonly { name: string; kind: CategoryKind; isSystem: boolean }[] = [
@@ -55,7 +54,7 @@ export function createCategory(
   const now = dependencies.now?.() ?? new Date().toISOString();
 
   return {
-    id: dependencies.idFactory?.() ?? uuid(),
+    id: dependencies.idFactory?.() ?? createUuid(),
     kind: parsed.kind,
     name: parsed.name,
     isSystem: false,

@@ -1,6 +1,6 @@
 import { MMKV } from "react-native-mmkv";
+import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
-import { v4 as uuid } from "uuid";
 
 import type { PersistenceAdapter } from "./types";
 
@@ -11,7 +11,7 @@ async function getOrCreateEncryptionKey(keyName: string): Promise<string> {
   const stored = await SecureStore.getItemAsync(keyName);
   if (stored) return stored;
 
-  const generated = uuid().replace(/-/g, "").slice(0, 16);
+  const generated = [...await Crypto.getRandomBytesAsync(16)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   await SecureStore.setItemAsync(keyName, generated, {
     keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY
   });

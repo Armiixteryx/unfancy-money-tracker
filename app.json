@@ -8,9 +8,11 @@
     "scheme": "unfancy-money-tracker",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.unfancy.moneytracker"
     },
     "android": {
+      "package": "com.unfancy.moneytracker",
       "adaptiveIcon": {
         "backgroundColor": "#F7F5F0"
       }
@@ -19,7 +21,8 @@
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
-

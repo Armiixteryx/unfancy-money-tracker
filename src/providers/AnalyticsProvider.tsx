@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, type PropsWithChildren }
 
 import { createPostHogAnalyticsClient } from "../platform/analytics";
 import type { AnalyticsClient } from "../platform/analytics";
+import { PostHogProviderWrapper } from "../platform/analytics/PostHogProviderWrapper";
 
 const noopAnalytics: AnalyticsClient = {
   initialize: async () => undefined,
@@ -17,7 +18,7 @@ export function AnalyticsProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     void client.initialize();
   }, [client]);
-  return <AnalyticsContext.Provider value={client}>{children}</AnalyticsContext.Provider>;
+  return <AnalyticsContext.Provider value={client}><PostHogProviderWrapper client={client.getProviderClient()}>{children}</PostHogProviderWrapper></AnalyticsContext.Provider>;
 }
 
 export function useAnalytics(): AnalyticsClient {

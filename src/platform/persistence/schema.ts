@@ -11,7 +11,7 @@ const canonicalAmount = z.string().superRefine((value, context) => {
   }
 });
 
-const transactionSchema = z
+export const transactionSchema = z
   .object({
     id: uuidSchema,
     amount: canonicalAmount,
@@ -38,7 +38,7 @@ const transactionSchema = z
     }
   });
 
-const categorySchema = z.object({
+export const categorySchema = z.object({
   id: uuidSchema,
   kind: z.enum(["income", "expense"]),
   name: z.string().min(1).max(80),
@@ -48,7 +48,7 @@ const categorySchema = z.object({
   updatedAt: z.string().datetime()
 });
 
-const budgetSchema = z
+export const budgetSchema = z
   .object({
     id: uuidSchema,
     categoryId: uuidSchema,
@@ -85,7 +85,9 @@ const syncChangeSchema = z.object({
   recordId: uuidSchema,
   operation: z.enum(["upsert", "delete"]),
   baseRevision: z.number().int().nonnegative(),
-  revision: z.number().int().nonnegative()
+  revision: z.number().int().nonnegative(),
+  payload: z.unknown().nullable(),
+  tombstone: z.boolean()
 });
 
 const syncConflictSchema = z.object({
@@ -93,6 +95,8 @@ const syncConflictSchema = z.object({
   recordId: uuidSchema,
   localRevision: z.number().int().nonnegative(),
   cloudRevision: z.number().int().nonnegative(),
+  localPayload: z.unknown().nullable(),
+  cloudPayload: z.unknown().nullable(),
   resolution: z.literal("pending")
 });
 
@@ -101,11 +105,12 @@ const syncSchema = z.object({
   inboxCursor: z.string().nullable(),
   outbox: z.array(syncChangeSchema),
   conflicts: z.array(syncConflictSchema),
+  revisions: z.record(z.string(), z.number().int().nonnegative()),
   lastSyncedAt: z.string().datetime().nullable(),
   reason: z.string().max(160).nullable()
 });
 
-const preferencesSchema = z.object({
+export const preferencesSchema = z.object({
   baseCurrency: currencyCodeSchema,
   theme: z.enum(["system", "light", "dark"]),
   analyticsConsent: z.boolean()

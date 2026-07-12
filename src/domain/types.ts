@@ -54,6 +54,7 @@ export type SyncMetadata = {
   inboxCursor: string | null;
   outbox: readonly SyncChange[];
   conflicts: readonly SyncConflict[];
+  revisions: Readonly<Record<string, number>>;
   lastSyncedAt: string | null;
   reason: string | null;
 };
@@ -65,6 +66,8 @@ export type SyncChange = {
   operation: "upsert" | "delete";
   baseRevision: number;
   revision: number;
+  payload: unknown | null;
+  tombstone: boolean;
 };
 
 export type SyncConflict = {
@@ -72,6 +75,8 @@ export type SyncConflict = {
   recordId: UUID;
   localRevision: number;
   cloudRevision: number;
+  localPayload: unknown | null;
+  cloudPayload: unknown | null;
   resolution: "pending";
 };
 

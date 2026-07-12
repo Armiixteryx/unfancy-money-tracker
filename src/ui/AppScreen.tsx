@@ -16,6 +16,8 @@ export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
 
   return (
     <ScrollView
+      className="ph-no-capture"
+      {...{"ph-no-capture": true}}
       contentContainerStyle={[
         styles.content,
         {

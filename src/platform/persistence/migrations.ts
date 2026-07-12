@@ -1,6 +1,5 @@
-import { v4 as uuid } from "uuid";
-
 import type { Dataset } from "../../domain/types";
+import { createUuid } from "../identifiers/createUuid";
 import { datasetEnvelopeSchema } from "./schema";
 import { CURRENT_SCHEMA_VERSION } from "./version";
 
@@ -44,6 +43,7 @@ function migrateV0ToV1(input: UnknownRecord, idFactory: IdFactory): UnknownRecor
         inboxCursor: migrated.sync.inboxCursor ?? null,
         outbox: Array.isArray(migrated.sync.outbox) ? migrated.sync.outbox : [],
         conflicts: Array.isArray(migrated.sync.conflicts) ? migrated.sync.conflicts : [],
+        revisions: isRecord(migrated.sync.revisions) ? migrated.sync.revisions : {},
         lastSyncedAt: migrated.sync.lastSyncedAt ?? null,
         reason: migrated.sync.reason ?? null
       }
@@ -52,13 +52,34 @@ function migrateV0ToV1(input: UnknownRecord, idFactory: IdFactory): UnknownRecor
         inboxCursor: null,
         outbox: [],
         conflicts: [],
+        revisions: {},
         lastSyncedAt: null,
         reason: null
       };
   return migrated;
 }
 
-export function migrateSnapshot(raw: unknown, idFactory: IdFactory = uuid): Dataset {
+function migrateV1ToV2(input: UnknownRecord): UnknownRecord {
+  const migrated = cloneRecord(input);
+  migrated.schemaVersion = 2;
+  if (!isRecord(migrated.sync)) return migrated;
+  const sync = migrated.sync;
+  sync.revisions = isRecord(sync.revisions) ? sync.revisions : {};
+  sync.outbox = Array.isArray(sync.outbox)
+    ? sync.outbox.map((change) => isRecord(change) ? {
+        ...change,
+        revision: typeof change.revision === "number" ? change.revision : (typeof change.baseRevision === "number" ? change.baseRevision + 1 : 1),
+        payload: change.payload ?? null,
+        tombstone: typeof change.tombstone === "boolean" ? change.tombstone : change.operation === "delete"
+      } : change)
+    : [];
+  sync.conflicts = Array.isArray(sync.conflicts)
+    ? sync.conflicts.map((conflict) => isRecord(conflict) ? { ...conflict, localPayload: conflict.localPayload ?? null, cloudPayload: conflict.cloudPayload ?? null } : conflict)
+    : [];
+  return migrated;
+}
+
+export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid): Dataset {
   if (!isRecord(raw)) {
     throw new Error("Snapshot is not an object");
   }
@@ -73,6 +94,9 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = uuid): Data
   let migrated = cloneRecord(raw);
   if (version === 0) {
     migrated = migrateV0ToV1(migrated, idFactory);
+  }
+  if (version <= 1) {
+    migrated = migrateV1ToV2(migrated);
   }
 
   return datasetEnvelopeSchema.parse(migrated) as Dataset;

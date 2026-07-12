@@ -1,14 +1,15 @@
 import { create } from "zustand";
 import { ZodError } from "zod";
-import { v4 as uuid } from "uuid";
 
 import { archiveCategory, createCategory, findUncategorizedCategory, renameCategory } from "../../../domain/categories";
 import { budgetKey, createBudget, updateBudget } from "../../../domain/budgets";
 import { createTransaction, filterTransactions, updateTransaction, type TransactionFilters } from "../../../domain/transactions";
-import type { Budget, Category, Dataset, Preferences, SyncMetadata, Transaction } from "../../../domain/types";
+import type { Budget, Category, Dataset, Preferences, SyncChange, SyncMetadata, Transaction } from "../../../domain/types";
 import type { BudgetInput, CategoryInput, TransactionInput } from "../../../domain/validation";
 import { createPersistenceAdapter, DatasetPersistence } from "../../../platform/persistence";
 import type { HydrationState } from "../../../platform/persistence";
+import { createUuid } from "../../../platform/identifiers/createUuid";
+import { mergeAccountDatasets } from "../services";
 
 type SaveStatus = "idle" | "saving" | "error";
 
@@ -29,6 +30,9 @@ export type DatasetStoreState = {
   deleteBudget: (id: string) => Promise<MutationResult<null>>;
   setPreferences: (preferences: Partial<Preferences>) => Promise<MutationResult<Preferences>>;
   setSyncMetadata: (sync: Partial<SyncMetadata>) => Promise<MutationResult<SyncMetadata>>;
+  applyRemoteMerge: (dataset: Dataset) => Promise<MutationResult<Dataset>>;
+  switchToAccountNamespace: (accountId: string) => Promise<MutationResult<Dataset>>;
+  switchToAnonymousNamespace: (clearAccountCache: boolean) => Promise<MutationResult<Dataset>>;
   addCategory: (input: CategoryInput) => Promise<MutationResult<Category>>;
   renameCategory: (id: string, name: string) => Promise<MutationResult<Category>>;
   archiveCategory: (id: string) => Promise<MutationResult<Category>>;
@@ -56,14 +60,48 @@ function hasDuplicateCategoryName(categories: readonly Category[], category: Cat
   );
 }
 
+type SyncChangeInput = Pick<SyncChange, "recordType" | "recordId" | "operation" | "payload" | "tombstone">;
+
+function syncKey(recordType: SyncChange["recordType"], recordId: string): string {
+  return `${recordType}:${recordId}`;
+}
+
+function enqueueSyncChanges(dataset: Dataset, inputs: readonly SyncChangeInput[]): Dataset {
+  let outbox = [...dataset.sync.outbox];
+  const revisions = { ...dataset.sync.revisions };
+  for (const input of inputs) {
+    const key = syncKey(input.recordType, input.recordId);
+    const previous = outbox.find((change) => syncKey(change.recordType, change.recordId) === key);
+    const baseRevision = previous?.baseRevision ?? revisions[key] ?? 0;
+    outbox = outbox.filter((change) => syncKey(change.recordType, change.recordId) !== key);
+    outbox.push({
+      ...input,
+      idempotencyKey: createUuid(),
+      baseRevision,
+      revision: baseRevision + 1
+    });
+  }
+  return {
+    ...dataset,
+    sync: {
+      ...dataset.sync,
+      outbox,
+      status: "stale",
+      reason: "Local changes are waiting for optional cloud sync."
+    }
+  };
+}
+
 export function createDatasetStore(persistence: DatasetPersistence) {
   return create<DatasetStoreState>((set, get) => {
     let initialization: Promise<void> | null = null;
+    let activePersistence = persistence;
+    let activeNamespace = "anonymous";
 
     const commit = async (dataset: Dataset): Promise<boolean> => {
       set({ dataset, saveStatus: "saving", saveError: null });
       try {
-        await persistence.save(dataset);
+        await activePersistence.save(dataset);
         set({ saveStatus: "idle" });
         return true;
       } catch {
@@ -82,11 +120,11 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         if (initialization) return initialization;
         initialization = (async () => {
           set({ hydration: { status: "loading" } });
-          const result = await persistence.hydrate();
+          const result = await activePersistence.hydrate();
           if (result.status === "ready") {
             set({ hydration: result, dataset: result.dataset });
             try {
-              await persistence.save(result.dataset);
+              await activePersistence.save(result.dataset);
             } catch {
               set({ saveStatus: "error", saveError: "Local data could not be saved. Retry from Settings." });
             }
@@ -102,7 +140,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         await get().initialize();
       },
       resetLocalData: async () => {
-        await persistence.reset();
+        await activePersistence.reset();
         set({ hydration: { status: "loading" }, dataset: null, saveStatus: "idle", saveError: null });
         await get().initialize();
       },
@@ -111,7 +149,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         try {
           const transaction = createTransaction(input, { categories: dataset.categories, now });
-          const next = { ...dataset, transactions: [...dataset.transactions, transaction] };
+          const next = enqueueSyncChanges({ ...dataset, transactions: [...dataset.transactions, transaction] }, [{ recordType: "transaction", recordId: transaction.id, operation: "upsert", payload: transaction, tombstone: false }]);
           await commit(next);
           return { ok: true, value: transaction };
         } catch (error) {
@@ -125,10 +163,10 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         if (!existing) return { ok: false, message: "This transaction is no longer available." };
         try {
           const transaction = updateTransaction(existing, input, { categories: dataset.categories, now });
-          const next = {
+          const next = enqueueSyncChanges({
             ...dataset,
             transactions: dataset.transactions.map((candidate) => (candidate.id === id ? transaction : candidate))
-          };
+          }, [{ recordType: "transaction", recordId: transaction.id, operation: "upsert", payload: transaction, tombstone: false }]);
           await commit(next);
           return { ok: true, value: transaction };
         } catch (error) {
@@ -141,14 +179,14 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         if (!dataset.transactions.some((transaction) => transaction.id === id)) {
           return { ok: false, message: "This transaction is no longer available." };
         }
-        const next: Dataset = {
+        const next: Dataset = enqueueSyncChanges({
           ...dataset,
           transactions: dataset.transactions.filter((transaction) => transaction.id !== id),
           recordTombstones: [
             ...dataset.recordTombstones,
             { recordType: "transaction", recordId: id, deletedAt: now() }
           ]
-        };
+        }, [{ recordType: "transaction", recordId: id, operation: "delete", payload: null, tombstone: true }]);
         await commit(next);
         return { ok: true, value: null };
       },
@@ -156,11 +194,11 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         try {
-          const budget = createBudget(input, { categories: dataset.categories, idFactory: uuid, now });
+          const budget = createBudget(input, { categories: dataset.categories, idFactory: createUuid, now });
           if (dataset.budgets.some((candidate) => budgetKey(candidate) === budgetKey(budget))) {
             return { ok: false, message: "A budget already exists for this category and month." };
           }
-          await commit({ ...dataset, budgets: [...dataset.budgets, budget] });
+          await commit(enqueueSyncChanges({ ...dataset, budgets: [...dataset.budgets, budget] }, [{ recordType: "budget", recordId: budget.id, operation: "upsert", payload: budget, tombstone: false }]));
           return { ok: true, value: budget };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -176,7 +214,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
           if (dataset.budgets.some((candidate) => candidate.id !== id && budgetKey(candidate) === budgetKey(budget))) {
             return { ok: false, message: "A budget already exists for this category and month." };
           }
-          const next = { ...dataset, budgets: dataset.budgets.map((candidate) => (candidate.id === id ? budget : candidate)) };
+          const next = enqueueSyncChanges({ ...dataset, budgets: dataset.budgets.map((candidate) => (candidate.id === id ? budget : candidate)) }, [{ recordType: "budget", recordId: budget.id, operation: "upsert", payload: budget, tombstone: false }]);
           await commit(next);
           return { ok: true, value: budget };
         } catch (error) {
@@ -188,11 +226,11 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         if (!dataset.budgets.some((budget) => budget.id === id)) return { ok: false, message: "This budget is no longer available." };
         const deletedAt = now();
-        const next: Dataset = {
+        const next: Dataset = enqueueSyncChanges({
           ...dataset,
           budgets: dataset.budgets.filter((budget) => budget.id !== id),
           recordTombstones: [...dataset.recordTombstones, { recordType: "budget", recordId: id, deletedAt }]
-        };
+        }, [{ recordType: "budget", recordId: id, operation: "delete", payload: null, tombstone: true }]);
         await commit(next);
         return { ok: true, value: null };
       },
@@ -200,7 +238,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         const nextPreferences = { ...dataset.preferences, ...preferences };
-        await commit({ ...dataset, preferences: nextPreferences });
+        await commit(enqueueSyncChanges({ ...dataset, preferences: nextPreferences }, [{ recordType: "preference", recordId: dataset.datasetId, operation: "upsert", payload: nextPreferences, tombstone: false }]));
         return { ok: true, value: nextPreferences };
       },
       setSyncMetadata: async (sync) => {
@@ -210,13 +248,48 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         await commit({ ...dataset, sync: nextSync });
         return { ok: true, value: nextSync };
       },
+      applyRemoteMerge: async (dataset) => {
+        await commit(dataset);
+        return { ok: true, value: dataset };
+      },
+      switchToAccountNamespace: async (accountId) => {
+        const current = get().dataset;
+        if (!current) return { ok: false, message: "Local data is still loading." };
+        const nextPersistence = new DatasetPersistence(createPersistenceAdapter(`account:${accountId}`));
+        const result = await nextPersistence.hydrate();
+        if (result.status !== "ready") return { ok: false, message: "The account cache needs recovery before it can be opened." };
+        const hasSnapshot = await nextPersistence.hasSnapshot();
+        const merged = hasSnapshot ? mergeAccountDatasets(current, result.dataset) : current;
+        activePersistence = nextPersistence;
+        activeNamespace = `account:${accountId}`;
+        set({ hydration: { status: "ready", dataset: merged }, dataset: merged, saveStatus: "saving", saveError: null });
+        try {
+          await activePersistence.save(merged);
+          set({ saveStatus: "idle" });
+          return { ok: true, value: merged };
+        } catch {
+          set({ saveStatus: "error", saveError: "The account cache could not be saved." });
+          return { ok: false, message: "The account cache could not be saved." };
+        }
+      },
+      switchToAnonymousNamespace: async (clearAccountCache) => {
+        if (clearAccountCache && activeNamespace !== "anonymous") await activePersistence.reset();
+        const nextPersistence = new DatasetPersistence(createPersistenceAdapter("anonymous"));
+        const result = await nextPersistence.hydrate();
+        if (result.status !== "ready") return { ok: false, message: "The anonymous local cache needs recovery before it can be opened." };
+        activePersistence = nextPersistence;
+        activeNamespace = "anonymous";
+        const nextDataset = result.dataset;
+        set({ hydration: { status: "ready", dataset: nextDataset }, dataset: nextDataset, saveStatus: "idle", saveError: null });
+        return { ok: true, value: nextDataset };
+      },
       addCategory: async (input) => {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         try {
-          const category = createCategory(input, { idFactory: uuid, now });
+          const category = createCategory(input, { idFactory: createUuid, now });
           if (hasDuplicateCategoryName(dataset.categories, category)) return { ok: false, message: "A category with this name already exists." };
-          await commit({ ...dataset, categories: [...dataset.categories, category] });
+          await commit(enqueueSyncChanges({ ...dataset, categories: [...dataset.categories, category] }, [{ recordType: "category", recordId: category.id, operation: "upsert", payload: category, tombstone: false }]));
           return { ok: true, value: category };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -230,7 +303,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         try {
           const category = renameCategory(existing, name, now());
           if (hasDuplicateCategoryName(dataset.categories, category)) return { ok: false, message: "A category with this name already exists." };
-          await commit({ ...dataset, categories: dataset.categories.map((candidate) => (candidate.id === id ? category : candidate)) });
+          await commit(enqueueSyncChanges({ ...dataset, categories: dataset.categories.map((candidate) => (candidate.id === id ? category : candidate)) }, [{ recordType: "category", recordId: category.id, operation: "upsert", payload: category, tombstone: false }]));
           return { ok: true, value: category };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -243,7 +316,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         if (!existing) return { ok: false, message: "This category is no longer available." };
         try {
           const category = archiveCategory(existing, now());
-          await commit({ ...dataset, categories: dataset.categories.map((candidate) => (candidate.id === id ? category : candidate)) });
+          await commit(enqueueSyncChanges({ ...dataset, categories: dataset.categories.map((candidate) => (candidate.id === id ? category : candidate)) }, [{ recordType: "category", recordId: category.id, operation: "upsert", payload: category, tombstone: false }]));
           return { ok: true, value: category };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -258,14 +331,20 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         try {
           const fallback = findUncategorizedCategory(dataset.categories, existing.kind);
           const deletedAt = now();
-          const next: Dataset = {
+          const updatedTransactions = dataset.transactions.map((transaction) => transaction.categoryId === id ? { ...transaction, categoryId: fallback.id, updatedAt: deletedAt } : transaction);
+          const updatedBudgets = dataset.budgets.map((budget) => budget.categoryId === id ? { ...budget, categoryId: fallback.id, updatedAt: deletedAt } : budget);
+          const next: Dataset = enqueueSyncChanges({
             ...dataset,
             categories: dataset.categories.filter((category) => category.id !== id),
-            transactions: dataset.transactions.map((transaction) => transaction.categoryId === id ? { ...transaction, categoryId: fallback.id, updatedAt: deletedAt } : transaction),
-            budgets: dataset.budgets.map((budget) => budget.categoryId === id ? { ...budget, categoryId: fallback.id, updatedAt: deletedAt } : budget),
+            transactions: updatedTransactions,
+            budgets: updatedBudgets,
             categoryDeletionTombstones: [...dataset.categoryDeletionTombstones, { recordType: "category", recordId: id, deletedAt }],
             recordTombstones: [...dataset.recordTombstones, { recordType: "category", recordId: id, deletedAt }]
-          };
+          }, [
+            { recordType: "category", recordId: id, operation: "delete", payload: null, tombstone: true },
+            ...updatedTransactions.filter((transaction, index) => transaction !== dataset.transactions[index]).map((transaction) => ({ recordType: "transaction" as const, recordId: transaction.id, operation: "upsert" as const, payload: transaction, tombstone: false })),
+            ...updatedBudgets.filter((budget, index) => budget !== dataset.budgets[index]).map((budget) => ({ recordType: "budget" as const, recordId: budget.id, operation: "upsert" as const, payload: budget, tombstone: false }))
+          ]);
           await commit(next);
           return { ok: true, value: fallback };
         } catch (error) {
@@ -275,7 +354,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
       setTransactionFilters: (filters) =>
         set((state) => {
           const next = { ...state.transactionFilters, ...filters };
-          for (const key of Object.keys(next) as Array<keyof TransactionFilters>) {
+          for (const key of Object.keys(next) as (keyof TransactionFilters)[]) {
             const value = next[key];
             if (value === undefined || value === "" || value === "all") delete next[key];
           }

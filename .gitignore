@@ -1,6 +1,8 @@
 node_modules/
 .expo/
 .expo-shared/
+ios/
+android/
 dist/
 web-build/
 coverage/
@@ -10,4 +12,3 @@ coverage/
 .env.*.local
 *.log
 .DS_Store
-

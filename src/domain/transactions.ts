@@ -1,8 +1,7 @@
-import { v4 as uuid } from "uuid";
-
 import { normalizeMoneyAmount } from "./money";
 import { assertCategoryMatchesTransaction, transactionInputSchema, type TransactionInput } from "./validation";
 import type { Category, Transaction, TransactionType, UUID } from "./types";
+import { createUuid } from "../platform/identifiers/createUuid";
 
 export function createTransaction(
   input: TransactionInput,
@@ -20,7 +19,7 @@ export function createTransaction(
 
   const now = dependencies.now?.() ?? new Date().toISOString();
   return {
-    id: dependencies.idFactory?.() ?? uuid(),
+    id: dependencies.idFactory?.() ?? createUuid(),
     amount: normalizeMoneyAmount(parsed.amount, parsed.currency, { allowNegative: false, allowZero: false }),
     currency: parsed.currency,
     type: parsed.type,

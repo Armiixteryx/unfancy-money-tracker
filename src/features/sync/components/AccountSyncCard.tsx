@@ -3,9 +3,11 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { AuthActionResult, AuthState } from "../../../platform/auth/types";
 import { AuthClientError } from "../../../platform/auth/types";
+import type { SyncStatus } from "../../../domain/types";
 import type { SyncConflict } from "../../../platform/sync/types";
+import { SyncClientError } from "../../../platform/sync/types";
 import { createRuntimeAuthClient, createRuntimeSyncClient, runtimeCloudMode } from "../../../platform/runtime";
-import { syncLocalDataset } from "../services";
+import { mergeSyncChanges, syncLocalDataset } from "../services";
 import { useDatasetStore } from "../store/useDatasetStore";
 import { colors } from "../../../ui/theme";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
@@ -15,6 +17,9 @@ type AuthMode = "sign_in" | "sign_up" | "confirm_sign_up" | "request_reset" | "c
 export function AccountSyncCard() {
   const dataset = useDatasetStore((state) => state.dataset);
   const setSyncMetadata = useDatasetStore((state) => state.setSyncMetadata);
+  const applyRemoteMerge = useDatasetStore((state) => state.applyRemoteMerge);
+  const switchToAccountNamespace = useDatasetStore((state) => state.switchToAccountNamespace);
+  const switchToAnonymousNamespace = useDatasetStore((state) => state.switchToAnonymousNamespace);
   const analytics = useAnalytics();
   const authClient = useMemo(() => createRuntimeAuthClient(), []);
   const syncClient = useMemo(() => createRuntimeSyncClient(async () => (await authClient.getSession()).session?.accessToken ?? null), [authClient]);
@@ -28,10 +33,15 @@ export function AccountSyncCard() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<readonly SyncConflict[]>([]);
+  const [showOfflineSignOutWarning, setShowOfflineSignOutWarning] = useState(false);
 
   useEffect(() => {
     void authClient.getSession().then((session) => setAuthState(session.state));
   }, [authClient]);
+
+  useEffect(() => {
+    setConflicts(dataset?.sync.conflicts ?? []);
+  }, [dataset?.datasetId, dataset?.sync.conflicts]);
 
   if (!dataset) return null;
 
@@ -50,8 +60,11 @@ export function AccountSyncCard() {
         setMessage("If the account is eligible, a password reset code was sent.");
       } else if (result.status === "signed_in") {
         setAuthState("signed_in");
+        await analytics.identifyAccount(result.session.accountId);
         setMessage("Signed in. Your local dataset remains the source of truth while backup runs.");
-        await startSync();
+        const switched = await switchToAccountNamespace(result.session.accountId);
+        if (!switched.ok) setError(switched.message);
+        else await startSync();
       } else {
         setMode("sign_in");
         setMessage("That step is complete. You can continue from the sign-in form.");
@@ -66,20 +79,25 @@ export function AccountSyncCard() {
   };
 
   const startSync = async () => {
+    const currentDataset = useDatasetStore.getState().dataset;
+    if (!currentDataset) return;
     setError(null);
+    setShowOfflineSignOutWarning(false);
     await setSyncMetadata({ status: "syncing", reason: null });
     try {
-      const result = await syncLocalDataset(dataset, syncClient);
-      setConflicts(result.push.conflicts);
-      const hasRemoteChanges = result.pulledChangeCount > result.push.acknowledged.length;
-      const status = result.push.conflicts.length > 0 || hasRemoteChanges ? "conflicted" : "synced";
-      await setSyncMetadata({ status, inboxCursor: result.cursor, lastSyncedAt: new Date().toISOString(), reason: status === "conflicted" ? "Cloud changes need review before they can be applied." : null });
+      const result = await syncLocalDataset(currentDataset, syncClient);
+      const merge = mergeSyncChanges(currentDataset, result.pulledChanges, new Set(result.push.acknowledged), result.push.conflicts, result.push.acknowledgedChanges);
+      const status: SyncStatus = merge.conflicts.length > 0 ? "conflicted" : merge.dataset.sync.outbox.length > 0 ? "stale" : "synced";
+      const mergedDataset = { ...merge.dataset, sync: { ...merge.dataset.sync, status, inboxCursor: result.cursor, lastSyncedAt: new Date().toISOString(), reason: merge.invalidChangeCount > 0 ? "Some cloud changes could not be validated." : status === "conflicted" ? "Cloud changes need review before they can be applied." : null } };
+      await applyRemoteMerge(mergedDataset);
+      setConflicts(merge.conflicts);
       setMessage(status === "synced" ? "Local dataset backed up successfully." : "Backup found changes that need review; local records were kept unchanged.");
       if (status === "synced") void analytics.capture("sync_account_completed", { surface: "sync", actionResult: "success", syncStatus: status });
     } catch (caught) {
-      const syncError = caught instanceof Error ? caught : new Error("Sync is temporarily unavailable.");
-      await setSyncMetadata({ status: "error", reason: syncError.message });
-      setError(syncError.message);
+      const isOffline = caught instanceof SyncClientError && caught.code === "offline";
+      const message = isOffline ? "Sync is unavailable while offline." : caught instanceof SyncClientError ? caught.message : "Sync is temporarily unavailable.";
+      await setSyncMetadata({ status: isOffline ? "offline" : "error", reason: message });
+      setError(message);
     }
   };
 
@@ -87,9 +105,17 @@ export function AccountSyncCard() {
     setBusy(true);
     setError(null);
     try {
-      const response = await syncClient.resolveConflict({ datasetId: dataset.datasetId, conflict, choice });
-      setConflicts((current) => current.filter((candidate) => candidate !== conflict));
-      await setSyncMetadata({ status: response.conflicts.length > 0 ? "conflicted" : "synced", reason: response.conflicts.length > 0 ? "More cloud changes need review." : null, lastSyncedAt: new Date().toISOString() });
+      const currentDataset = useDatasetStore.getState().dataset;
+      if (!currentDataset) return;
+      const response = await syncClient.resolveConflict({ datasetId: currentDataset.datasetId, conflict, choice });
+      const pendingKey = `${conflict.recordType}:${conflict.recordId}`;
+      const baseDataset = { ...currentDataset, sync: { ...currentDataset.sync, outbox: currentDataset.sync.outbox.filter((change) => `${change.recordType}:${change.recordId}` !== pendingKey), conflicts: currentDataset.sync.conflicts.filter((candidate) => `${candidate.recordType}:${candidate.recordId}` !== pendingKey) } };
+      const selectedPayload = choice === "keep_local" ? conflict.localPayload : conflict.cloudPayload;
+      const acknowledged = response.acknowledgedChanges[0];
+      const merged = mergeSyncChanges(baseDataset, [{ idempotencyKey: acknowledged?.idempotencyKey ?? "00000000-0000-4000-8000-000000000000", recordType: conflict.recordType, recordId: conflict.recordId, operation: selectedPayload === null ? "delete" : "upsert", baseRevision: conflict.cloudRevision, revision: acknowledged?.revision ?? conflict.cloudRevision + 1, payload: selectedPayload, tombstone: selectedPayload === null }], new Set(), response.conflicts);
+      const status = merged.conflicts.length > 0 ? "conflicted" : "synced";
+      await applyRemoteMerge({ ...merged.dataset, sync: { ...merged.dataset.sync, status, lastSyncedAt: new Date().toISOString(), reason: status === "conflicted" ? "More cloud changes need review." : null } });
+      setConflicts(merged.conflicts);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The conflict could not be resolved.");
     } finally {
@@ -97,13 +123,21 @@ export function AccountSyncCard() {
     }
   };
 
-  const signOut = async () => {
+  const shouldWarnBeforeSignOut = (authState === "offline_session" || dataset.sync.status === "offline") && dataset.sync.outbox.length > 0;
+
+  const performSignOut = async () => {
     setBusy(true);
     setError(null);
     try {
       await authClient.signOut();
+      const switched = await switchToAnonymousNamespace(true);
+      if (!switched.ok) {
+        setError(switched.message);
+        return;
+      }
       setAuthState("signed_out");
       setConflicts([]);
+      setShowOfflineSignOutWarning(false);
       setMessage("Signed out. Your local anonymous dataset is still available on this device.");
       await setSyncMetadata({ status: "idle", reason: null });
     } catch (caught) {
@@ -113,6 +147,14 @@ export function AccountSyncCard() {
     }
   };
 
+  const signOut = () => {
+    if (shouldWarnBeforeSignOut) {
+      setShowOfflineSignOutWarning(true);
+      return;
+    }
+    void performSignOut();
+  };
+
   return <View style={styles.card}>
     <View style={styles.header}><View><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional and begins only after email confirmation.</Text></View><Text style={styles.mode}>{runtimeCloudMode() === "configured" ? "CLOUD CONFIGURED" : "LOCAL PREVIEW"}</Text></View>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
@@ -120,6 +162,7 @@ export function AccountSyncCard() {
     {authState === "signed_in" || authState === "offline_session" ? <>
       <View style={styles.session}><View style={[styles.dot, dataset.sync.status === "error" ? styles.dotBad : styles.dotGood]} /><View style={styles.sessionCopy}><Text style={styles.sessionTitle}>{authState === "offline_session" ? "Offline session" : "Account connected"}</Text><Text style={styles.helper}>{dataset.sync.status === "synced" ? "The latest local snapshot is backed up." : dataset.sync.status === "syncing" ? "Backing up the local snapshot…" : dataset.sync.status === "conflicted" ? "Review is required before cloud changes can be applied." : "Your local records remain available offline."}</Text></View></View>
       <View style={styles.actions}><Pressable accessibilityRole="button" disabled={busy} onPress={() => void startSync()} style={styles.primary}><Text style={styles.primaryText}>{busy ? "Working…" : "Sync now"}</Text></Pressable><Pressable accessibilityRole="button" disabled={busy} onPress={() => void signOut()} style={styles.secondary}><Text style={styles.secondaryText}>Sign out</Text></Pressable></View>
+      {showOfflineSignOutWarning ? <View style={styles.warningBox}><Text style={styles.warningTitle}>Unsynced changes will stay on this account</Text><Text style={styles.helper}>You are offline and {dataset.sync.outbox.length} local change{dataset.sync.outbox.length === 1 ? " is" : "s are"} waiting to sync. Signing out now clears this account’s device cache. Continue only if you accept losing those unsynced changes.</Text><View style={styles.actions}><Pressable accessibilityRole="button" disabled={busy} onPress={() => setShowOfflineSignOutWarning(false)} style={styles.secondary}><Text style={styles.secondaryText}>Keep working</Text></Pressable><Pressable accessibilityRole="button" disabled={busy} onPress={() => void performSignOut()} style={styles.danger}><Text style={styles.dangerText}>Discard and sign out</Text></Pressable></View></View> : null}
       {conflicts.length > 0 ? <View style={styles.conflictBox}><Text style={styles.conflictTitle}>{conflicts.length} cloud change{conflicts.length === 1 ? "" : "s"} need a choice</Text>{conflicts.map((conflict) => <View key={`${conflict.recordType}:${conflict.recordId}`} style={styles.conflictRow}><Text style={styles.helper}>A {conflict.recordType} changed in two places. Choose which version to keep.</Text><View style={styles.actions}><Pressable accessibilityRole="button" disabled={busy} onPress={() => void resolve(conflict, "keep_local")} style={styles.secondary}><Text style={styles.secondaryText}>Keep local</Text></Pressable><Pressable accessibilityRole="button" disabled={busy} onPress={() => void resolve(conflict, "keep_cloud")} style={styles.secondary}><Text style={styles.secondaryText}>Keep cloud</Text></Pressable></View></View>)}</View> : null}
     </> : <>
       {mode === "confirm_sign_up" ? <AuthField label="Confirmation code" value={code} onChangeText={setCode} placeholder="Enter the email code" /> : mode === "confirm_reset" ? <><AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" /><AuthField label="Reset code" value={code} onChangeText={setCode} placeholder="Enter the email code" /><AuthField label="New password" value={newPassword} onChangeText={setNewPassword} placeholder="Use a strong password" secureTextEntry /></> : <><AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" /><AuthField label="Password" value={password} onChangeText={setPassword} placeholder="Use a strong password" secureTextEntry />{mode === "sign_in" || mode === "sign_up" ? null : null}</>}
@@ -160,5 +203,9 @@ const styles = StyleSheet.create({
   dotBad: { backgroundColor: colors.coral },
   conflictBox: { backgroundColor: "#FFF9F8", borderColor: "#F4C7C7", borderRadius: 12, borderWidth: 1, gap: 12, padding: 14 },
   conflictTitle: { color: colors.navy, fontSize: 14, fontWeight: "800" },
-  conflictRow: { borderTopColor: "#F4C7C7", borderTopWidth: 1, gap: 9, paddingTop: 12 }
+  conflictRow: { borderTopColor: "#F4C7C7", borderTopWidth: 1, gap: 9, paddingTop: 12 },
+  warningBox: { backgroundColor: "#FFF8E7", borderColor: "#EBCB7A", borderRadius: 12, borderWidth: 1, gap: 9, padding: 14 },
+  warningTitle: { color: colors.navy, fontSize: 14, fontWeight: "800" },
+  danger: { alignItems: "center", backgroundColor: colors.coral, borderRadius: 11, justifyContent: "center", minHeight: 44, paddingHorizontal: 15 },
+  dangerText: { color: colors.surface, fontSize: 13, fontWeight: "800" }
 });

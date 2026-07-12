@@ -10,10 +10,10 @@ const records: Transaction[] = [
 
 describe("filterTransactions", () => {
   it("filters by category, currency, and inclusive date bounds", () => {
-    expect(filterTransactions(records, { categoryId: records[0].categoryId, currency: "USD", fromDate: "2026-07-03", toDate: "2026-07-03" })).toEqual([records[0]]);
+    expect(filterTransactions(records, { categoryId: records[0]!.categoryId, currency: "USD", fromDate: "2026-07-03", toDate: "2026-07-03" })).toEqual([records[0]!]);
   });
 
   it("matches descriptions case-insensitively and sorts newest first", () => {
-    expect(filterTransactions(records, { query: "CONTRACT" }).map((transaction) => transaction.id)).toEqual([records[1].id]);
+    expect(filterTransactions(records, { query: "CONTRACT" }).map((transaction) => transaction.id)).toEqual([records[1]!.id]);
   });
 });
