@@ -265,7 +265,14 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         }
       },
       setTransactionFilters: (filters) =>
-        set((state) => ({ transactionFilters: { ...state.transactionFilters, ...filters } })),
+        set((state) => {
+          const next = { ...state.transactionFilters, ...filters };
+          for (const key of Object.keys(next) as Array<keyof TransactionFilters>) {
+            const value = next[key];
+            if (value === undefined || value === "" || value === "all") delete next[key];
+          }
+          return { transactionFilters: next };
+        }),
       clearTransactionFilters: () => set({ transactionFilters: {} })
     };
   });

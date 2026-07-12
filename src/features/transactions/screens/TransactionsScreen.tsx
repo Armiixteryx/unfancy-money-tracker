@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -31,8 +32,11 @@ export function TransactionsScreen() {
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const isBrowserWorkspace = width >= 900;
   const transactions = useMemo(() => dataset?.transactions ?? [], [dataset]);
+  const categories = useMemo(() => dataset?.categories.slice().sort((left, right) => left.name.localeCompare(right.name)) ?? [], [dataset?.categories]);
+  const currencies = useMemo(() => [...new Set(transactions.map((transaction) => transaction.currency))].sort(), [transactions]);
   const filteredTransactions = useMemo(
     () => filterTransactions(transactions, transactionFilters),
     [transactions, transactionFilters]
@@ -67,6 +71,8 @@ export function TransactionsScreen() {
 
   if (!dataset) return null;
 
+  const hasActiveFilters = Boolean(transactionFilters.query?.trim() || transactionFilters.type || transactionFilters.categoryId || transactionFilters.currency || transactionFilters.fromDate || transactionFilters.toDate);
+
   const form = formState ? (
     <TransactionForm
       categories={dataset.categories}
@@ -99,8 +105,15 @@ export function TransactionsScreen() {
         <FilterChip label="All" active={!transactionFilters.type || transactionFilters.type === "all"} onPress={() => setTransactionFilters({ type: "all" })} />
         <FilterChip label="Income" active={transactionFilters.type === "income"} onPress={() => setTransactionFilters({ type: "income" })} />
         <FilterChip label="Expenses" active={transactionFilters.type === "expense"} onPress={() => setTransactionFilters({ type: "expense" })} />
-        {Object.keys(transactionFilters).length > 0 ? <FilterChip label="Clear filters" active={false} onPress={clearTransactionFilters} /> : null}
+        <FilterChip label={showMoreFilters ? "Hide filters" : "More filters"} active={showMoreFilters} onPress={() => setShowMoreFilters((value) => !value)} />
+        {hasActiveFilters ? <FilterChip label="Clear filters" active={false} onPress={clearTransactionFilters} /> : null}
       </View>
+
+      {showMoreFilters ? <View style={styles.advancedFilters}>
+        <View style={styles.filterGroup}><Text style={styles.filterLabel}>Category</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>{<FilterChip label="All categories" active={!transactionFilters.categoryId} onPress={() => setTransactionFilters({ categoryId: "all" })} />}{categories.map((category) => <FilterChip key={category.id} label={category.name} active={transactionFilters.categoryId === category.id} onPress={() => setTransactionFilters({ categoryId: category.id })} />)}</ScrollView></View>
+        <View style={styles.filterGroup}><Text style={styles.filterLabel}>Currency</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}><FilterChip label="All currencies" active={!transactionFilters.currency} onPress={() => setTransactionFilters({ currency: "all" })} />{currencies.map((currency) => <FilterChip key={currency} label={currency} active={transactionFilters.currency === currency} onPress={() => setTransactionFilters({ currency })} />)}</ScrollView></View>
+        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>From date</Text><TextInput accessibilityLabel="Filter from date" autoCapitalize="none" onChangeText={(fromDate) => setTransactionFilters({ fromDate })} placeholder="YYYY-MM-DD" placeholderTextColor="#829AB1" style={styles.dateInput} value={transactionFilters.fromDate ?? ""} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>To date</Text><TextInput accessibilityLabel="Filter to date" autoCapitalize="none" onChangeText={(toDate) => setTransactionFilters({ toDate })} placeholder="YYYY-MM-DD" placeholderTextColor="#829AB1" style={styles.dateInput} value={transactionFilters.toDate ?? ""} /></View></View>
+      </View> : null}
 
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
       {actionMessage ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{actionMessage}</Text> : null}
@@ -167,6 +180,13 @@ const styles = StyleSheet.create({
   addButton: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
   addButtonText: { color: colors.surface, fontSize: 14, fontWeight: "800" },
   filterRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  advancedFilters: { backgroundColor: "#F8FAFC", borderColor: colors.border, borderRadius: 14, borderWidth: 1, gap: 14, padding: 14 },
+  filterGroup: { gap: 8 },
+  filterLabel: { color: colors.navy, fontSize: 12, fontWeight: "800" },
+  filterScroll: { gap: 8, paddingRight: 8 },
+  dateFilters: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  dateField: { flex: 1, gap: 8, minWidth: 180 },
+  dateInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.navy, minHeight: 42, paddingHorizontal: 12 },
   filterChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 },
   activeFilterChip: { backgroundColor: "#EAF0F8", borderColor: "#B8CBE0" },
   filterText: { color: colors.muted, fontSize: 13, fontWeight: "700" },
