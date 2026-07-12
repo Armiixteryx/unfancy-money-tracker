@@ -187,7 +187,7 @@ export function AccountSyncCard() {
   };
 
   return <View style={styles.card}>
-    <View style={styles.header}><View><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional and begins only after email confirmation.</Text></View><Text style={styles.mode}>{runtimeCloudMode() === "configured" ? "CLOUD CONFIGURED" : "LOCAL PREVIEW"}</Text></View>
+    <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional and begins only after email confirmation.</Text></View><Text style={styles.mode}>{runtimeCloudMode() === "configured" ? "CLOUD CONFIGURED" : "LOCAL PREVIEW"}</Text></View>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {message ? <Text accessibilityLiveRegion="polite" style={styles.success}>{message}</Text> : null}
     {authState === "signed_in" || authState === "offline_session" ? <>
@@ -215,11 +215,12 @@ function AuthField({ label, value, onChangeText, placeholder, secureTextEntry, k
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, padding: 20 },
+  card: { alignSelf: "stretch", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, minWidth: 0, padding: 20, width: "100%" },
   header: { alignItems: "flex-start", flexDirection: "row", gap: 12, justifyContent: "space-between" },
+  headerCopy: { flex: 1, minWidth: 0 },
   title: { color: colors.navy, fontSize: 18, fontWeight: "800" },
-  description: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 4, maxWidth: 560 },
-  mode: { color: colors.sky, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  description: { color: colors.muted, flexShrink: 1, fontSize: 13, lineHeight: 19, marginTop: 4, maxWidth: 560 },
+  mode: { color: colors.sky, flexShrink: 0, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
   error: { backgroundColor: "#FFF2F0", borderRadius: 10, color: colors.coral, fontSize: 14, padding: 12 },
   success: { backgroundColor: "#E9F7EF", borderRadius: 10, color: colors.emerald, fontSize: 14, padding: 12 },
   field: { gap: 7 },

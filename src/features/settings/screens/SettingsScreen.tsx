@@ -175,7 +175,7 @@ function CategoryManager({ onMessage }: { onMessage: (message: string) => void }
 }
 
 const styles = StyleSheet.create({
-  grid: { gap: 16 },
+  grid: { gap: 16, minWidth: 0, width: "100%" },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 18, padding: 24 },
   categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 18, padding: 20 },
   sectionHeader: { gap: 5 },
