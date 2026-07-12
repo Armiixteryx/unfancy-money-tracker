@@ -44,7 +44,7 @@ async function sendMailHogEmail(email: LocalAuthEmail): Promise<void> {
     await command(socket, `MAIL FROM:<unfancy-local@localhost>`, 250);
     await command(socket, `RCPT TO:<${email.to}>`, 250);
     await command(socket, "DATA", 354);
-    await command(socket, `${message.replace(/^\./gm, "..")}.`, 250);
+    await command(socket, `${message.replace(/^\./gm, "..")}\r\n.`, 250);
     await command(socket, "QUIT", 221);
   } finally {
     socket.destroy();
@@ -65,7 +65,6 @@ function command(socket: Socket, value: string | undefined, expectedCode: number
       const line = lines.find((candidate) => candidate.startsWith(`${expectedCode} `) || candidate === `${expectedCode}`);
       if (!line) return;
       cleanup();
-      if (value !== undefined) socket.write(`${value}\r\n`);
       resolve();
     };
     const onError = (error: Error) => { cleanup(); reject(error); };
@@ -76,6 +75,7 @@ function command(socket: Socket, value: string | undefined, expectedCode: number
     };
     socket.on("data", onData);
     socket.on("error", onError);
+    if (value !== undefined) socket.write(`${value}\r\n`);
   });
 }
 

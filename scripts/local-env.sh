@@ -80,7 +80,7 @@ case "${1:-help}" in
     fi
     sam validate --template sam/template.yaml --lint
     sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
-    sam local start-api --template .aws-sam/build/template.yaml --env-vars sam/env.local.json --host 127.0.0.1 --port "${SAM_PORT:-3001}"
+    sam local start-api --template .aws-sam/build/template.yaml --env-vars sam/env.local.json --skip-pull-image --host 127.0.0.1 --port "${SAM_PORT:-3001}"
     ;;
   sam-lambda)
     require_docker
@@ -91,7 +91,7 @@ case "${1:-help}" in
     fi
     sam validate --template sam/template.yaml --lint
     sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
-    sam local start-lambda --template .aws-sam/build/template.yaml --host 127.0.0.1 --port "${SAM_LAMBDA_PORT:-3002}"
+    sam local start-lambda --template .aws-sam/build/template.yaml --skip-pull-image --host 127.0.0.1 --port "${SAM_LAMBDA_PORT:-3002}"
     ;;
   localstack-start)
     require_docker

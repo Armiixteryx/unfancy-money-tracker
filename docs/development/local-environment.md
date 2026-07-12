@@ -20,7 +20,7 @@ scripts/local-env.sh status
 scripts/local-env.sh health
 ```
 
-Use `scripts/local-env.sh sam-api` for the local API loop, `scripts/local-env.sh sam-lambda` for direct Lambda invocation, and `scripts/local-env.sh localstack-start` only for optional AWS SDK wiring experiments.
+Use `scripts/local-env.sh sam-api` for the local API loop, `scripts/local-env.sh sam-lambda` for direct Lambda invocation, and `scripts/local-env.sh localstack-start` only for optional AWS SDK wiring experiments. SAM uses the locally available Lambda image with `--skip-pull-image`, so these commands do not need Docker registry credentials.
 
 The deterministic application checks are:
 
