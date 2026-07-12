@@ -1,6 +1,7 @@
 import type { Dataset, RecordTombstone, SyncChange as LocalSyncChange } from "../../../domain/types";
 import type { AcknowledgedChange, PullResponse, PushResponse, SyncChange, SyncClient } from "../../../platform/sync/types";
 import { createUuid } from "../../../platform/identifiers/createUuid";
+import { SyncClientError } from "../../../platform/sync/types";
 
 export type InitialSyncResult = {
   push: PushResponse;
@@ -39,6 +40,29 @@ export async function syncLocalDataset(dataset: Dataset, client: SyncClient): Pr
     pulledChanges,
     acknowledgedChanges: pushResponses.flatMap((response) => response.acknowledgedChanges)
   };
+}
+
+export type SyncRetryOptions = {
+  maxAttempts?: number;
+  initialDelayMs?: number;
+  sleep?: (delayMs: number) => Promise<void>;
+};
+
+export async function syncLocalDatasetWithRetry(dataset: Dataset, client: SyncClient, options: SyncRetryOptions = {}): Promise<InitialSyncResult> {
+  const maxAttempts = options.maxAttempts ?? 3;
+  const initialDelayMs = options.initialDelayMs ?? 500;
+  const sleep = options.sleep ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+  let attempt = 0;
+  while (true) {
+    try {
+      return await syncLocalDataset(dataset, client);
+    } catch (error) {
+      attempt += 1;
+      const retryable = error instanceof SyncClientError && (error.code === "offline" || error.code === "server_error");
+      if (!retryable || attempt >= maxAttempts) throw error;
+      await sleep(initialDelayMs * 2 ** (attempt - 1));
+    }
+  }
 }
 
 export function buildInitialSyncChanges(dataset: Dataset): SyncChange[] {

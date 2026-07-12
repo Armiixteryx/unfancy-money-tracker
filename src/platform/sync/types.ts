@@ -47,21 +47,46 @@ export const syncChangeSchema = z.object({
   payload: z.unknown().nullable(),
   tombstone: z.boolean(),
   revision: z.number().int().nonnegative()
+}).superRefine((change, context) => {
+  if ((change.operation === "delete") !== change.tombstone) {
+    context.addIssue({ code: "custom", path: ["tombstone"], message: "Delete changes must be tombstones and upserts must not be tombstones" });
+  }
+});
+
+export const acknowledgedChangeSchema = z.object({
+  idempotencyKey: z.string().uuid(),
+  recordType: z.enum(["transaction", "category", "budget", "preference"]),
+  recordId: z.string().uuid(),
+  revision: z.number().int().nonnegative()
+});
+
+export const syncConflictSchema = z.object({
+  recordType: z.enum(["transaction", "category", "budget", "preference"]),
+  recordId: z.string().uuid(),
+  localRevision: z.number().int().nonnegative(),
+  cloudRevision: z.number().int().nonnegative(),
+  localPayload: z.unknown().nullable(),
+  cloudPayload: z.unknown().nullable(),
+  resolution: z.literal("pending")
+});
+
+export const pushResponseSchema = z.object({
+  acknowledged: z.array(z.string().uuid()),
+  acknowledgedChanges: z.array(acknowledgedChangeSchema),
+  conflicts: z.array(syncConflictSchema),
+  cursor: z.string().regex(/^\d+$/)
+});
+
+export const pullResponseSchema = z.object({
+  changes: z.array(syncChangeSchema),
+  cursor: z.string().regex(/^\d+$/)
 });
 
 export const pushRequestSchema = z.object({ datasetId: z.string().uuid(), changes: z.array(syncChangeSchema).max(100) });
 export const pullRequestSchema = z.object({ datasetId: z.string().uuid(), cursor: z.string().regex(/^\d+$/) });
 export const resolveConflictRequestSchema = z.object({
   datasetId: z.string().uuid(),
-  conflict: z.object({
-    recordType: z.enum(["transaction", "category", "budget", "preference"]),
-    recordId: z.string().uuid(),
-    localRevision: z.number().int().nonnegative(),
-    cloudRevision: z.number().int().nonnegative(),
-    localPayload: z.unknown().nullable(),
-    cloudPayload: z.unknown().nullable(),
-    resolution: z.literal("pending")
-  }),
+  conflict: syncConflictSchema,
   choice: z.enum(["keep_local", "keep_cloud"])
 });
 

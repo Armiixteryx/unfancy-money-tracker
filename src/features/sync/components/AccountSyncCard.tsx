@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { AuthActionResult, AuthState } from "../../../platform/auth/types";
 import { AuthClientError } from "../../../platform/auth/types";
@@ -7,7 +7,7 @@ import type { SyncStatus } from "../../../domain/types";
 import type { SyncConflict } from "../../../platform/sync/types";
 import { SyncClientError } from "../../../platform/sync/types";
 import { createRuntimeAuthClient, createRuntimeSyncClient, runtimeCloudMode } from "../../../platform/runtime";
-import { mergeSyncChanges, syncLocalDataset } from "../services";
+import { mergeSyncChanges, syncLocalDatasetWithRetry } from "../services";
 import { useDatasetStore } from "../store/useDatasetStore";
 import { colors } from "../../../ui/theme";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
@@ -34,6 +34,7 @@ export function AccountSyncCard() {
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<readonly SyncConflict[]>([]);
   const [showOfflineSignOutWarning, setShowOfflineSignOutWarning] = useState(false);
+  const syncInFlight = useRef(false);
 
   useEffect(() => {
     void authClient.getSession().then((session) => setAuthState(session.state));
@@ -42,8 +43,6 @@ export function AccountSyncCard() {
   useEffect(() => {
     setConflicts(dataset?.sync.conflicts ?? []);
   }, [dataset?.datasetId, dataset?.sync.conflicts]);
-
-  if (!dataset) return null;
 
   const runAuthAction = async (action: () => Promise<AuthActionResult>) => {
     setBusy(true);
@@ -78,14 +77,19 @@ export function AccountSyncCard() {
     }
   };
 
-  const startSync = async () => {
+  const startSync = useCallback(async () => {
+    if (syncInFlight.current) return;
+    syncInFlight.current = true;
     const currentDataset = useDatasetStore.getState().dataset;
-    if (!currentDataset) return;
+    if (!currentDataset) {
+      syncInFlight.current = false;
+      return;
+    }
     setError(null);
     setShowOfflineSignOutWarning(false);
-    await setSyncMetadata({ status: "syncing", reason: null });
     try {
-      const result = await syncLocalDataset(currentDataset, syncClient);
+      await setSyncMetadata({ status: "syncing", reason: null });
+      const result = await syncLocalDatasetWithRetry(currentDataset, syncClient);
       const merge = mergeSyncChanges(currentDataset, result.pulledChanges, new Set(result.push.acknowledged), result.push.conflicts, result.push.acknowledgedChanges);
       const status: SyncStatus = merge.conflicts.length > 0 ? "conflicted" : merge.dataset.sync.outbox.length > 0 ? "stale" : "synced";
       const mergedDataset = { ...merge.dataset, sync: { ...merge.dataset.sync, status, inboxCursor: result.cursor, lastSyncedAt: new Date().toISOString(), reason: merge.invalidChangeCount > 0 ? "Some cloud changes could not be validated." : status === "conflicted" ? "Cloud changes need review before they can be applied." : null } };
@@ -98,8 +102,28 @@ export function AccountSyncCard() {
       const message = isOffline ? "Sync is unavailable while offline." : caught instanceof SyncClientError ? caught.message : "Sync is temporarily unavailable.";
       await setSyncMetadata({ status: isOffline ? "offline" : "error", reason: message });
       setError(message);
+    } finally {
+      syncInFlight.current = false;
     }
-  };
+  }, [analytics, applyRemoteMerge, setSyncMetadata, syncClient]);
+
+  useEffect(() => {
+    if (authState !== "signed_in" && authState !== "offline_session") return;
+    const syncIfActive = () => {
+      if (authState === "signed_in") void startSync();
+    };
+    const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") syncIfActive();
+    });
+    const browserWindow = typeof window === "undefined" ? null : window;
+    browserWindow?.addEventListener("online", syncIfActive);
+    return () => {
+      appStateSubscription.remove();
+      browserWindow?.removeEventListener("online", syncIfActive);
+    };
+  }, [authState, startSync]);
+
+  if (!dataset) return null;
 
   const resolve = async (conflict: SyncConflict, choice: "keep_local" | "keep_cloud") => {
     setBusy(true);
