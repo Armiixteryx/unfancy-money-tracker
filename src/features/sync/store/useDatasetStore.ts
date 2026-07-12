@@ -5,7 +5,7 @@ import { v4 as uuid } from "uuid";
 import { archiveCategory, createCategory, findUncategorizedCategory, renameCategory } from "../../../domain/categories";
 import { budgetKey, createBudget, updateBudget } from "../../../domain/budgets";
 import { createTransaction, filterTransactions, updateTransaction, type TransactionFilters } from "../../../domain/transactions";
-import type { Budget, Category, Dataset, Preferences, Transaction } from "../../../domain/types";
+import type { Budget, Category, Dataset, Preferences, SyncMetadata, Transaction } from "../../../domain/types";
 import type { BudgetInput, CategoryInput, TransactionInput } from "../../../domain/validation";
 import { createPersistenceAdapter, DatasetPersistence } from "../../../platform/persistence";
 import type { HydrationState } from "../../../platform/persistence";
@@ -28,6 +28,7 @@ export type DatasetStoreState = {
   editBudget: (id: string, input: BudgetInput) => Promise<MutationResult<Budget>>;
   deleteBudget: (id: string) => Promise<MutationResult<null>>;
   setPreferences: (preferences: Partial<Preferences>) => Promise<MutationResult<Preferences>>;
+  setSyncMetadata: (sync: Partial<SyncMetadata>) => Promise<MutationResult<SyncMetadata>>;
   addCategory: (input: CategoryInput) => Promise<MutationResult<Category>>;
   renameCategory: (id: string, name: string) => Promise<MutationResult<Category>>;
   archiveCategory: (id: string) => Promise<MutationResult<Category>>;
@@ -201,6 +202,13 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         const nextPreferences = { ...dataset.preferences, ...preferences };
         await commit({ ...dataset, preferences: nextPreferences });
         return { ok: true, value: nextPreferences };
+      },
+      setSyncMetadata: async (sync) => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "Local data is still loading." };
+        const nextSync = { ...dataset.sync, ...sync };
+        await commit({ ...dataset, sync: nextSync });
+        return { ok: true, value: nextSync };
       },
       addCategory: async (input) => {
         const dataset = get().dataset;

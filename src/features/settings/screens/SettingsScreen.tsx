@@ -7,6 +7,7 @@ import { AppScreen } from "../../../ui/AppScreen";
 import { colors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
+import { AccountSyncCard } from "../../sync/components/AccountSyncCard";
 
 export function SettingsScreen() {
   const dataset = useDatasetStore((state) => state.dataset);
@@ -61,11 +62,7 @@ export function SettingsScreen() {
           {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>Reset this local copy?</Text><Text style={styles.helper}>This removes local transactions, budgets, categories, and preferences. There is no demo-data restore.</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>Reset local data</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>Reset local data</Text></Pressable>}
         </View>
 
-        <View style={styles.card}>
-          <SectionHeader title="Backup and sync" description="Cloud sync is opt-in and requires email confirmation before it can begin." />
-          <View style={styles.statusRow}><View style={[styles.statusDot, dataset.sync.status === "error" ? styles.statusDotBad : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{dataset.sync.status === "idle" ? "Ready for local use" : `Sync ${dataset.sync.status}`}</Text><Text style={styles.helper}>{dataset.sync.outbox.length === 0 ? "No queued changes. Your local dataset remains the source of truth." : `${dataset.sync.outbox.length} local change${dataset.sync.outbox.length === 1 ? "" : "s"} waiting for backup.`}</Text></View></View>
-          <Pressable accessibilityRole="button" onPress={() => setMessage("Cloud backup is optional. Sign-up and email confirmation will preserve this local dataset before sync begins.")} style={styles.primaryButton}><Text style={styles.primaryText}>Connect an account</Text></Pressable>
-        </View>
+        <AccountSyncCard />
 
         <View style={styles.card}>
           <SectionHeader title="CSV export preview" description="A non-functional Pro feature preview. No export or payment is implemented in V1." />
