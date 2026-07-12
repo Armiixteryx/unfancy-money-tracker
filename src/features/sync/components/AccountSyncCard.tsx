@@ -7,7 +7,9 @@ import type { SyncStatus } from "../../../domain/types";
 import type { SyncConflict } from "../../../platform/sync/types";
 import { SyncClientError } from "../../../platform/sync/types";
 import { createRuntimeAuthClient, createRuntimeSyncClient, runtimeCloudMode } from "../../../platform/runtime";
-import { mergeSyncChanges, syncLocalDatasetWithRetry } from "../services";
+import { mergeSyncChanges } from "../services";
+import { useAuthRemoteState } from "../../auth/hooks/useAuthRemoteState";
+import { useSyncRemoteState } from "../hooks/useSyncRemoteState";
 import { useDatasetStore } from "../store/useDatasetStore";
 import { colors } from "../../../ui/theme";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
@@ -23,6 +25,8 @@ export function AccountSyncCard() {
   const analytics = useAnalytics();
   const authClient = useMemo(() => createRuntimeAuthClient(), []);
   const syncClient = useMemo(() => createRuntimeSyncClient(async () => (await authClient.getSession()).session?.accessToken ?? null), [authClient]);
+  const authRemote = useAuthRemoteState(authClient);
+  const syncRemote = useSyncRemoteState(syncClient);
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [mode, setMode] = useState<AuthMode>("sign_in");
   const [email, setEmail] = useState("");
@@ -51,7 +55,7 @@ export function AccountSyncCard() {
     const authEvent = authAnalyticsEvent(mode);
     if (mode === "sign_in" || mode === "sign_up") void analytics.capture("sync_account_intent", { surface: "sync", actionResult: "started" });
     try {
-      const result = await action();
+      const result = await authRemote.action.mutateAsync(action);
       void analytics.capture(authEvent, { surface: "auth", actionResult: "success" });
       if (result.status === "confirmation_required") {
         setMode("confirm_sign_up");
@@ -92,7 +96,7 @@ export function AccountSyncCard() {
     setShowOfflineSignOutWarning(false);
     try {
       await setSyncMetadata({ status: "syncing", reason: null });
-      const result = await syncLocalDatasetWithRetry(currentDataset, syncClient);
+      const result = await syncRemote.sync.mutateAsync(currentDataset);
       const merge = mergeSyncChanges(currentDataset, result.pulledChanges, new Set(result.push.acknowledged), result.push.conflicts, result.push.acknowledgedChanges);
       const status: SyncStatus = merge.conflicts.length > 0 ? "conflicted" : merge.dataset.sync.outbox.length > 0 ? "stale" : "synced";
       const mergedDataset = { ...merge.dataset, sync: { ...merge.dataset.sync, status, inboxCursor: result.cursor, lastSyncedAt: new Date().toISOString(), reason: merge.invalidChangeCount > 0 ? "Some cloud changes could not be validated." : status === "conflicted" ? "Cloud changes need review before they can be applied." : null } };
@@ -108,7 +112,7 @@ export function AccountSyncCard() {
     } finally {
       syncInFlight.current = false;
     }
-  }, [analytics, applyRemoteMerge, setSyncMetadata, syncClient]);
+  }, [analytics, applyRemoteMerge, setSyncMetadata, syncRemote.sync]);
 
   useEffect(() => {
     if (authState !== "signed_in" && authState !== "offline_session") return;
@@ -134,7 +138,7 @@ export function AccountSyncCard() {
     try {
       const currentDataset = useDatasetStore.getState().dataset;
       if (!currentDataset) return;
-      const response = await syncClient.resolveConflict({ datasetId: currentDataset.datasetId, conflict, choice });
+      const response = await syncRemote.resolveConflict.mutateAsync({ datasetId: currentDataset.datasetId, conflict, choice });
       const pendingKey = `${conflict.recordType}:${conflict.recordId}`;
       const baseDataset = { ...currentDataset, sync: { ...currentDataset.sync, outbox: currentDataset.sync.outbox.filter((change) => `${change.recordType}:${change.recordId}` !== pendingKey), conflicts: currentDataset.sync.conflicts.filter((candidate) => `${candidate.recordType}:${candidate.recordId}` !== pendingKey) } };
       const selectedPayload = choice === "keep_local" ? conflict.localPayload : conflict.cloudPayload;
