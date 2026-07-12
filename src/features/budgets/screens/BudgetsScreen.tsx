@@ -8,6 +8,7 @@ import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { colors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
 import { BudgetForm, type BudgetFormResult } from "../components/BudgetForm";
+import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
@@ -18,6 +19,7 @@ export function BudgetsScreen() {
   const editBudget = useDatasetStore((state) => state.editBudget);
   const deleteBudget = useDatasetStore((state) => state.deleteBudget);
   const saveError = useDatasetStore((state) => state.saveError);
+  const analytics = useAnalytics();
   const [month, setMonth] = useState(currentCalendarMonth());
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export function BudgetsScreen() {
   const onSave = async (input: BudgetInput): Promise<BudgetFormResult> => {
     const result = selectedBudget ? await editBudget(selectedBudget.id, input) : await addBudget(input);
     if (!result.ok) return result;
+    if (!selectedBudget) void analytics.capture("budget_created", { surface: "budgets", actionResult: "success" });
     setMessage(selectedBudget ? "Budget updated locally." : "Budget created locally.");
     return { ok: true };
   };

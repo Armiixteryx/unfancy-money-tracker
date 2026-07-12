@@ -8,12 +8,14 @@ import { createRuntimeAuthClient, createRuntimeSyncClient, runtimeCloudMode } fr
 import { syncLocalDataset } from "../services";
 import { useDatasetStore } from "../store/useDatasetStore";
 import { colors } from "../../../ui/theme";
+import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 type AuthMode = "sign_in" | "sign_up" | "confirm_sign_up" | "request_reset" | "confirm_reset";
 
 export function AccountSyncCard() {
   const dataset = useDatasetStore((state) => state.dataset);
   const setSyncMetadata = useDatasetStore((state) => state.setSyncMetadata);
+  const analytics = useAnalytics();
   const authClient = useMemo(() => createRuntimeAuthClient(), []);
   const syncClient = useMemo(() => createRuntimeSyncClient(async () => (await authClient.getSession()).session?.accessToken ?? null), [authClient]);
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -37,6 +39,7 @@ export function AccountSyncCard() {
     setBusy(true);
     setError(null);
     setMessage(null);
+    if (mode === "sign_in" || mode === "sign_up") void analytics.capture("sync_account_intent", { surface: "sync", actionResult: "started" });
     try {
       const result = await action();
       if (result.status === "confirmation_required") {
@@ -72,6 +75,7 @@ export function AccountSyncCard() {
       const status = result.push.conflicts.length > 0 || hasRemoteChanges ? "conflicted" : "synced";
       await setSyncMetadata({ status, inboxCursor: result.cursor, lastSyncedAt: new Date().toISOString(), reason: status === "conflicted" ? "Cloud changes need review before they can be applied." : null });
       setMessage(status === "synced" ? "Local dataset backed up successfully." : "Backup found changes that need review; local records were kept unchanged.");
+      if (status === "synced") void analytics.capture("sync_account_completed", { surface: "sync", actionResult: "success", syncStatus: status });
     } catch (caught) {
       const syncError = caught instanceof Error ? caught : new Error("Sync is temporarily unavailable.");
       await setSyncMetadata({ status: "error", reason: syncError.message });

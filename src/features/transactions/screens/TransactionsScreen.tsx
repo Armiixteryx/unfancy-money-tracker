@@ -16,6 +16,7 @@ import { colors } from "../../../ui/theme";
 import { TransactionForm, type TransactionFormResult } from "../components/TransactionForm";
 import { TransactionRow } from "../components/TransactionRow";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
@@ -29,6 +30,7 @@ export function TransactionsScreen() {
   const editTransaction = useDatasetStore((state) => state.editTransaction);
   const deleteTransaction = useDatasetStore((state) => state.deleteTransaction);
   const saveError = useDatasetStore((state) => state.saveError);
+  const analytics = useAnalytics();
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -48,6 +50,7 @@ export function TransactionsScreen() {
       ? await editTransaction(selectedTransaction.id, input)
       : await addTransaction(input);
     if (!result.ok) return result;
+    if (formState?.mode !== "edit") void analytics.capture("transaction_created", { surface: "transactions", actionResult: "success" });
     setActionMessage(formState?.mode === "edit" ? "Transaction updated locally." : "Transaction saved locally.");
     return { ok: true };
   };
@@ -103,8 +106,8 @@ export function TransactionsScreen() {
 
       <View style={styles.filterRow}>
         <FilterChip label="All" active={!transactionFilters.type || transactionFilters.type === "all"} onPress={() => setTransactionFilters({ type: "all" })} />
-        <FilterChip label="Income" active={transactionFilters.type === "income"} onPress={() => setTransactionFilters({ type: "income" })} />
-        <FilterChip label="Expenses" active={transactionFilters.type === "expense"} onPress={() => setTransactionFilters({ type: "expense" })} />
+        <FilterChip label="Income" active={transactionFilters.type === "income"} onPress={() => { setTransactionFilters({ type: "income" }); void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} />
+        <FilterChip label="Expenses" active={transactionFilters.type === "expense"} onPress={() => { setTransactionFilters({ type: "expense" }); void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} />
         <FilterChip label={showMoreFilters ? "Hide filters" : "More filters"} active={showMoreFilters} onPress={() => setShowMoreFilters((value) => !value)} />
         {hasActiveFilters ? <FilterChip label="Clear filters" active={false} onPress={clearTransactionFilters} /> : null}
       </View>

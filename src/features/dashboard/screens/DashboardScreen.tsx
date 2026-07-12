@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -8,10 +8,12 @@ import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { colors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
+import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function DashboardScreen() {
   const router = useRouter();
   const dataset = useDatasetStore((state) => state.dataset);
+  const analytics = useAnalytics();
   const month = currentCalendarMonth();
   const currencyAggregates = useMemo(() => aggregateMonthByCurrency(dataset?.transactions ?? [], month), [dataset?.transactions, month]);
   const categoryAggregates = useMemo(() => aggregateCategorySpending(dataset?.transactions ?? [], dataset?.categories ?? [], month), [dataset?.transactions, dataset?.categories, month]);
@@ -22,6 +24,8 @@ export function DashboardScreen() {
     () => convertMonthAggregate(dataset?.transactions ?? [], month, baseCurrency, (currency) => rateQueries.latestRates.get(currency)),
     [baseCurrency, dataset?.transactions, month, rateQueries.latestRates]
   );
+
+  useEffect(() => { void analytics.capture("dashboard_viewed", { surface: "dashboard", actionResult: "success" }); }, [analytics]);
 
   if (!dataset) return null;
 

@@ -69,7 +69,7 @@ export function convertMonthAggregate(
   transactions: readonly Transaction[],
   month: string,
   baseCurrency: CurrencyCode,
-  getRate: (currency: CurrencyCode) => RateRecord | undefined
+  getRate: (currency: CurrencyCode, date: string) => RateRecord | undefined
 ): ConvertedMonthAggregate {
   let income = createMoney("0", baseCurrency);
   let expenses = createMoney("0", baseCurrency);
@@ -82,7 +82,7 @@ export function convertMonthAggregate(
     transactionCount += 1;
     const rate: AggregateRateRecord | undefined = transaction.currency === baseCurrency
       ? { base: baseCurrency, quote: baseCurrency, rate: "1", effectiveDate: transaction.date, fetchedAt: new Date(0).toISOString(), provider: "same-currency" as const, status: "fresh" as const }
-      : getRate(transaction.currency);
+      : getRate(transaction.currency, transaction.date);
     if (!rate) {
       unavailableCurrencies.add(transaction.currency);
       continue;

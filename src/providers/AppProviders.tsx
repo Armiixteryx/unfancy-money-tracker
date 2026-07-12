@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
 
 import { DatasetHydrationGate } from "./DatasetHydrationGate";
+import { AnalyticsProvider } from "./AnalyticsProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,8 +16,9 @@ const queryClient = new QueryClient({
 export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
-      <DatasetHydrationGate>{children}</DatasetHydrationGate>
+      <AnalyticsProvider>
+        <DatasetHydrationGate>{children}</DatasetHydrationGate>
+      </AnalyticsProvider>
     </QueryClientProvider>
   );
 }
-

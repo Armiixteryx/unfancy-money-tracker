@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
@@ -8,6 +8,7 @@ import { colors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { AccountSyncCard } from "../../sync/components/AccountSyncCard";
+import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function SettingsScreen() {
   const dataset = useDatasetStore((state) => state.dataset);
@@ -16,13 +17,19 @@ export function SettingsScreen() {
   const saveError = useDatasetStore((state) => state.saveError);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const analytics = useAnalytics();
   const rateRequests = useMemo(() => dataset ? dataset.transactions.map((transaction) => ({ currency: transaction.currency })) : [], [dataset]);
   const rateQueries = useExchangeRates(dataset?.preferences.baseCurrency ?? "USD", rateRequests);
+
+  useEffect(() => {
+    void analytics.setConsent(dataset?.preferences.analyticsConsent ?? false);
+  }, [analytics, dataset?.preferences.analyticsConsent]);
 
   if (!dataset) return null;
 
   const updatePreference = async (value: Parameters<typeof setPreferences>[0], success: string) => {
     const result = await setPreferences(value);
+    if ("analyticsConsent" in value && typeof value.analyticsConsent === "boolean") await analytics.setConsent(value.analyticsConsent);
     setMessage(result.ok ? success : result.message);
   };
 
@@ -66,7 +73,7 @@ export function SettingsScreen() {
 
         <View style={styles.card}>
           <SectionHeader title="CSV export preview" description="A non-functional Pro feature preview. No export or payment is implemented in V1." />
-          <View style={styles.proBox}><Text style={styles.proBadge}>PRO PREVIEW</Text><Text style={styles.proTitle}>Take your records with you</Text><Text style={styles.helper}>Express interest in CSV export without downloading financial data or starting a subscription.</Text><Pressable accessibilityRole="button" onPress={() => setMessage("CSV export interest recorded locally for this preview.")} style={styles.secondaryButton}><Text style={styles.secondaryText}>I’m interested</Text></Pressable></View>
+          <View style={styles.proBox}><Text style={styles.proBadge}>PRO PREVIEW</Text><Text style={styles.proTitle}>Take your records with you</Text><Text style={styles.helper}>Express interest in CSV export without downloading financial data or starting a subscription.</Text><Pressable accessibilityRole="button" onPress={() => { setMessage("CSV export interest recorded locally for this preview."); void analytics.capture("csv_upgrade_interest_clicked", { surface: "settings", actionResult: "success" }); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>I’m interested</Text></Pressable></View>
         </View>
       </View>
 
