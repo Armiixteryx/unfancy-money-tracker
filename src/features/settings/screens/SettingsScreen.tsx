@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
 import type { CategoryKind } from "../../../domain/types";
@@ -11,12 +12,16 @@ import { AccountSyncCard } from "../../sync/components/AccountSyncCard";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function SettingsScreen() {
+  const { width } = useWindowDimensions();
+  const isMobile = Platform.OS !== "web" || width < 768;
   const dataset = useDatasetStore((state) => state.dataset);
   const setPreferences = useDatasetStore((state) => state.setPreferences);
   const resetLocalData = useDatasetStore((state) => state.resetLocalData);
   const saveError = useDatasetStore((state) => state.saveError);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [mobileSection, setMobileSection] = useState<MobileSection | null>(null);
+  const [desktopSection, setDesktopSection] = useState<SettingsSection>("preferences");
   const analytics = useAnalytics();
   const rateRequests = useMemo(() => dataset ? dataset.transactions.map((transaction) => ({ currency: transaction.currency })) : [], [dataset]);
   const rateQueries = useExchangeRates(dataset?.preferences.baseCurrency ?? "USD", rateRequests);
@@ -38,13 +43,21 @@ export function SettingsScreen() {
     setConfirmReset(false);
     setMessage("Local data reset. No demo records were added.");
   };
+  const activeSection = isMobile ? mobileSection : desktopSection;
 
   return (
     <AppScreen eyebrow="Preferences and privacy" title="Settings">
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
       {message ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{message}</Text> : null}
 
-      <View style={styles.grid}>
+      {isMobile && mobileSection === null ? <MobileSettingsIndex onSelect={setMobileSection} /> : null}
+      {isMobile && mobileSection !== null ? <Pressable accessibilityRole="button" onPress={() => setMobileSection(null)} style={styles.mobileBack}><Ionicons color={colors.navy} name="chevron-back" size={20} /><Text style={styles.mobileBackText}>All settings</Text></Pressable> : null}
+      <View style={!isMobile ? styles.desktopWorkspace : undefined}>
+        {!isMobile ? <DesktopSettingsSidebar onSelect={setDesktopSection} selected={desktopSection} /> : null}
+        <View style={!isMobile ? styles.desktopDetail : undefined}>
+
+      {activeSection !== null ? <View style={styles.grid}>
+        {activeSection === "preferences" ?
         <View style={styles.card}>
           <SectionHeader title="Preferences" description="These choices are saved with your local dataset." />
           <Text style={styles.label}>Base currency</Text>
@@ -54,32 +67,63 @@ export function SettingsScreen() {
           </ScrollView>
           <Text style={styles.label}>Theme</Text>
           <View style={styles.chips}>{(["system", "light", "dark"] as const).map((theme) => <ChoiceChip active={dataset.preferences.theme === theme} key={theme} label={theme.replace(/^./, (letter) => letter.toUpperCase())} onPress={() => void updatePreference({ theme }, "Theme preference saved locally.")} />)}</View>
-        </View>
+        </View> : null}
 
+        {activeSection === "rates" ?
         <View style={styles.card}>
           <SectionHeader title="Exchange rates" description="Rate freshness is shown before any combined multi-currency total is presented." />
           <View style={styles.statusRow}><View style={[styles.statusDot, rateQueries.hasError ? styles.statusDotBad : rateQueries.isLoading ? styles.statusDotMuted : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{rateQueries.isLoading ? "Loading rates" : rateQueries.hasError ? "Rate refresh needs attention" : rateQueries.latestRates.size > 1 ? "Rates available" : "Same-currency totals"}</Text><Text style={styles.helper}>{rateQueries.isLoading ? "Fetching the latest available reference rates." : rateQueries.hasError ? "The provider could not be reached. Cached stale rates remain labeled when available." : rateQueries.latestRates.size > 1 ? [...rateQueries.latestRates.values()].filter((rate) => rate.provider !== "same-currency").map((rate) => `${rate.base}/${rate.quote} · effective ${rate.effectiveDate} · ${rate.status} · fetched ${formatRateAge(rate.fetchedAt)}`).join(" · ") : "No provider rate is needed until a transaction uses a different currency."}</Text></View></View>
           <View style={styles.infoBox}><Text style={styles.infoTitle}>Frankfurter · ECB reference rates</Text><Text style={styles.helper}>Original amounts stay unchanged. Combined totals are omitted when no usable conversion exists.</Text>{rateQueries.hasError ? <Pressable accessibilityRole="button" onPress={() => void rateQueries.retry()} style={styles.secondaryButton}><Text style={styles.secondaryText}>Retry rate refresh</Text></Pressable> : null}</View>
-        </View>
+        </View> : null}
 
+        {activeSection === "privacy" ?
         <View style={styles.card}>
           <SectionHeader title="Local data and privacy" description="Your tracker starts anonymous and stays on this device until you choose otherwise." />
           <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>Local-only dataset</Text><Text style={styles.helper}>{dataset.transactions.length} transactions · {dataset.budgets.length} budgets · {dataset.categories.length} categories</Text></View></View>
           <Pressable accessibilityRole="button" accessibilityState={{ checked: dataset.preferences.analyticsConsent }} onPress={() => void updatePreference({ analyticsConsent: !dataset.preferences.analyticsConsent }, dataset.preferences.analyticsConsent ? "Analytics disabled." : "Analytics enabled with privacy controls.")} style={styles.toggleRow}><View style={[styles.toggle, dataset.preferences.analyticsConsent && styles.toggleOn]}><View style={[styles.toggleKnob, dataset.preferences.analyticsConsent && styles.toggleKnobOn]} /></View><View style={styles.statusCopy}><Text style={styles.statusTitle}>Optional analytics</Text><Text style={styles.helper}>{dataset.preferences.analyticsConsent ? "Enabled. Financial values and user-entered text remain excluded." : "Disabled by default. No product analytics is collected."}</Text></View></Pressable>
           {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>Reset this local copy?</Text><Text style={styles.helper}>This removes local transactions, budgets, categories, and preferences. There is no demo-data restore.</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>Reset local data</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>Reset local data</Text></Pressable>}
-        </View>
+        </View> : null}
 
-        <AccountSyncCard />
+        {activeSection === "sync" ? <AccountSyncCard /> : null}
 
+        {activeSection === "export" ?
         <View style={styles.card}>
           <SectionHeader title="CSV export preview" description="A non-functional Pro feature preview. No export or payment is implemented in V1." />
           <View style={styles.proBox}><Text style={styles.proBadge}>PRO PREVIEW</Text><Text style={styles.proTitle}>Take your records with you</Text><Text style={styles.helper}>Express interest in CSV export without downloading financial data or starting a subscription.</Text><Pressable accessibilityRole="button" onPress={() => { setMessage("CSV export interest recorded locally for this preview."); void analytics.capture("csv_upgrade_interest_clicked", { surface: "settings", actionResult: "success" }); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>I’m interested</Text></Pressable></View>
+        </View> : null}
+      </View> : null}
+
+      {activeSection === "categories" ? <CategoryManager onMessage={setMessage} /> : null}
         </View>
       </View>
-
-      <CategoryManager onMessage={setMessage} />
     </AppScreen>
   );
+}
+
+type SettingsSection = "preferences" | "categories" | "rates" | "sync" | "privacy" | "export";
+type MobileSection = SettingsSection;
+
+const mobileGroups: readonly { title: string; rows: readonly { section: MobileSection; icon: keyof typeof Ionicons.glyphMap; iconBackground: string; title: string; description: string }[] }[] = [
+  { title: "Personalization", rows: [
+    { section: "preferences", icon: "options-outline", iconBackground: "#E8F0FF", title: "Currency & appearance", description: "Base currency and theme" },
+    { section: "categories", icon: "pricetags-outline", iconBackground: "#E9F7EF", title: "Categories", description: "Create and manage categories" }
+  ] },
+  { title: "Data", rows: [
+    { section: "rates", icon: "swap-horizontal-outline", iconBackground: "#E8F4FA", title: "Exchange rates", description: "Conversion status and freshness" },
+    { section: "sync", icon: "cloud-outline", iconBackground: "#F1EDFF", title: "Backup & sync", description: "Optional account and cloud backup" },
+    { section: "privacy", icon: "shield-checkmark-outline", iconBackground: "#FFF0ED", title: "Local data & privacy", description: "Analytics and local data controls" }
+  ] },
+  { title: "More", rows: [
+    { section: "export", icon: "download-outline", iconBackground: "#FFF5D9", title: "CSV export", description: "Pro feature preview" }
+  ] }
+];
+
+function MobileSettingsIndex({ onSelect }: { onSelect: (section: MobileSection) => void }) {
+  return <View style={styles.mobileIndex}>{mobileGroups.map((group) => <View key={group.title} style={styles.mobileGroupWrap}><Text style={styles.mobileGroupTitle}>{group.title}</Text><View style={styles.mobileGroup}>{group.rows.map((row, index) => <Pressable accessibilityRole="button" accessibilityLabel={`${row.title}. ${row.description}`} key={row.section} onPress={() => onSelect(row.section)} style={[styles.mobileRow, index > 0 && styles.mobileRowBorder]}><View style={[styles.mobileIcon, { backgroundColor: row.iconBackground }]}><Ionicons color={colors.navy} name={row.icon} size={21} /></View><View style={styles.mobileRowCopy}><Text style={styles.mobileRowTitle}>{row.title}</Text><Text style={styles.mobileRowDescription}>{row.description}</Text></View><Ionicons color="#9AA9B8" name="chevron-forward" size={20} /></Pressable>)}</View></View>)}</View>;
+}
+
+function DesktopSettingsSidebar({ selected, onSelect }: { selected: SettingsSection; onSelect: (section: SettingsSection) => void }) {
+  return <View accessibilityLabel="Settings sections" style={styles.desktopSidebar}>{mobileGroups.map((group) => <View key={group.title} style={styles.desktopNavGroup}><Text style={styles.desktopNavLabel}>{group.title}</Text>{group.rows.map((row) => { const active = row.section === selected; return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} key={row.section} onPress={() => onSelect(row.section)} style={[styles.desktopNavRow, active && styles.desktopNavRowActive]}><Ionicons color={active ? colors.emerald : colors.muted} name={row.icon} size={19} /><View style={styles.desktopNavCopy}><Text style={[styles.desktopNavTitle, active && styles.desktopNavTitleActive]}>{row.title}</Text><Text numberOfLines={1} style={styles.desktopNavDescription}>{row.description}</Text></View></Pressable>; })}</View>)}</View>;
 }
 
 function formatRateAge(fetchedAt: string): string {
@@ -131,8 +175,8 @@ function CategoryManager({ onMessage }: { onMessage: (message: string) => void }
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, gap: 18, minWidth: 320, padding: 20 },
+  grid: { gap: 16 },
+  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 18, padding: 24 },
   categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 18, padding: 20 },
   sectionHeader: { gap: 5 },
   sectionTitle: { color: colors.navy, fontSize: 18, fontWeight: "800" },
@@ -188,5 +232,28 @@ const styles = StyleSheet.create({
   dangerTextSmall: { color: colors.coral, fontSize: 12, fontWeight: "800" },
   editRow: { alignItems: "center", flexDirection: "row", gap: 6 },
   editInput: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.navy, minHeight: 36, paddingHorizontal: 9, width: 140 },
-  categoryConfirm: { alignItems: "center", backgroundColor: "#FFF9F8", borderRadius: 10, flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 8, width: "100%" }
+  categoryConfirm: { alignItems: "center", backgroundColor: "#FFF9F8", borderRadius: 10, flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 8, width: "100%" },
+  mobileIndex: { gap: 24 },
+  mobileGroupWrap: { gap: 8 },
+  mobileGroupTitle: { color: colors.muted, fontSize: 12, fontWeight: "800", letterSpacing: 0.6, paddingHorizontal: 4, textTransform: "uppercase" },
+  mobileGroup: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  mobileRow: { alignItems: "center", flexDirection: "row", gap: 12, minHeight: 72, paddingHorizontal: 16, paddingVertical: 12 },
+  mobileRowBorder: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
+  mobileIcon: { alignItems: "center", borderRadius: 10, height: 38, justifyContent: "center", width: 38 },
+  mobileRowCopy: { flex: 1, gap: 2 },
+  mobileRowTitle: { color: colors.navy, fontSize: 16, fontWeight: "700" },
+  mobileRowDescription: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  mobileBack: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, minHeight: 44, paddingRight: 12 },
+  mobileBackText: { color: colors.navy, fontSize: 14, fontWeight: "800" },
+  desktopWorkspace: { alignItems: "flex-start", flexDirection: "row", gap: 24 },
+  desktopSidebar: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 22, padding: 14, width: 280 },
+  desktopNavGroup: { gap: 5 },
+  desktopNavLabel: { color: colors.muted, fontSize: 11, fontWeight: "900", letterSpacing: 0.7, paddingBottom: 4, paddingHorizontal: 10, textTransform: "uppercase" },
+  desktopNavRow: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 11, paddingVertical: 9 },
+  desktopNavRowActive: { backgroundColor: "#E9F7EF" },
+  desktopNavCopy: { flex: 1, gap: 2 },
+  desktopNavTitle: { color: colors.navy, fontSize: 14, fontWeight: "700" },
+  desktopNavTitleActive: { color: colors.emerald, fontWeight: "800" },
+  desktopNavDescription: { color: colors.muted, fontSize: 11 },
+  desktopDetail: { flex: 1, minWidth: 0 }
 });
