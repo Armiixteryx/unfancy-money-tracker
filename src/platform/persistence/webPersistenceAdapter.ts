@@ -10,6 +10,8 @@ interface PersistenceDatabase extends DBSchema {
 const DATABASE_NAME = "unfancy-money-tracker";
 const SNAPSHOT_STORE = "snapshots";
 const KEY_STORE = "keys";
+const RECOVERY_SUFFIX = ":recovery";
+const MIGRATION_BACKUP_SUFFIX = ":migration-backup";
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -81,6 +83,12 @@ export class WebPersistenceAdapter implements PersistenceAdapter {
     return value ? this.decrypt(database, value) : null;
   }
 
+  async readRecoverySnapshot(): Promise<string | null> {
+    const database = await this.getDatabase();
+    const value = await database.get(SNAPSHOT_STORE, `${this.datasetId}${RECOVERY_SUFFIX}`);
+    return value ? this.decrypt(database, value) : null;
+  }
+
   async writeSnapshot(snapshot: string): Promise<void> {
     const database = await this.getDatabase();
     const existing = await database.get(SNAPSHOT_STORE, this.datasetId);
@@ -89,16 +97,30 @@ export class WebPersistenceAdapter implements PersistenceAdapter {
 
   async quarantineSnapshot(snapshot: string): Promise<void> {
     const database = await this.getDatabase();
-    const recoveryKey = `${this.datasetId}:recovery`;
     const existing = await database.get(KEY_STORE, this.datasetId);
     if (!existing) return;
-    await database.put(SNAPSHOT_STORE, await this.encrypt(database, snapshot, false), recoveryKey);
+    await database.put(SNAPSHOT_STORE, await this.encrypt(database, snapshot, false), `${this.datasetId}${RECOVERY_SUFFIX}`);
+  }
+
+  async backupMigrationSnapshot(snapshot: string): Promise<void> {
+    const database = await this.getDatabase();
+    const existing = await database.get(KEY_STORE, this.datasetId);
+    if (!existing) return;
+    await database.put(SNAPSHOT_STORE, await this.encrypt(database, snapshot, false), `${this.datasetId}${MIGRATION_BACKUP_SUFFIX}`);
+  }
+
+  async restoreRecoverySnapshot(): Promise<void> {
+    const database = await this.getDatabase();
+    const recovery = await database.get(SNAPSHOT_STORE, `${this.datasetId}${RECOVERY_SUFFIX}`);
+    if (!recovery) throw new Error("No preserved snapshot is available");
+    await database.put(SNAPSHOT_STORE, recovery, this.datasetId);
   }
 
   async reset(): Promise<void> {
     const database = await this.getDatabase();
     await database.delete(SNAPSHOT_STORE, this.datasetId);
-    await database.delete(SNAPSHOT_STORE, `${this.datasetId}:recovery`);
+    await database.delete(SNAPSHOT_STORE, `${this.datasetId}${RECOVERY_SUFFIX}`);
+    await database.delete(SNAPSHOT_STORE, `${this.datasetId}${MIGRATION_BACKUP_SUFFIX}`);
     await database.delete(KEY_STORE, this.datasetId);
   }
 }

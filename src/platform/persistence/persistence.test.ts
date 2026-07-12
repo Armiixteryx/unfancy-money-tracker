@@ -43,6 +43,21 @@ describe("dataset persistence", () => {
 
     expect(result).toEqual({ status: "recovery", errorCode: "snapshot_unreadable", backupAvailable: true });
     expect(adapter.quarantinedSnapshots).toEqual(["not-json"]);
+    expect(await adapter.readRecoverySnapshot()).toBe("not-json");
+  });
+
+  it("restores a quarantined snapshot without silently replacing it", async () => {
+    const adapter = new MemoryPersistenceAdapter("not-json");
+    await hydrateDataset(adapter);
+    await adapter.restoreRecoverySnapshot();
+    expect(await adapter.readSnapshot()).toBe("not-json");
+  });
+
+  it("keeps one migration backup before an older envelope is migrated", async () => {
+    const adapter = new MemoryPersistenceAdapter(JSON.stringify({ schemaVersion: 0, datasetId: "00000000-0000-4000-8000-000000000099" }));
+    const result = await hydrateDataset(adapter);
+    expect(result.status).toBe("ready");
+    expect(adapter.migrationBackups).toHaveLength(1);
   });
 
   it("migrates an older envelope without dropping existing records", () => {

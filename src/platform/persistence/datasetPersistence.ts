@@ -62,6 +62,10 @@ export async function hydrateDataset(adapter: PersistenceAdapter): Promise<Hydra
 
   try {
     const parsed: unknown = JSON.parse(raw);
+    const storedVersion = typeof parsed === "object" && parsed !== null && "schemaVersion" in parsed && typeof parsed.schemaVersion === "number"
+      ? parsed.schemaVersion
+      : 0;
+    if (storedVersion < CURRENT_SCHEMA_VERSION) await adapter.backupMigrationSnapshot(raw);
     return { status: "ready", dataset: migrateSnapshot(parsed) };
   } catch (error) {
     try {
@@ -84,6 +88,14 @@ export class DatasetPersistence {
 
   async hasSnapshot(): Promise<boolean> {
     return (await this.adapter.readSnapshot()) !== null;
+  }
+
+  async hasRecoverySnapshot(): Promise<boolean> {
+    return (await this.adapter.readRecoverySnapshot()) !== null;
+  }
+
+  async restoreRecoverySnapshot(): Promise<void> {
+    await this.adapter.restoreRecoverySnapshot();
   }
 
   save(dataset: Dataset): Promise<void> {

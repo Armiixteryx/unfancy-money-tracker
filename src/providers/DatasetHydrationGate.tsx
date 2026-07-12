@@ -16,6 +16,7 @@ function HydrationScreen() {
 
 function RecoveryScreen() {
   const retryHydration = useDatasetStore((state) => state.retryHydration);
+  const recoverLocalData = useDatasetStore((state) => state.recoverLocalData);
   const resetLocalData = useDatasetStore((state) => state.resetLocalData);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -29,6 +30,9 @@ function RecoveryScreen() {
       <View style={styles.actions}>
         <Pressable accessibilityRole="button" accessibilityLabel="Retry local data" onPress={() => void retryHydration()} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Retry</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Recover preserved local data" onPress={() => void recoverLocalData()} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Recover preserved copy</Text>
         </Pressable>
         {confirmReset ? (
           <View style={styles.confirmation}>
@@ -80,4 +84,3 @@ const styles = StyleSheet.create({
   confirmationText: { color: colors.navy, fontSize: 14, textAlign: "center" },
   confirmationActions: { flexDirection: "row", gap: 10 }
 });
-

@@ -14,8 +14,10 @@ export type PersistenceRecoveryCode =
 
 export interface PersistenceAdapter {
   readSnapshot(): Promise<string | null>;
+  readRecoverySnapshot(): Promise<string | null>;
   writeSnapshot(snapshot: string): Promise<void>;
   quarantineSnapshot(snapshot: string): Promise<void>;
+  backupMigrationSnapshot(snapshot: string): Promise<void>;
+  restoreRecoverySnapshot(): Promise<void>;
   reset(): Promise<void>;
 }
-

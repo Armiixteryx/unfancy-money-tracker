@@ -6,6 +6,7 @@ import type { PersistenceAdapter } from "./types";
 
 const SNAPSHOT_KEY = "dataset.snapshot";
 const RECOVERY_KEY = "dataset.recovery";
+const MIGRATION_BACKUP_KEY = "dataset.migration-backup";
 
 async function getOrCreateEncryptionKey(keyName: string): Promise<string> {
   const stored = await SecureStore.getItemAsync(keyName);
@@ -34,6 +35,10 @@ export class NativePersistenceAdapter implements PersistenceAdapter {
     return (await this.getStorage()).getString(SNAPSHOT_KEY) ?? null;
   }
 
+  async readRecoverySnapshot(): Promise<string | null> {
+    return (await this.getStorage()).getString(RECOVERY_KEY) ?? null;
+  }
+
   async writeSnapshot(snapshot: string): Promise<void> {
     (await this.getStorage()).set(SNAPSHOT_KEY, snapshot);
   }
@@ -42,10 +47,22 @@ export class NativePersistenceAdapter implements PersistenceAdapter {
     (await this.getStorage()).set(RECOVERY_KEY, snapshot);
   }
 
+  async backupMigrationSnapshot(snapshot: string): Promise<void> {
+    (await this.getStorage()).set(MIGRATION_BACKUP_KEY, snapshot);
+  }
+
+  async restoreRecoverySnapshot(): Promise<void> {
+    const storage = await this.getStorage();
+    const recovery = storage.getString(RECOVERY_KEY);
+    if (!recovery) throw new Error("No preserved snapshot is available");
+    storage.set(SNAPSHOT_KEY, recovery);
+  }
+
   async reset(): Promise<void> {
     const storage = await this.getStorage();
     storage.delete(SNAPSHOT_KEY);
     storage.delete(RECOVERY_KEY);
+    storage.delete(MIGRATION_BACKUP_KEY);
     await SecureStore.deleteItemAsync(`unfancy.dataset-key.${this.datasetId}`);
     this.storage = null;
   }

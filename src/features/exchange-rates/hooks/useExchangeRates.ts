@@ -3,10 +3,10 @@ import { useQueries } from "@tanstack/react-query";
 
 import type { CurrencyCode } from "../../../domain/currency";
 import { FrankfurterExchangeRateAdapter } from "../../../platform/exchange-rates/frankfurterExchangeRateAdapter";
-import { MemoryRateCache } from "../../../platform/exchange-rates/memoryRateCache";
+import { createRateCache } from "../../../platform/exchange-rates/createRateCache";
 import type { ExchangeRateProvider, RateRecord } from "../../../platform/exchange-rates/types";
 
-const rateCache = new MemoryRateCache();
+const rateCache = createRateCache();
 const exchangeRateProvider: ExchangeRateProvider = new FrankfurterExchangeRateAdapter(rateCache);
 
 export type RateRequest = { currency: CurrencyCode; date?: string };

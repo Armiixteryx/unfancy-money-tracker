@@ -35,10 +35,11 @@ export class FrankfurterExchangeRateAdapter implements ExchangeRateProvider {
     const cached = await this.cache.get(exactKey);
     if (cached) return cached;
     let candidate = date;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
+    while (candidate >= "1999-01-04") {
       try {
         const record = await this.fetchRate(base, quote, candidate);
         await this.cache.set(exactKey, record);
+        await this.cache.set(`historical:${base}:${quote}:${record.effectiveDate}`, record);
         return record;
       } catch (error) {
         if (!(error instanceof ExchangeRateError) || error.code !== "unavailable") throw error;
@@ -86,4 +87,3 @@ function previousDate(value: string): string {
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
 }
-

@@ -58,7 +58,7 @@ export function SettingsScreen() {
 
         <View style={styles.card}>
           <SectionHeader title="Exchange rates" description="Rate freshness is shown before any combined multi-currency total is presented." />
-          <View style={styles.statusRow}><View style={[styles.statusDot, rateQueries.hasError ? styles.statusDotBad : rateQueries.isLoading ? styles.statusDotMuted : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{rateQueries.isLoading ? "Loading rates" : rateQueries.hasError ? "Rate refresh needs attention" : rateQueries.latestRates.size > 1 ? "Rates available" : "Same-currency totals"}</Text><Text style={styles.helper}>{rateQueries.isLoading ? "Fetching the latest available reference rates." : rateQueries.hasError ? "The provider could not be reached. Cached stale rates remain labeled when available." : rateQueries.latestRates.size > 1 ? [...rateQueries.latestRates.values()].filter((rate) => rate.provider !== "same-currency").map((rate) => `${rate.base}/${rate.quote} · ${rate.effectiveDate} · ${rate.status}`).join(" · ") : "No provider rate is needed until a transaction uses a different currency."}</Text></View></View>
+          <View style={styles.statusRow}><View style={[styles.statusDot, rateQueries.hasError ? styles.statusDotBad : rateQueries.isLoading ? styles.statusDotMuted : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{rateQueries.isLoading ? "Loading rates" : rateQueries.hasError ? "Rate refresh needs attention" : rateQueries.latestRates.size > 1 ? "Rates available" : "Same-currency totals"}</Text><Text style={styles.helper}>{rateQueries.isLoading ? "Fetching the latest available reference rates." : rateQueries.hasError ? "The provider could not be reached. Cached stale rates remain labeled when available." : rateQueries.latestRates.size > 1 ? [...rateQueries.latestRates.values()].filter((rate) => rate.provider !== "same-currency").map((rate) => `${rate.base}/${rate.quote} · effective ${rate.effectiveDate} · ${rate.status} · fetched ${formatRateAge(rate.fetchedAt)}`).join(" · ") : "No provider rate is needed until a transaction uses a different currency."}</Text></View></View>
           <View style={styles.infoBox}><Text style={styles.infoTitle}>Frankfurter · ECB reference rates</Text><Text style={styles.helper}>Original amounts stay unchanged. Combined totals are omitted when no usable conversion exists.</Text>{rateQueries.hasError ? <Pressable accessibilityRole="button" onPress={() => void rateQueries.retry()} style={styles.secondaryButton}><Text style={styles.secondaryText}>Retry rate refresh</Text></Pressable> : null}</View>
         </View>
 
@@ -80,6 +80,13 @@ export function SettingsScreen() {
       <CategoryManager onMessage={setMessage} />
     </AppScreen>
   );
+}
+
+function formatRateAge(fetchedAt: string): string {
+  const ageHours = Math.max(0, Math.floor((Date.now() - new Date(fetchedAt).getTime()) / (60 * 60 * 1000)));
+  if (ageHours < 1) return "less than 1h ago";
+  if (ageHours === 1) return "1h ago";
+  return `${ageHours}h ago`;
 }
 
 function SectionHeader({ title, description }: { title: string; description: string }) {

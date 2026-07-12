@@ -21,6 +21,7 @@ export type DatasetStoreState = {
   transactionFilters: TransactionFilters;
   initialize: () => Promise<void>;
   retryHydration: () => Promise<void>;
+  recoverLocalData: () => Promise<void>;
   resetLocalData: () => Promise<void>;
   addTransaction: (input: TransactionInput) => Promise<MutationResult<Transaction>>;
   editTransaction: (id: string, input: TransactionInput) => Promise<MutationResult<Transaction>>;
@@ -137,6 +138,11 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         return initialization;
       },
       retryHydration: async () => {
+        await get().initialize();
+      },
+      recoverLocalData: async () => {
+        await activePersistence.restoreRecoverySnapshot();
+        set({ hydration: { status: "loading" }, dataset: null, saveStatus: "idle", saveError: null });
         await get().initialize();
       },
       resetLocalData: async () => {
