@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CognitoAuthClient, LocalAuthClient, MemoryAuthSessionStore, type LocalAuthEmail, type LocalAuthEmailSender } from "./index";
+import { CognitoAuthClient, createLocalAuthEmailSender, LocalAuthClient, MemoryAuthSessionStore, type LocalAuthEmail, type LocalAuthEmailSender } from "./index";
 
 class TestLocalEmailSender implements LocalAuthEmailSender {
   readonly sent: LocalAuthEmail[] = [];
@@ -21,6 +21,19 @@ describe("local auth adapter", () => {
     await auth.confirmPasswordReset({ email: "synthetic@example.test", code: "000000", newPassword: "SyntheticPassword2!" });
     await auth.signOut();
     expect((await auth.signIn({ email: "synthetic@example.test", password: "SyntheticPassword2!" })).status).toBe("signed_in");
+  });
+
+  it("posts local auth codes through the configured MailHog boundary", async () => {
+    let requestUrl = "";
+    let requestBody = "";
+    const sender = createLocalAuthEmailSender(async (input, init) => {
+      requestUrl = input.toString();
+      requestBody = String(init?.body);
+      return new Response(null, { status: 204 });
+    }, "http://127.0.0.1:3001/auth/email");
+    await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
+    expect(requestUrl).toBe("http://127.0.0.1:3001/auth/email");
+    expect(JSON.parse(requestBody)).toEqual({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
   });
 
   it("supports a cached offline session and generic credential errors", async () => {

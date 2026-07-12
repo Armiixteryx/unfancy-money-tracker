@@ -17,6 +17,7 @@ scripts/local-env.sh start
 scripts/local-env.sh migrate
 scripts/local-env.sh seed
 scripts/local-env.sh status
+scripts/local-env.sh health
 ```
 
 Use `scripts/local-env.sh sam-api` for the local API loop, `scripts/local-env.sh sam-lambda` for direct Lambda invocation, and `scripts/local-env.sh localstack-start` only for optional AWS SDK wiring experiments.
@@ -29,7 +30,11 @@ npm run typecheck
 npm run lint
 sam validate --template sam/template.yaml --lint
 sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
+npm run test:integration
+npm run test:contract
 ```
+
+The same checks are available through `scripts/local-env.sh test`, `integration`, `contract`, `typecheck`, and `lint`. `contract` validates the local SAM routes and synthesizes the AWS CDK boundary; it never deploys or requires AWS credentials.
 
 `reset` is intentionally destructive but scoped to Docker resources named by this repository and generated `.aws-sam`/`.localstack` directories:
 

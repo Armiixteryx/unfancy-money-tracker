@@ -106,6 +106,12 @@ case "${1:-help}" in
     require_docker
     compose ps
     ;;
+  health)
+    require_docker
+    compose exec -T postgres pg_isready -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}"
+    curl --fail --silent "${MAILHOG_HTTP_URL:-http://127.0.0.1:8025}/api/v2/messages?limit=1" >/dev/null
+    echo "PostgreSQL and MailHog are healthy."
+    ;;
   verify)
     require_docker
     require_sam
@@ -115,6 +121,22 @@ case "${1:-help}" in
     sam --version
     compose config --quiet
     echo "Local prerequisites and Compose configuration are ready."
+    ;;
+  test)
+    npm test -- --run
+    ;;
+  typecheck)
+    npm run typecheck
+    ;;
+  lint)
+    npm run lint
+    ;;
+  contract)
+    require_sam
+    npm run test:contract
+    ;;
+  integration)
+    npm run test:integration
     ;;
   help|*)
     cat <<'HELP'
@@ -132,7 +154,13 @@ Usage: scripts/local-env.sh <command>
   localstack-start   Start optional LocalStack services on port 4566
   localstack-stop    Stop optional LocalStack services
   status             Show local service status
+  health             Check PostgreSQL and MailHog health endpoints
   verify             Check Docker, SAM CLI, and Compose configuration
+  test               Run the deterministic unit test suite
+  integration        Run local adapter and sync integration tests
+  contract           Validate SAM and synthesize CDK without deploying
+  typecheck          Run the strict TypeScript check
+  lint               Run ESLint
 
 The default ports are PostgreSQL 5432, MailHog SMTP 1025, MailHog UI 8025,
 SAM API 3001, SAM Lambda 3002, and optional LocalStack 4566.

@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "../../domain/currency";
+import { z } from "zod";
 
 export type RateStatus = "fresh" | "stale";
 
@@ -11,6 +12,16 @@ export type RateRecord = {
   provider: "frankfurter-ecb" | "same-currency";
   status: RateStatus;
 };
+
+export const rateRecordSchema = z.object({
+  base: z.string(),
+  quote: z.string(),
+  rate: z.string().min(1),
+  effectiveDate: z.string().date(),
+  fetchedAt: z.string().datetime(),
+  provider: z.enum(["frankfurter-ecb", "same-currency"]),
+  status: z.enum(["fresh", "stale"])
+});
 
 export class ExchangeRateError extends Error {
   constructor(readonly code: "unavailable" | "invalid_response" | "unsupported_currency", message: string) {
@@ -28,4 +39,3 @@ export interface ExchangeRateProvider {
   getLatestRate(base: CurrencyCode, quote: CurrencyCode): Promise<RateRecord>;
   getHistoricalRate(base: CurrencyCode, quote: CurrencyCode, date: string): Promise<RateRecord>;
 }
-

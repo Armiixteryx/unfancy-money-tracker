@@ -31,7 +31,7 @@ class HttpLocalAuthEmailSender implements LocalAuthEmailSender {
   }
 }
 
-export function createLocalAuthEmailSender(fetcher: typeof fetch = fetch): LocalAuthEmailSender {
-  const endpoint = process.env.EXPO_PUBLIC_LOCAL_AUTH_EMAIL_URL ?? (process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/auth/email` : "");
+export function createLocalAuthEmailSender(fetcher: typeof fetch = fetch, configuredEndpoint = process.env.EXPO_PUBLIC_LOCAL_AUTH_EMAIL_URL ?? (process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/auth/email` : "")): LocalAuthEmailSender {
+  const endpoint = configuredEndpoint;
   return endpoint ? new HttpLocalAuthEmailSender(endpoint, fetcher) : new NoopLocalAuthEmailSender();
 }

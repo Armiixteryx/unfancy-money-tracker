@@ -1,5 +1,6 @@
 import { Pool, type PoolClient } from "pg";
 
+import { budgetSchema, categorySchema, preferencesSchema, transactionSchema } from "../../platform/persistence/schema";
 import type { AcknowledgedChange, PullResponse, PushResponse, ResolveConflictRequest, SyncChange, SyncConflict } from "../../platform/sync/types";
 import type { SyncRepository } from "./syncRepository";
 
@@ -67,6 +68,7 @@ export class PostgresSyncRepository implements SyncRepository {
            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
           [datasetId, change.recordType, change.recordId, revision, change.baseRevision, change.operation, change.payload === null ? null : JSON.stringify(change.payload), change.tombstone, change.idempotencyKey]
         );
+        await this.applyNormalizedRecord(client, datasetId, change, revision);
         await client.query(
           "INSERT INTO sync_idempotency (dataset_id, idempotency_key, response) VALUES ($1, $2, $3::jsonb)",
           [datasetId, change.idempotencyKey, JSON.stringify({ revision })]
@@ -89,7 +91,7 @@ export class PostgresSyncRepository implements SyncRepository {
   async pull(ownerSubject: string, datasetId: string, cursor: string): Promise<PullResponse> {
     const client = await this.pool.connect();
     try {
-      await this.assertOwner(client, ownerSubject, datasetId);
+      await this.ensureDataset(client, ownerSubject, datasetId);
       const rows = await client.query<ChangeRow>(
         `SELECT idempotency_key, entity_type AS record_type, record_id, operation, base_revision, revision, payload, tombstone, sequence
          FROM sync_changes WHERE dataset_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT 500`,
@@ -134,7 +136,11 @@ export class PostgresSyncRepository implements SyncRepository {
   private async assertOwner(client: PoolClient, ownerSubject: string, datasetId: string): Promise<void> {
     const result = await client.query<DatasetRow>("SELECT revision, owner_subject FROM datasets WHERE dataset_id = $1", [datasetId]);
     const dataset = result.rows[0];
-    if (!dataset || dataset.owner_subject !== ownerSubject) throw new Error("Dataset is not available");
+    if (!dataset || dataset.owner_subject !== ownerSubject) {
+      const error = new Error("Dataset is not available");
+      error.name = "DatasetAccessError";
+      throw error;
+    }
   }
 
   private async nextRevision(client: PoolClient, datasetId: string): Promise<number> {
@@ -146,4 +152,70 @@ export class PostgresSyncRepository implements SyncRepository {
     const result = await client.query<{ sequence: string }>("SELECT sequence FROM sync_changes WHERE dataset_id = $1 ORDER BY sequence DESC LIMIT 1", [datasetId]);
     return result.rows[0]?.sequence ?? "0";
   }
+
+  private async applyNormalizedRecord(client: PoolClient, datasetId: string, change: SyncChange, revision: number): Promise<void> {
+    if (change.recordType === "transaction") {
+      if (change.operation === "delete") {
+        await client.query("DELETE FROM transactions WHERE dataset_id = $1 AND transaction_id = $2", [datasetId, change.recordId]);
+        return;
+      }
+      const record = transactionSchema.parse(change.payload);
+      if (record.id !== change.recordId) throw invalidSyncPayload();
+      await client.query(
+        `INSERT INTO transactions (dataset_id, transaction_id, amount, currency, transaction_type, category_id, description, occurred_on, created_at, updated_at, revision, tombstone)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, FALSE)
+         ON CONFLICT (dataset_id, transaction_id) DO UPDATE SET amount = EXCLUDED.amount, currency = EXCLUDED.currency, transaction_type = EXCLUDED.transaction_type, category_id = EXCLUDED.category_id, description = EXCLUDED.description, occurred_on = EXCLUDED.occurred_on, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, revision = EXCLUDED.revision, tombstone = FALSE`,
+        [datasetId, record.id, record.amount, record.currency, record.type, record.categoryId, record.description, record.date, record.createdAt, record.updatedAt, revision]
+      );
+      return;
+    }
+    if (change.recordType === "category") {
+      if (change.operation === "delete") {
+        await client.query("DELETE FROM categories WHERE dataset_id = $1 AND category_id = $2", [datasetId, change.recordId]);
+        return;
+      }
+      const record = categorySchema.parse(change.payload);
+      if (record.id !== change.recordId) throw invalidSyncPayload();
+      await client.query(
+        `INSERT INTO categories (dataset_id, category_id, kind, name, is_system, is_archived, created_at, updated_at, revision, tombstone)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
+         ON CONFLICT (dataset_id, category_id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name, is_system = EXCLUDED.is_system, is_archived = EXCLUDED.is_archived, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, revision = EXCLUDED.revision, tombstone = FALSE`,
+        [datasetId, record.id, record.kind, record.name.trim(), record.isSystem, record.isArchived, record.createdAt, record.updatedAt, revision]
+      );
+      return;
+    }
+    if (change.recordType === "budget") {
+      if (change.operation === "delete") {
+        await client.query("DELETE FROM budgets WHERE dataset_id = $1 AND budget_id = $2", [datasetId, change.recordId]);
+        return;
+      }
+      const record = budgetSchema.parse(change.payload);
+      if (record.id !== change.recordId) throw invalidSyncPayload();
+      await client.query(
+        `INSERT INTO budgets (dataset_id, budget_id, category_id, month, amount, currency, created_at, updated_at, revision, tombstone)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
+         ON CONFLICT (dataset_id, budget_id) DO UPDATE SET category_id = EXCLUDED.category_id, month = EXCLUDED.month, amount = EXCLUDED.amount, currency = EXCLUDED.currency, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, revision = EXCLUDED.revision, tombstone = FALSE`,
+        [datasetId, record.id, record.categoryId, record.month, record.amount, record.currency, record.createdAt, record.updatedAt, revision]
+      );
+      return;
+    }
+    if (change.operation === "delete") {
+      await client.query("DELETE FROM preferences WHERE dataset_id = $1", [datasetId]);
+      return;
+    }
+    const record = preferencesSchema.parse(change.payload);
+    if (change.recordId !== datasetId) throw invalidSyncPayload();
+    await client.query(
+      `INSERT INTO preferences (dataset_id, base_currency, theme, analytics_consent, revision, tombstone)
+       VALUES ($1, $2, $3, $4, $5, FALSE)
+       ON CONFLICT (dataset_id) DO UPDATE SET base_currency = EXCLUDED.base_currency, theme = EXCLUDED.theme, analytics_consent = EXCLUDED.analytics_consent, revision = EXCLUDED.revision, tombstone = FALSE`,
+      [datasetId, record.baseCurrency, record.theme, record.analyticsConsent, revision]
+    );
+  }
+}
+
+function invalidSyncPayload(): Error {
+  const error = new Error("Invalid sync payload");
+  error.name = "InvalidSyncPayloadError";
+  return error;
 }

@@ -67,3 +67,26 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/server/handlers/localAuthEmail.ts
+
+  ExchangeRateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ..
+      Handler: src/server/handlers/exchangeRates.handler
+      Environment:
+        Variables:
+          APP_ENV: local
+      Events:
+        Rates:
+          Type: HttpApi
+          Properties:
+            Path: /rates
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/server/handlers/exchangeRates.ts

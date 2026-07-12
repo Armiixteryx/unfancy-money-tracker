@@ -1,0 +1,6 @@
+{
+  "app": "npx tsx infra/bin/unfancy-money-tracker.ts",
+  "context": {
+    "@aws-cdk/aws-rds:lowercaseDbIdentifier": true
+  }
+}

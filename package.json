@@ -9,6 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "vitest run",
+    "test:integration": "vitest run --run src/features/sync/services/syncLocalDataset.test.ts src/features/sync/services/mergeSyncChanges.test.ts src/platform/persistence/persistence.test.ts src/platform/exchange-rates/httpExchangeRateProvider.test.ts",
+    "test:contract": "sam validate --template sam/template.yaml --lint && npm run infra:synth",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -18,15 +20,20 @@
     "local:migrate": "./scripts/local-env.sh migrate",
     "local:seed": "./scripts/local-env.sh seed",
     "local:sam": "./scripts/local-env.sh sam-api",
-    "local:verify": "./scripts/local-env.sh verify"
+    "local:verify": "./scripts/local-env.sh verify",
+    "infra:synth": "cdk synth --quiet",
+    "infra:diff": "cdk diff"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1085.0",
     "@expo/vector-icons": "^15.0.0",
     "@hookform/resolvers": "^5.2.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.90.0",
+    "aws-cdk-lib": "^2.261.0",
+    "constructs": "^10.6.0",
     "decimal.js": "^10.6.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.1",
     "expo": "~54.0.0",
     "expo-crypto": "~15.0.9",
     "expo-font": "~14.0.12",
@@ -60,9 +67,11 @@
     "@types/node": "^22.15.0",
     "@types/pg": "^8.15.5",
     "@types/react": "~19.1.0",
+    "aws-cdk": "^2.1130.0",
     "babel-preset-expo": "~54.0.0",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~10.0.0",
+    "tsx": "^4.23.0",
     "typescript": "~5.9.2",
     "vitest": "^3.2.4"
   }

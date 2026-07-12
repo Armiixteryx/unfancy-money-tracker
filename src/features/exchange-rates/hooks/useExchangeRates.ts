@@ -3,11 +3,14 @@ import { useQueries } from "@tanstack/react-query";
 
 import type { CurrencyCode } from "../../../domain/currency";
 import { FrankfurterExchangeRateAdapter } from "../../../platform/exchange-rates/frankfurterExchangeRateAdapter";
+import { HttpExchangeRateProvider } from "../../../platform/exchange-rates/httpExchangeRateProvider";
 import { createRateCache } from "../../../platform/exchange-rates/createRateCache";
 import type { ExchangeRateProvider, RateRecord } from "../../../platform/exchange-rates/types";
 
 const rateCache = createRateCache();
-const exchangeRateProvider: ExchangeRateProvider = new FrankfurterExchangeRateAdapter(rateCache);
+const exchangeRateProvider: ExchangeRateProvider = process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL
+  ? new HttpExchangeRateProvider(process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL)
+  : new FrankfurterExchangeRateAdapter(rateCache);
 
 export type RateRequest = { currency: CurrencyCode; date?: string };
 export type RateQueryState = "loading" | "fresh" | "stale" | "unavailable" | "error";
