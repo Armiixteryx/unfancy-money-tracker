@@ -1,6 +1,6 @@
 # SAM local API
 
-The SAM template contains local sync and auth-email boundaries. It does not create or deploy Cognito, API Gateway, Lambda, Aurora, RDS Proxy, SES, or other AWS resources.
+The SAM template contains local sync, auth-email, and exchange-rate proxy boundaries. It does not create or deploy Cognito, API Gateway, Lambda, Aurora, RDS Proxy, SES, or other AWS resources.
 
 From the repository root:
 
