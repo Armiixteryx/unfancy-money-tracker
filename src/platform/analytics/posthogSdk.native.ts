@@ -18,6 +18,10 @@ export function createPostHogSdk(config: PostHogSdkConfig): PostHogSdk | null {
     async initialize() { await client.ready(); await client.optOut(); },
     async optIn() { await client.optIn(); await client.startSessionRecording(); },
     async optOut() { await client.stopSessionRecording(); await client.optOut(); },
+    async flush() {
+      const flushable = client as unknown as { flush?: () => void | Promise<void> };
+      await flushable.flush?.();
+    },
     async identify(accountSubject: string) { client.identify(accountSubject); },
     async capture(event: AnalyticsEvent, properties: AnalyticsProperties) { client.capture(event, properties); }
   };

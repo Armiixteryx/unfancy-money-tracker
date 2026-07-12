@@ -69,7 +69,10 @@ export class PostHogAnalyticsClient implements AnalyticsClient {
     if (this.sdk) {
       try {
         if (enabled) await this.sdk.optIn();
-        else await this.sdk.optOut();
+        else {
+          await this.sdk.flush();
+          await this.sdk.optOut();
+        }
       } catch {
         // Consent state remains local even if the provider is unavailable.
       }

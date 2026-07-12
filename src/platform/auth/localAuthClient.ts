@@ -1,6 +1,7 @@
 import { AuthClientError, type AuthActionResult, type AuthClient, type AuthSession, type AuthState, type PasswordResetConfirmation, type SignInInput, type SignUpInput } from "./types";
 import { MemoryAuthSessionStore, type AuthSessionStore } from "./sessionStore";
 import { createUuid } from "../identifiers/createUuid";
+import { createLocalAuthEmailSender, type LocalAuthEmailSender } from "./localEmailSender";
 
 type LocalUser = { email: string; password: string; confirmed: boolean; resetCode: string | null; accountId: string };
 
@@ -11,7 +12,7 @@ export class LocalAuthClient implements AuthClient {
   private readonly sessionStore: AuthSessionStore;
   private loadPromise: Promise<void> | null = null;
 
-  constructor(sessionStore: AuthSessionStore = new MemoryAuthSessionStore()) {
+  constructor(sessionStore: AuthSessionStore = new MemoryAuthSessionStore(), private readonly emailSender: LocalAuthEmailSender = createLocalAuthEmailSender()) {
     this.sessionStore = sessionStore;
   }
 
@@ -22,7 +23,14 @@ export class LocalAuthClient implements AuthClient {
   async signUp(input: SignUpInput): Promise<AuthActionResult> {
     this.requireOnline();
     if (this.users.has(input.email)) throw new AuthClientError("account_exists", "This account cannot be created.");
-    this.users.set(input.email, { email: input.email, password: input.password, confirmed: false, resetCode: null, accountId: `local-${createUuid()}` });
+    const user: LocalUser = { email: input.email, password: input.password, confirmed: false, resetCode: null, accountId: `local-${createUuid()}` };
+    this.users.set(input.email, user);
+    try {
+      await this.emailSender.send({ to: input.email, code: "000000", kind: "confirmation" });
+    } catch {
+      this.users.delete(input.email);
+      throw new AuthClientError("provider_unavailable", "The local email service is unavailable.");
+    }
     return { status: "confirmation_required" };
   }
 
@@ -64,7 +72,16 @@ export class LocalAuthClient implements AuthClient {
   async requestPasswordReset(email: string): Promise<AuthActionResult> {
     this.requireOnline();
     const user = this.users.get(email);
-    if (user) user.resetCode = "000000";
+    if (user) {
+      const previousResetCode = user.resetCode;
+      user.resetCode = "000000";
+      try {
+        await this.emailSender.send({ to: email, code: "000000", kind: "password_reset" });
+      } catch {
+        user.resetCode = previousResetCode;
+        throw new AuthClientError("provider_unavailable", "The local email service is unavailable.");
+      }
+    }
     return { status: "code_sent" };
   }
 

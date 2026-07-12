@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { CognitoAuthClient, LocalAuthClient, MemoryAuthSessionStore } from "./index";
+import { CognitoAuthClient, LocalAuthClient, MemoryAuthSessionStore, type LocalAuthEmail, type LocalAuthEmailSender } from "./index";
+
+class TestLocalEmailSender implements LocalAuthEmailSender {
+  readonly sent: LocalAuthEmail[] = [];
+  async send(email: LocalAuthEmail): Promise<void> { this.sent.push(email); }
+}
 
 describe("local auth adapter", () => {
   it("preserves the confirmation and password-reset-code flow", async () => {
-    const auth = new LocalAuthClient();
+    const emailSender = new TestLocalEmailSender();
+    const auth = new LocalAuthClient(undefined, emailSender);
     expect(await auth.signUp({ email: "synthetic@example.test", password: "SyntheticPassword1!" })).toEqual({ status: "confirmation_required" });
+    expect(emailSender.sent[0]).toEqual({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
     await auth.confirmSignUp("synthetic@example.test", "000000");
     const signedIn = await auth.signIn({ email: "synthetic@example.test", password: "SyntheticPassword1!" });
     expect(signedIn.status).toBe("signed_in");
     await auth.requestPasswordReset("synthetic@example.test");
+    expect(emailSender.sent[1]).toEqual({ to: "synthetic@example.test", code: "000000", kind: "password_reset" });
     await auth.confirmPasswordReset({ email: "synthetic@example.test", code: "000000", newPassword: "SyntheticPassword2!" });
     await auth.signOut();
     expect((await auth.signIn({ email: "synthetic@example.test", password: "SyntheticPassword2!" })).status).toBe("signed_in");

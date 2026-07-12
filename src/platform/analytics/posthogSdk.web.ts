@@ -32,6 +32,10 @@ export function createPostHogSdk(config: PostHogSdkConfig): PostHogSdk | null {
       posthog.stopSessionRecording();
       posthog.opt_out_capturing();
     },
+    async flush() {
+      const flushable = posthog as unknown as { flush?: () => void | Promise<void> };
+      await flushable.flush?.();
+    },
     async identify(accountSubject: string) {
       posthog.identify(accountSubject);
     },

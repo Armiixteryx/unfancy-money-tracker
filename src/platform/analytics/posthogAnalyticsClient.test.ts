@@ -34,4 +34,25 @@ describe("privacy analytics", () => {
     await client.capture("report_viewed", { surface: "reports" });
     expect(calls).toBe(0);
   });
+
+  it("flushes queued events before opting out", async () => {
+    const lifecycle: string[] = [];
+    const client = new PostHogAnalyticsClient({
+      apiKey: "test-key",
+      platform: "web",
+      appVersion: "test",
+      identityStore: new TestIdentityStore(),
+      sdk: {
+        async initialize() { lifecycle.push("initialize"); },
+        async optIn() { lifecycle.push("opt-in"); },
+        async optOut() { lifecycle.push("opt-out"); },
+        async flush() { lifecycle.push("flush"); },
+        async identify() { lifecycle.push("identify"); },
+        async capture() { lifecycle.push("capture"); }
+      }
+    });
+    await client.initialize();
+    await client.setConsent(false);
+    expect(lifecycle).toEqual(["initialize", "flush", "opt-out"]);
+  });
 });

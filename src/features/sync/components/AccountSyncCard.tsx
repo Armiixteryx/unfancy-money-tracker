@@ -48,9 +48,11 @@ export function AccountSyncCard() {
     setBusy(true);
     setError(null);
     setMessage(null);
+    const authEvent = authAnalyticsEvent(mode);
     if (mode === "sign_in" || mode === "sign_up") void analytics.capture("sync_account_intent", { surface: "sync", actionResult: "started" });
     try {
       const result = await action();
+      void analytics.capture(authEvent, { surface: "auth", actionResult: "success" });
       if (result.status === "confirmation_required") {
         setMode("confirm_sign_up");
         setMessage("Check your email for the confirmation code before cloud sync can begin.");
@@ -70,6 +72,7 @@ export function AccountSyncCard() {
       }
     } catch (caught) {
       const authError = caught instanceof AuthClientError ? caught : new AuthClientError("provider_unavailable", "We could not complete that request. Try again later.");
+      void analytics.capture(authEvent, { surface: "auth", actionResult: "error", errorCode: authError.code });
       setAuthState(authError.code === "invalid_credentials" ? "invalid_credentials" : "error");
       setError(authError.message);
     } finally {
@@ -194,6 +197,13 @@ export function AccountSyncCard() {
       <View style={styles.linkRow}>{mode !== "confirm_sign_up" && mode !== "confirm_reset" ? <Pressable accessibilityRole="button" onPress={() => { setError(null); setMessage(null); setMode(mode === "sign_in" ? "sign_up" : "sign_in"); }}><Text style={styles.link}>{mode === "sign_in" ? "Create an account" : "Use sign in"}</Text></Pressable> : <Pressable accessibilityRole="button" onPress={() => { setError(null); setMode("sign_in"); }}><Text style={styles.link}>Back to sign in</Text></Pressable>}{mode === "sign_in" ? <Pressable accessibilityRole="button" onPress={() => { setError(null); setMessage(null); setMode("request_reset"); }}><Text style={styles.link}>Forgot password?</Text></Pressable> : null}</View>
     </>}
   </View>;
+}
+
+function authAnalyticsEvent(mode: AuthMode): "auth_signup_status" | "auth_signin_status" | "auth_password_reset_status" | "auth_confirmation_status" {
+  if (mode === "sign_up") return "auth_signup_status";
+  if (mode === "sign_in") return "auth_signin_status";
+  if (mode === "request_reset" || mode === "confirm_reset") return "auth_password_reset_status";
+  return "auth_confirmation_status";
 }
 
 function AuthField({ label, value, onChangeText, placeholder, secureTextEntry, keyboardType }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; secureTextEntry?: boolean; keyboardType?: "email-address" }) {

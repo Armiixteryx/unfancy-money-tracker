@@ -6,6 +6,7 @@ export interface PostHogSdk {
   initialize(): Promise<void>;
   optIn(): Promise<void>;
   optOut(): Promise<void>;
+  flush(): Promise<void>;
   identify(accountSubject: string): Promise<void>;
   capture(event: AnalyticsEvent, properties: AnalyticsProperties): Promise<void>;
   providerClient?: unknown;
