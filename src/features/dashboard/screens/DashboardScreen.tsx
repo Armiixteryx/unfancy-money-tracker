@@ -33,10 +33,11 @@ export function DashboardScreen() {
     <AppScreen eyebrow={month} title="Dashboard">
       {dataset.transactions.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <EmptyState title="No transactions yet" description="Add your first income or expense to see your remaining budget and monthly picture." />
-          <Pressable accessibilityRole="button" onPress={() => router.push("/transactions")} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>＋ Add transaction</Text>
-          </Pressable>
+          <EmptyState title="No transactions yet" description="Add your first income or expense to see your remaining budget and monthly picture.">
+            <Pressable accessibilityRole="button" onPress={() => router.push("/transactions")} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>＋ Add transaction</Text>
+            </Pressable>
+          </EmptyState>
         </View>
       ) : (
         <>
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   baseTotals: { flexDirection: "row", flexWrap: "wrap", gap: 38 },
   baseAmount: { color: colors.surface, fontSize: 22, fontWeight: "800", marginTop: 4 },
   rateFootnote: { color: "#B8CBE0", fontSize: 12, lineHeight: 18 },
-  primaryButton: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: -42, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  primaryButton: { backgroundColor: colors.emerald, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
   primaryButtonText: { color: colors.surface, fontSize: 14, fontWeight: "800" },
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   summaryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flex: 1, minWidth: 240, padding: 20 },

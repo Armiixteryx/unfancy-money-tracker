@@ -46,12 +46,13 @@ export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
   );
 }
 
-export function EmptyState({ title, description }: { title: string; description: string }) {
+export function EmptyState({ title, description, children }: { title: string; description: string; children?: React.ReactNode }) {
   return (
     <View style={styles.emptyState}>
       <View style={styles.emptyIcon} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyDescription}>{description}</Text>
+      {children ? <View style={styles.emptyAction}>{children}</View> : null}
     </View>
   );
 }
@@ -86,5 +87,6 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { backgroundColor: "#ECF2F8", borderRadius: 24, height: 64, marginBottom: 20, width: 64 },
   emptyTitle: { color: colors.navy, fontSize: 20, fontWeight: "800", textAlign: "center" },
-  emptyDescription: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 8, maxWidth: 420, textAlign: "center" }
+  emptyDescription: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 8, maxWidth: 420, textAlign: "center" },
+  emptyAction: { marginTop: 24 }
 });

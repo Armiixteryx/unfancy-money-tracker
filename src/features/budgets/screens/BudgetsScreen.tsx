@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   cardHint: { color: colors.muted, fontSize: 12, marginTop: 4 },
   count: { color: colors.muted, fontSize: 13 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
-  emptyAction: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: -42, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  emptyAction: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
   cards: { gap: 12, paddingTop: 14 },
   budgetCard: { borderColor: "#EEF2F5", borderRadius: 16, borderWidth: 1, gap: 12, padding: 16 },
   cardTop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },

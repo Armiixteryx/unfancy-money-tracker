@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.navy, fontSize: 18, fontWeight: "800" },
   resultCount: { color: colors.muted, fontSize: 13 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
-  emptyAction: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: -42, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  emptyAction: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
   noMatch: { alignItems: "center", padding: 42 },
   noMatchTitle: { color: colors.navy, fontSize: 17, fontWeight: "800" },
   noMatchText: { color: colors.muted, fontSize: 14, marginTop: 7 },
