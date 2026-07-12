@@ -43,3 +43,19 @@ scripts/local-env.sh reset
 ```
 
 The client starts with a new empty anonymous dataset. The PostgreSQL seed is for backend contract tests only; it is never demo data in the product UI.
+
+## Android development client
+
+This app uses `react-native-mmkv` 3.x and Expo New Architecture, so Android must run in the project development client rather than Expo Go. Build and install it once with:
+
+```sh
+npm run android
+```
+
+Then start Metro with:
+
+```sh
+npm run start
+```
+
+Press `a` in the Expo terminal to open the installed development client. If the Android SDK is not configured, set `ANDROID_HOME` or create `android/local.properties` with the machine-specific `sdk.dir` path. The generated `android/` directory and local SDK path are not committed.
