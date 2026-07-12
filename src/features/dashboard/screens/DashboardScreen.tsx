@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { aggregateCategorySpending, aggregateMonthByCurrency, currentCalendarMonth } from "../../../domain/aggregates";
-import { formatMoneyForDisplay } from "../../../domain/money";
+import { aggregateCategorySpending, aggregateMonthByCurrency, convertMonthAggregate, currentCalendarMonth, totalBudgetForMonth } from "../../../domain/aggregates";
+import { formatMoneyForDisplay, subtractMoney } from "../../../domain/money";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { colors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 
 export function DashboardScreen() {
   const router = useRouter();
@@ -14,6 +15,13 @@ export function DashboardScreen() {
   const month = currentCalendarMonth();
   const currencyAggregates = useMemo(() => aggregateMonthByCurrency(dataset?.transactions ?? [], month), [dataset?.transactions, month]);
   const categoryAggregates = useMemo(() => aggregateCategorySpending(dataset?.transactions ?? [], dataset?.categories ?? [], month), [dataset?.transactions, dataset?.categories, month]);
+  const baseCurrency = dataset?.preferences.baseCurrency ?? "USD";
+  const rateRequests = useMemo(() => currencyAggregates.map((aggregate) => ({ currency: aggregate.currency })), [currencyAggregates]);
+  const rateQueries = useExchangeRates(baseCurrency, rateRequests);
+  const convertedMonth = useMemo(
+    () => convertMonthAggregate(dataset?.transactions ?? [], month, baseCurrency, (currency) => rateQueries.latestRates.get(currency)),
+    [baseCurrency, dataset?.transactions, month, rateQueries.latestRates]
+  );
 
   if (!dataset) return null;
 
@@ -28,6 +36,11 @@ export function DashboardScreen() {
         </View>
       ) : (
         <>
+          <View style={styles.baseSummaryCard}>
+            <View style={styles.baseSummaryHeader}><View><Text style={styles.baseSummaryEyebrow}>Base currency snapshot</Text><Text style={styles.baseSummaryTitle}>{baseCurrency} · {month}</Text></View><Text style={styles.rateState}>{rateQueries.isLoading ? "Loading rates…" : convertedMonth.unavailableCurrencies.length > 0 ? "Partial view" : "Rates available"}</Text></View>
+            {convertedMonth.unavailableCurrencies.length > 0 ? <Text style={styles.rateNotice}>Combined totals are unavailable for {convertedMonth.unavailableCurrencies.join(", ")}. Original-currency figures remain below.</Text> : <View style={styles.baseTotals}><View><Text style={styles.summaryLabel}>Income</Text><Text style={[styles.baseAmount, styles.income]}>{formatMoneyForDisplay(convertedMonth.income)}</Text></View><View><Text style={styles.summaryLabel}>Expenses</Text><Text style={[styles.baseAmount, styles.expense]}>{formatMoneyForDisplay(convertedMonth.expenses)}</Text></View><View><Text style={styles.summaryLabel}>Net</Text><Text style={styles.baseAmount}>{formatMoneyForDisplay(subtractMoney(convertedMonth.income, convertedMonth.expenses))}</Text></View></View>}
+            <Text style={styles.rateFootnote}>{rateQueries.hasError ? "Exchange rates could not be refreshed. Retry from Settings." : convertedMonth.rates.length > 0 ? `Rates use the latest available data; effective dates are shown in Settings.` : "Same-currency totals do not require a provider rate."}</Text>
+          </View>
           <View style={styles.summaryGrid}>
             {currencyAggregates.map((aggregate) => (
               <View key={aggregate.currency} style={styles.summaryCard}>
@@ -37,7 +50,7 @@ export function DashboardScreen() {
                 <Text style={[styles.summaryAmount, styles.expense]}>{formatMoneyForDisplay(aggregate.expenses)}</Text>
                 <View style={styles.divider} />
                 <Text style={styles.summaryLabel}>Remaining budget</Text>
-                <Text style={styles.remainingText}>{dataset.budgets.length ? "Budget details below" : "No budgets yet"}</Text>
+                <Text style={styles.remainingText}>{(() => { const budget = totalBudgetForMonth(dataset.budgets, month, aggregate.currency); return budget ? formatMoneyForDisplay(subtractMoney(budget, aggregate.expenses)) : "No budget set"; })()}</Text>
               </View>
             ))}
           </View>
@@ -71,6 +84,15 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   emptyWrap: { alignItems: "center", gap: 0 },
+  baseSummaryCard: { backgroundColor: colors.navy, borderRadius: 20, gap: 14, padding: 22 },
+  baseSummaryHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  baseSummaryEyebrow: { color: "#B8CBE0", fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
+  baseSummaryTitle: { color: colors.surface, fontSize: 20, fontWeight: "800", marginTop: 4 },
+  rateState: { color: "#D6E8DB", fontSize: 12, fontWeight: "800" },
+  rateNotice: { color: "#F7D8D5", fontSize: 13, lineHeight: 19 },
+  baseTotals: { flexDirection: "row", flexWrap: "wrap", gap: 38 },
+  baseAmount: { color: colors.surface, fontSize: 22, fontWeight: "800", marginTop: 4 },
+  rateFootnote: { color: "#B8CBE0", fontSize: 12, lineHeight: 18 },
   primaryButton: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: -42, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
   primaryButtonText: { color: colors.surface, fontSize: 14, fontWeight: "800" },
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
@@ -97,4 +119,3 @@ const styles = StyleSheet.create({
   activityDescription: { color: colors.navy, fontSize: 14, fontWeight: "700" },
   activityAmount: { fontSize: 13, fontWeight: "800" }
 });
-

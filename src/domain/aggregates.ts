@@ -1,8 +1,18 @@
 import Decimal from "decimal.js";
 
 import { type CurrencyCode } from "./currency";
-import { addMoney, createMoney, type Money } from "./money";
+import { addMoney, convertMoney, createMoney, type Money } from "./money";
 import type { Budget, Category, Transaction } from "./types";
+
+type AggregateRateRecord = {
+  base: CurrencyCode;
+  quote: CurrencyCode;
+  rate: string;
+  effectiveDate: string;
+  fetchedAt: string;
+  provider: string;
+  status: "fresh" | "stale";
+};
 
 export type CurrencyAggregate = {
   currency: CurrencyCode;
@@ -16,6 +26,15 @@ export type CategoryAggregate = {
   categoryName: string;
   currency: CurrencyCode;
   spent: Money;
+};
+
+export type ConvertedMonthAggregate = {
+  currency: CurrencyCode;
+  income: Money;
+  expenses: Money;
+  transactionCount: number;
+  unavailableCurrencies: readonly CurrencyCode[];
+  rates: readonly AggregateRateRecord[];
 };
 
 export function currentCalendarMonth(date = new Date()): `${number}-${number}` {
@@ -44,6 +63,44 @@ export function aggregateMonthByCurrency(
     });
   }
   return [...aggregates.values()].sort((left, right) => left.currency.localeCompare(right.currency));
+}
+
+export function convertMonthAggregate(
+  transactions: readonly Transaction[],
+  month: string,
+  baseCurrency: CurrencyCode,
+  getRate: (currency: CurrencyCode) => RateRecord | undefined
+): ConvertedMonthAggregate {
+  let income = createMoney("0", baseCurrency);
+  let expenses = createMoney("0", baseCurrency);
+  let transactionCount = 0;
+  const unavailableCurrencies = new Set<CurrencyCode>();
+  const rates = new Map<string, AggregateRateRecord>();
+
+  for (const transaction of transactions) {
+    if (!transaction.date.startsWith(month)) continue;
+    transactionCount += 1;
+    const rate: AggregateRateRecord | undefined = transaction.currency === baseCurrency
+      ? { base: baseCurrency, quote: baseCurrency, rate: "1", effectiveDate: transaction.date, fetchedAt: new Date(0).toISOString(), provider: "same-currency" as const, status: "fresh" as const }
+      : getRate(transaction.currency);
+    if (!rate) {
+      unavailableCurrencies.add(transaction.currency);
+      continue;
+    }
+    rates.set(transaction.currency, rate);
+    const converted = convertMoney(createMoney(transaction.amount, transaction.currency), baseCurrency, rate.rate);
+    if (transaction.type === "income") income = addMoney(income, converted);
+    else expenses = addMoney(expenses, converted);
+  }
+
+  return {
+    currency: baseCurrency,
+    income,
+    expenses,
+    transactionCount,
+    unavailableCurrencies: [...unavailableCurrencies].sort(),
+    rates: [...rates.values()]
+  };
 }
 
 export function aggregateCategorySpending(

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
@@ -6,6 +6,7 @@ import type { CategoryKind } from "../../../domain/types";
 import { AppScreen } from "../../../ui/AppScreen";
 import { colors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 
 export function SettingsScreen() {
   const dataset = useDatasetStore((state) => state.dataset);
@@ -14,6 +15,8 @@ export function SettingsScreen() {
   const saveError = useDatasetStore((state) => state.saveError);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const rateRequests = useMemo(() => dataset ? dataset.transactions.map((transaction) => ({ currency: transaction.currency })) : [], [dataset]);
+  const rateQueries = useExchangeRates(dataset?.preferences.baseCurrency ?? "USD", rateRequests);
 
   if (!dataset) return null;
 
@@ -47,8 +50,8 @@ export function SettingsScreen() {
 
         <View style={styles.card}>
           <SectionHeader title="Exchange rates" description="Rate freshness is shown before any combined multi-currency total is presented." />
-          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotMuted]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>No rate requested</Text><Text style={styles.helper}>Same-currency figures remain available. A future rate request will show its provider, effective date, and freshness here.</Text></View></View>
-          <View style={styles.infoBox}><Text style={styles.infoTitle}>Frankfurter adapter ready</Text><Text style={styles.helper}>The local loop does not hide unavailable rates or invent a combined total.</Text></View>
+          <View style={styles.statusRow}><View style={[styles.statusDot, rateQueries.hasError ? styles.statusDotBad : rateQueries.isLoading ? styles.statusDotMuted : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{rateQueries.isLoading ? "Loading rates" : rateQueries.hasError ? "Rate refresh needs attention" : rateQueries.latestRates.size > 1 ? "Rates available" : "Same-currency totals"}</Text><Text style={styles.helper}>{rateQueries.isLoading ? "Fetching the latest available reference rates." : rateQueries.hasError ? "The provider could not be reached. Cached stale rates remain labeled when available." : rateQueries.latestRates.size > 1 ? [...rateQueries.latestRates.values()].filter((rate) => rate.provider !== "same-currency").map((rate) => `${rate.base}/${rate.quote} · ${rate.effectiveDate} · ${rate.status}`).join(" · ") : "No provider rate is needed until a transaction uses a different currency."}</Text></View></View>
+          <View style={styles.infoBox}><Text style={styles.infoTitle}>Frankfurter · ECB reference rates</Text><Text style={styles.helper}>Original amounts stay unchanged. Combined totals are omitted when no usable conversion exists.</Text>{rateQueries.hasError ? <Pressable accessibilityRole="button" onPress={() => void rateQueries.retry()} style={styles.secondaryButton}><Text style={styles.secondaryText}>Retry rate refresh</Text></Pressable> : null}</View>
         </View>
 
         <View style={styles.card}>
