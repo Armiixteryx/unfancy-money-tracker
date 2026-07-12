@@ -24,6 +24,11 @@ services:
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"
       - "${MAILHOG_HTTP_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8025/api/v2/messages?limit=1 >/dev/null"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
   localstack:
     image: localstack/localstack:3.8
@@ -43,4 +48,3 @@ services:
 volumes:
   unfancy-postgres-data:
   unfancy-localstack-data:
-
