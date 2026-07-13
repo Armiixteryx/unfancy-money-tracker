@@ -19,7 +19,8 @@ export class HttpExchangeRateProvider implements ExchangeRateProvider {
     if (date) url.searchParams.set("date", date);
     let response: Response;
     try {
-      response = await this.fetcher(url);
+      const fetcher = this.fetcher;
+      response = await fetcher(url);
     } catch {
       throw new ExchangeRateError("unavailable", "Exchange rates are temporarily unavailable.");
     }

@@ -5,10 +5,12 @@ import { HttpExchangeRateProvider } from "./httpExchangeRateProvider";
 describe("HTTP exchange-rate boundary", () => {
   it("sends only currency and optional date parameters and validates the response", async () => {
     let requestedSearch = "";
-    const provider = new HttpExchangeRateProvider("https://api.example.test/rates", async (input) => {
+    const fetcher = async function (this: unknown, input: RequestInfo | URL) {
+      expect(this).toBeUndefined();
       requestedSearch = new URL(input.toString()).search;
       return new Response(JSON.stringify({ base: "USD", quote: "EUR", rate: "0.91", effectiveDate: "2026-07-10", fetchedAt: "2026-07-12T00:00:00.000Z", provider: "frankfurter-ecb", status: "fresh" }), { status: 200 });
-    });
+    };
+    const provider = new HttpExchangeRateProvider("https://api.example.test/rates", fetcher);
     const result = await provider.getHistoricalRate("USD", "EUR", "2026-07-10");
     expect(requestedSearch).toContain("base=USD");
     expect(requestedSearch).toContain("quote=EUR");

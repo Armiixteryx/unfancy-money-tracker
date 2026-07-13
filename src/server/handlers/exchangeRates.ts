@@ -39,5 +39,12 @@ function getSubject(event: APIGatewayProxyEventV2): string | null {
 }
 
 function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
-  return { statusCode, headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+  return {
+    statusCode,
+    headers: {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(body)
+  };
 }

@@ -4,7 +4,7 @@ The default development loop is local-only and does not require AWS credentials:
 
 - PostgreSQL 16 runs in Docker on port `5432`.
 - MailHog captures local confirmation and password-reset email on SMTP `1025` and UI `http://127.0.0.1:8025`.
-- SAM CLI builds and runs the API Gateway-compatible Lambda routes in `sam/template.yaml` on `http://127.0.0.1:3001`.
+- SAM CLI builds and runs the API Gateway-compatible Lambda routes in `sam/template.yaml` on `http://127.0.0.1:3001`. Web, iOS Simulator, and Android (through ADB port reversal) use its `/rates` route for exchange rates.
 - LocalStack is optional and runs only when an AWS SDK contract test needs it, on port `4566`.
 
 Copy `.env.example` to `.env.local` only when a local override is needed. The committed defaults are synthetic and non-production. Never place AWS credentials, production database credentials, PostHog project keys, real email destinations, or real financial data in local configuration or fixtures.

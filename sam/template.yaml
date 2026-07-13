@@ -7,6 +7,16 @@ Globals:
     Runtime: nodejs24.x
     Timeout: 30
     MemorySize: 512
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - "*"
+      AllowHeaders:
+        - authorization
+        - content-type
+      AllowMethods:
+        - GET
+        - POST
 
 Resources:
   SyncFunction:
