@@ -1,4 +1,5 @@
 import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useThemedStyles, type ThemeColors } from "./theme";
@@ -51,7 +52,9 @@ export function EmptyState({ title, description, children }: { title: string; de
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.emptyState}>
-      <View style={styles.emptyIcon} />
+      <View accessibilityElementsHidden style={styles.emptyIcon}>
+        <Ionicons color={styles.emptyIconGlyph.color} name="receipt-outline" size={30} />
+      </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyDescription}>{description}</Text>
       {children ? <View style={styles.emptyAction}>{children}</View> : null}
@@ -87,7 +90,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     minHeight: 300,
     padding: 32
   },
-  emptyIcon: { backgroundColor: colors.infoSubtle, borderRadius: 24, height: 64, marginBottom: 20, width: 64 },
+  emptyIcon: { alignItems: "center", backgroundColor: colors.infoSubtle, borderRadius: 18, height: 64, justifyContent: "center", marginBottom: 20, width: 64 },
+  emptyIconGlyph: { color: colors.accent },
   emptyTitle: { color: colors.text, fontSize: 20, fontWeight: "800", textAlign: "center" },
   emptyDescription: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 8, maxWidth: 420, textAlign: "center" },
   emptyAction: { marginTop: 24 }
