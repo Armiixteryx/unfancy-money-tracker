@@ -10,6 +10,8 @@ import { createPersistenceAdapter, DatasetPersistence } from "../../../platform/
 import type { HydrationState } from "../../../platform/persistence";
 import { createUuid } from "../../../platform/identifiers/createUuid";
 import { mergeAccountDatasets } from "../services";
+import { createMockDataset, type MockDatasetPreset } from "../../development/mockData";
+import { isLocalDevelopmentRuntime } from "../../../platform/runtime/localDevelopment";
 
 type SaveStatus = "idle" | "saving" | "error";
 
@@ -18,11 +20,13 @@ export type DatasetStoreState = {
   dataset: Dataset | null;
   saveStatus: SaveStatus;
   saveError: string | null;
+  isAnonymousDataset: boolean;
   transactionFilters: TransactionFilters;
   initialize: () => Promise<void>;
   retryHydration: () => Promise<void>;
   recoverLocalData: () => Promise<void>;
   resetLocalData: () => Promise<void>;
+  replaceWithMockData: (preset: MockDatasetPreset) => Promise<MutationResult<Dataset>>;
   addTransaction: (input: TransactionInput) => Promise<MutationResult<Transaction>>;
   editTransaction: (id: string, input: TransactionInput) => Promise<MutationResult<Transaction>>;
   deleteTransaction: (id: string) => Promise<MutationResult<null>>;
@@ -116,6 +120,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
       dataset: null,
       saveStatus: "idle",
       saveError: null,
+      isAnonymousDataset: true,
       transactionFilters: {},
       initialize: async () => {
         if (initialization) return initialization;
@@ -149,6 +154,15 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         await activePersistence.reset();
         set({ hydration: { status: "loading" }, dataset: null, saveStatus: "idle", saveError: null });
         await get().initialize();
+      },
+      replaceWithMockData: async (preset) => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "Local data is still loading." };
+        if (!isLocalDevelopmentRuntime()) return { ok: false, message: "Mock data is available only in the local development environment." };
+        if (activeNamespace !== "anonymous") return { ok: false, message: "Sign out before replacing anonymous local data with a mock dataset." };
+        const next = createMockDataset(preset, dataset.datasetId);
+        const saved = await commit(next);
+        return saved ? { ok: true, value: next } : { ok: false, message: "Mock data could not be saved locally." };
       },
       addTransaction: async (input) => {
         const dataset = get().dataset;
@@ -268,7 +282,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         const merged = hasSnapshot ? mergeAccountDatasets(current, result.dataset) : current;
         activePersistence = nextPersistence;
         activeNamespace = `account:${accountId}`;
-        set({ hydration: { status: "ready", dataset: merged }, dataset: merged, saveStatus: "saving", saveError: null });
+        set({ hydration: { status: "ready", dataset: merged }, dataset: merged, saveStatus: "saving", saveError: null, isAnonymousDataset: false });
         try {
           await activePersistence.save(merged);
           set({ saveStatus: "idle" });
@@ -286,7 +300,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         activePersistence = nextPersistence;
         activeNamespace = "anonymous";
         const nextDataset = result.dataset;
-        set({ hydration: { status: "ready", dataset: nextDataset }, dataset: nextDataset, saveStatus: "idle", saveError: null });
+        set({ hydration: { status: "ready", dataset: nextDataset }, dataset: nextDataset, saveStatus: "idle", saveError: null, isAnonymousDataset: true });
         return { ok: true, value: nextDataset };
       },
       addCategory: async (input) => {

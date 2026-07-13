@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DatasetPersistence, MemoryPersistenceAdapter } from "../../../platform/persistence";
 import { createDatasetStore } from "./useDatasetStore";
@@ -6,6 +6,8 @@ import { createDatasetStore } from "./useDatasetStore";
 const categoryId = "00000000-0000-4000-8000-000000000001";
 
 describe("local dataset store", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("hydrates before exposing records and persists transaction CRUD", async () => {
     const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
     expect(store.getState().dataset).toBeNull();
@@ -102,5 +104,32 @@ describe("local dataset store", () => {
     const rehydratedAgain = createDatasetStore(new DatasetPersistence(adapter));
     await rehydratedAgain.getState().initialize();
     expect(rehydratedAgain.getState().dataset?.preferences.theme).toBe("system");
+  });
+
+  it("replaces only an anonymous local dataset with a validated mock preset", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV", "local");
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter));
+    await store.getState().initialize();
+    const originalId = store.getState().dataset?.datasetId;
+
+    const result = await store.getState().replaceWithMockData("edge-cases");
+
+    expect(result.ok).toBe(true);
+    expect(store.getState().dataset?.datasetId).toBe(originalId);
+    expect(store.getState().dataset?.transactions.length).toBeGreaterThan(10);
+    expect(store.getState().dataset?.sync.lastSyncedAt).toBeNull();
+    expect(store.getState().dataset?.sync.outbox).toEqual([]);
+  });
+
+  it("does not replace data outside the explicit local development environment", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV", "production");
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    await store.getState().initialize();
+
+    await expect(store.getState().replaceWithMockData("dashboard")).resolves.toEqual({
+      ok: false,
+      message: "Mock data is available only in the local development environment."
+    });
   });
 });

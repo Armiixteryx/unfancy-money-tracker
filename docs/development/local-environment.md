@@ -16,6 +16,7 @@ scripts/local-env.sh verify
 scripts/local-env.sh start
 scripts/local-env.sh migrate
 scripts/local-env.sh seed
+npm run local:seed-app -- --preset=dashboard --target=ios
 scripts/local-env.sh status
 scripts/local-env.sh health
 ```
@@ -43,6 +44,22 @@ scripts/local-env.sh reset
 ```
 
 The client starts with a new empty anonymous dataset. The PostgreSQL seed is for backend contract tests only; it is never demo data in the product UI.
+
+## App mock data for local development
+
+Use the local-only app seeder when visual or manual QA needs a populated anonymous dataset:
+
+```sh
+npm run local:seed-app -- --preset=dashboard --target=ios
+npm run local:seed-app -- --preset=edge-cases --target=android
+npm run local:seed-app -- --preset=dashboard --target=web
+```
+
+The app must already be running on the requested target. The command opens a confirmation screen; it does not write encrypted device/browser storage directly. Confirmation replaces the entire anonymous local dataset. It refuses signed-in account namespaces and any environment where `EXPO_PUBLIC_ENV` is not `local`. Use `--dry-run` to print the target URL without opening it. The dashboard preset covers ordinary current-month and report content; the edge-case preset additionally covers mixed currencies, over-budget states, archived history, and category deletion reassignment.
+
+Native targets use the Expo Router path form `unfancy-money-tracker:///developer-seed?...` (three slashes); this is required so `developer-seed` is interpreted as a route rather than a URL host.
+
+Mock fixtures are contract-tested whenever `npm test` runs. Run `npm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
 
 ## Android development client
 

@@ -11,6 +11,7 @@ function ThemedApp() {
       <StatusBar style={resolvedTheme === "dark" ? "light" : "dark"} />
       <Stack screenOptions={{ contentStyle: { backgroundColor: colors.canvas } }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="developer-seed" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
     </>
   );

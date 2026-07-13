@@ -159,4 +159,4 @@ Allowed event properties are limited to platform, app version, surface, action r
 - Shared household finances.
 - Investments, loans, debt tracking, or financial advice.
 - CSV download, payments, and subscription enforcement.
-- Pre-populated demo data and demo-data reset.
+- Pre-populated end-user demo data and demo-data reset. Development-only local fixture tooling is documented separately and is not product UI.
