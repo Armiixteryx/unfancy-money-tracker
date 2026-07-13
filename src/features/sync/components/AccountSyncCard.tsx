@@ -11,12 +11,13 @@ import { mergeSyncChanges } from "../services";
 import { useAuthRemoteState } from "../../auth/hooks/useAuthRemoteState";
 import { useSyncRemoteState } from "../hooks/useSyncRemoteState";
 import { useDatasetStore } from "../store/useDatasetStore";
-import { colors } from "../../../ui/theme";
+import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 type AuthMode = "sign_in" | "sign_up" | "confirm_sign_up" | "request_reset" | "confirm_reset";
 
 export function AccountSyncCard() {
+  const styles = useThemedStyles(createStyles);
   const dataset = useDatasetStore((state) => state.dataset);
   const setSyncMetadata = useDatasetStore((state) => state.setSyncMetadata);
   const applyRemoteMerge = useDatasetStore((state) => state.applyRemoteMerge);
@@ -211,40 +212,42 @@ function authAnalyticsEvent(mode: AuthMode): "auth_signup_status" | "auth_signin
 }
 
 function AuthField({ label, value, onChangeText, placeholder, secureTextEntry, keyboardType }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; secureTextEntry?: boolean; keyboardType?: "email-address" }) {
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} autoCapitalize="none" keyboardType={keyboardType} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#829AB1" secureTextEntry={secureTextEntry} style={styles.input} value={value} /></View>;
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
+  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} autoCapitalize="none" keyboardType={keyboardType} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.placeholder} secureTextEntry={secureTextEntry} style={styles.input} value={value} /></View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { alignSelf: "stretch", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, minWidth: 0, padding: 20, width: "100%" },
   header: { alignItems: "flex-start", flexDirection: "row", gap: 12, justifyContent: "space-between" },
   headerCopy: { flex: 1, minWidth: 0 },
-  title: { color: colors.navy, fontSize: 18, fontWeight: "800" },
+  title: { color: colors.text, fontSize: 18, fontWeight: "800" },
   description: { color: colors.muted, flexShrink: 1, fontSize: 13, lineHeight: 19, marginTop: 4, maxWidth: 560 },
-  mode: { color: colors.sky, flexShrink: 0, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
-  error: { backgroundColor: "#FFF2F0", borderRadius: 10, color: colors.coral, fontSize: 14, padding: 12 },
-  success: { backgroundColor: "#E9F7EF", borderRadius: 10, color: colors.emerald, fontSize: 14, padding: 12 },
+  mode: { color: colors.accent, flexShrink: 0, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  error: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
+  success: { backgroundColor: colors.positiveSubtle, borderRadius: 10, color: colors.positive, fontSize: 14, padding: 12 },
   field: { gap: 7 },
-  label: { color: colors.navy, fontSize: 12, fontWeight: "800" },
-  input: { backgroundColor: "#F8FAFC", borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.navy, minHeight: 44, paddingHorizontal: 12 },
-  primary: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 11, justifyContent: "center", minHeight: 44, paddingHorizontal: 15 },
-  primaryText: { color: colors.surface, fontSize: 13, fontWeight: "800" },
+  label: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  input: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.text, minHeight: 44, paddingHorizontal: 12 },
+  primary: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 11, justifyContent: "center", minHeight: 44, paddingHorizontal: 15 },
+  primaryText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
   secondary: { alignItems: "center", borderColor: colors.border, borderRadius: 11, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: 15 },
-  secondaryText: { color: colors.navy, fontSize: 13, fontWeight: "800" },
+  secondaryText: { color: colors.text, fontSize: 13, fontWeight: "800" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   linkRow: { flexDirection: "row", flexWrap: "wrap", gap: 18 },
-  link: { color: colors.sky, fontSize: 13, fontWeight: "800" },
-  session: { alignItems: "center", backgroundColor: "#F8FAFC", borderRadius: 12, flexDirection: "row", gap: 10, padding: 13 },
+  link: { color: colors.accent, fontSize: 13, fontWeight: "800" },
+  session: { alignItems: "center", backgroundColor: colors.surfaceRaised, borderRadius: 12, flexDirection: "row", gap: 10, padding: 13 },
   sessionCopy: { flex: 1, gap: 3 },
-  sessionTitle: { color: colors.navy, fontSize: 14, fontWeight: "800" },
+  sessionTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
   helper: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   dot: { borderRadius: 999, height: 10, width: 10 },
-  dotGood: { backgroundColor: colors.emerald },
-  dotBad: { backgroundColor: colors.coral },
-  conflictBox: { backgroundColor: "#FFF9F8", borderColor: "#F4C7C7", borderRadius: 12, borderWidth: 1, gap: 12, padding: 14 },
-  conflictTitle: { color: colors.navy, fontSize: 14, fontWeight: "800" },
-  conflictRow: { borderTopColor: "#F4C7C7", borderTopWidth: 1, gap: 9, paddingTop: 12 },
-  warningBox: { backgroundColor: "#FFF8E7", borderColor: "#EBCB7A", borderRadius: 12, borderWidth: 1, gap: 9, padding: 14 },
-  warningTitle: { color: colors.navy, fontSize: 14, fontWeight: "800" },
-  danger: { alignItems: "center", backgroundColor: colors.coral, borderRadius: 11, justifyContent: "center", minHeight: 44, paddingHorizontal: 15 },
-  dangerText: { color: colors.surface, fontSize: 13, fontWeight: "800" }
+  dotGood: { backgroundColor: colors.positive },
+  dotBad: { backgroundColor: colors.negative },
+  conflictBox: { backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 12, borderWidth: 1, gap: 12, padding: 14 },
+  conflictTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  conflictRow: { borderTopColor: colors.negative, borderTopWidth: 1, gap: 9, paddingTop: 12 },
+  warningBox: { backgroundColor: colors.warningSubtle, borderColor: colors.warning, borderRadius: 12, borderWidth: 1, gap: 9, padding: 14 },
+  warningTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  danger: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 11, justifyContent: "center", minHeight: 44, paddingHorizontal: 15 },
+  dangerText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" }
 });

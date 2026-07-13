@@ -5,12 +5,13 @@ import { useRouter } from "expo-router";
 import { aggregateCategorySpending, aggregateMonthByCurrency, convertMonthAggregate, currentCalendarMonth, totalBudgetForMonth } from "../../../domain/aggregates";
 import { formatMoneyForDisplay, subtractMoney } from "../../../domain/money";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
-import { colors } from "../../../ui/theme";
+import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function DashboardScreen() {
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const dataset = useDatasetStore((state) => state.dataset);
   const analytics = useAnalytics();
@@ -87,40 +88,40 @@ export function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   emptyWrap: { alignItems: "center", gap: 0 },
-  baseSummaryCard: { backgroundColor: colors.navy, borderRadius: 20, gap: 14, padding: 22 },
+  baseSummaryCard: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, padding: 22 },
   baseSummaryHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  baseSummaryEyebrow: { color: "#B8CBE0", fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
-  baseSummaryTitle: { color: colors.surface, fontSize: 20, fontWeight: "800", marginTop: 4 },
-  rateState: { color: "#D6E8DB", fontSize: 12, fontWeight: "800" },
-  rateNotice: { color: "#F7D8D5", fontSize: 13, lineHeight: 19 },
+  baseSummaryEyebrow: { color: colors.muted, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
+  baseSummaryTitle: { color: colors.text, fontSize: 20, fontWeight: "800", marginTop: 4 },
+  rateState: { color: colors.positive, fontSize: 12, fontWeight: "800" },
+  rateNotice: { color: colors.negative, fontSize: 13, lineHeight: 19 },
   baseTotals: { flexDirection: "row", flexWrap: "wrap", gap: 38 },
-  baseAmount: { color: colors.surface, fontSize: 22, fontWeight: "800", marginTop: 4 },
-  rateFootnote: { color: "#B8CBE0", fontSize: 12, lineHeight: 18 },
-  primaryButton: { backgroundColor: colors.emerald, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
-  primaryButtonText: { color: colors.surface, fontSize: 14, fontWeight: "800" },
+  baseAmount: { color: colors.text, fontSize: 22, fontWeight: "800", marginTop: 4 },
+  rateFootnote: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  primaryButton: { backgroundColor: colors.positive, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  primaryButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "800" },
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   summaryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flex: 1, minWidth: 240, padding: 20 },
   summaryLabel: { color: colors.muted, fontSize: 13, fontWeight: "700", marginBottom: 4 },
   summaryAmount: { fontSize: 23, fontWeight: "800", marginBottom: 15 },
-  income: { color: colors.emerald },
-  expense: { color: colors.coral },
+  income: { color: colors.positive },
+  expense: { color: colors.negative },
   divider: { backgroundColor: colors.border, height: 1, marginBottom: 15 },
-  remainingText: { color: colors.navy, fontSize: 15, fontWeight: "800" },
+  remainingText: { color: colors.text, fontSize: 15, fontWeight: "800" },
   contentGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flex: 1, minWidth: 280, padding: 20 },
   cardHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
-  cardTitle: { color: colors.navy, fontSize: 17, fontWeight: "800" },
+  cardTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
   cardHint: { color: colors.muted, fontSize: 12 },
-  link: { color: colors.sky, fontSize: 13, fontWeight: "800" },
+  link: { color: colors.accent, fontSize: 13, fontWeight: "800" },
   muted: { color: colors.muted, fontSize: 13 },
-  categoryRow: { alignItems: "center", borderBottomColor: "#EEF2F5", borderBottomWidth: 1, flexDirection: "row", gap: 10, minHeight: 44 },
-  categoryDot: { backgroundColor: colors.sky, borderRadius: 999, height: 10, width: 10 },
-  categoryName: { color: colors.navy, flex: 1, fontSize: 14, fontWeight: "700" },
-  categoryAmount: { color: colors.navy, fontSize: 13, fontWeight: "800" },
-  activityRow: { alignItems: "center", borderBottomColor: "#EEF2F5", borderBottomWidth: 1, flexDirection: "row", gap: 12, minHeight: 52 },
+  categoryRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", gap: 10, minHeight: 44 },
+  categoryDot: { backgroundColor: colors.accent, borderRadius: 999, height: 10, width: 10 },
+  categoryName: { color: colors.text, flex: 1, fontSize: 14, fontWeight: "700" },
+  categoryAmount: { color: colors.text, fontSize: 13, fontWeight: "800" },
+  activityRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", gap: 12, minHeight: 52 },
   activityCopy: { flex: 1, gap: 3 },
-  activityDescription: { color: colors.navy, fontSize: 14, fontWeight: "700" },
+  activityDescription: { color: colors.text, fontSize: 14, fontWeight: "700" },
   activityAmount: { fontSize: 13, fontWeight: "800" }
 });

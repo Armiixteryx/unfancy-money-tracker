@@ -13,7 +13,7 @@ import {
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from "../../../domain/currency";
 import type { Category, Transaction } from "../../../domain/types";
 import { transactionInputSchema, type TransactionInput } from "../../../domain/validation";
-import { colors } from "../../../ui/theme";
+import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 
 export type TransactionFormResult = { ok: true } | { ok: false; message: string };
 
@@ -29,6 +29,8 @@ function today(): string {
 }
 
 export function TransactionForm({ categories, transaction, onSave, onCancel }: TransactionFormProps) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
   const [formError, setFormError] = useState<string | null>(null);
   const { control, handleSubmit, setValue, watch, formState } = useForm<TransactionInput>({
     resolver: zodResolver(transactionInputSchema),
@@ -117,7 +119,7 @@ export function TransactionForm({ categories, transaction, onSave, onCancel }: T
                 onBlur={onBlur}
                 onChangeText={onChange}
                 placeholder="0.00"
-                placeholderTextColor="#9FB3C8"
+                placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={value}
               />
@@ -154,7 +156,7 @@ export function TransactionForm({ categories, transaction, onSave, onCancel }: T
                 onBlur={onBlur}
                 onChangeText={onChange}
                 placeholder="What was this for?"
-                placeholderTextColor="#9FB3C8"
+                placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={value}
               />
@@ -173,7 +175,7 @@ export function TransactionForm({ categories, transaction, onSave, onCancel }: T
                 onBlur={onBlur}
                 onChangeText={onChange}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor="#9FB3C8"
+                placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={value}
               />
@@ -218,6 +220,7 @@ export function TransactionForm({ categories, transaction, onSave, onCancel }: T
 }
 
 function FieldLabel({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -227,36 +230,35 @@ function FieldLabel({ label, error, children }: { label: string; error?: string;
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minHeight: 520, padding: 20 },
   formHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
   eyebrow: { color: colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 4 },
-  title: { color: colors.navy, fontSize: 22, fontWeight: "800" },
+  title: { color: colors.text, fontSize: 22, fontWeight: "800" },
   closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 999, borderWidth: 1, height: 36, justifyContent: "center", width: 36 },
-  closeText: { color: colors.navy, fontSize: 26, fontWeight: "300", lineHeight: 28 },
+  closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
   fields: { gap: 18, paddingBottom: 8 },
   segmentedControl: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, flexDirection: "row", overflow: "hidden" },
   segment: { alignItems: "center", flex: 1, minHeight: 46, justifyContent: "center" },
-  expenseSelected: { backgroundColor: "#FFF2F0" },
-  incomeSelected: { backgroundColor: "#E9F7EF" },
+  expenseSelected: { backgroundColor: colors.negativeSubtle },
+  incomeSelected: { backgroundColor: colors.positiveSubtle },
   segmentText: { color: colors.muted, fontSize: 15, fontWeight: "700" },
-  selectedSegmentText: { color: colors.navy },
+  selectedSegmentText: { color: colors.text },
   field: { gap: 7 },
-  label: { color: colors.navy, fontSize: 14, fontWeight: "800" },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, color: colors.navy, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
+  label: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
   chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   categoryChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   currencyRow: { flexDirection: "row", gap: 8 },
   currencyChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  selectedChip: { backgroundColor: colors.navy, borderColor: colors.navy },
-  categoryChipText: { color: colors.navy, fontSize: 13, fontWeight: "700" },
-  selectedChipText: { color: colors.surface },
+  selectedChip: { backgroundColor: colors.primary, borderColor: colors.primary },
+  categoryChipText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  selectedChipText: { color: colors.onPrimary },
   helper: { color: colors.muted, fontSize: 13 },
-  fieldError: { color: colors.coral, fontSize: 13 },
-  formError: { backgroundColor: "#FFF2F0", borderRadius: 10, color: colors.coral, fontSize: 14, padding: 12 },
-  saveButton: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 12, minHeight: 50, justifyContent: "center", marginTop: 4 },
-  saveButtonText: { color: colors.surface, fontSize: 15, fontWeight: "800" },
+  fieldError: { color: colors.negative, fontSize: 13 },
+  formError: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
+  saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, minHeight: 50, justifyContent: "center", marginTop: 4 },
+  saveButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "800" },
   cancelButton: { alignItems: "center", minHeight: 42, justifyContent: "center" },
   cancelButtonText: { color: colors.muted, fontSize: 14, fontWeight: "700" }
 });
-

@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from "../../../domain/currency";
 import type { Budget, Category } from "../../../domain/types";
 import { budgetInputSchema, type BudgetInput } from "../../../domain/validation";
-import { colors } from "../../../ui/theme";
+import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 
 export type BudgetFormResult = { ok: true } | { ok: false; message: string };
 
@@ -20,6 +20,8 @@ type BudgetFormProps = {
 };
 
 export function BudgetForm({ categories, budget, defaultMonth, defaultCurrency, onSave, onCancel }: BudgetFormProps) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
   const [formError, setFormError] = useState<string | null>(null);
   const expenseCategories = useMemo(() => categories.filter((category) => category.kind === "expense" && !category.isArchived), [categories]);
   const { control, handleSubmit, setValue, watch, formState } = useForm<BudgetInput>({
@@ -71,11 +73,11 @@ export function BudgetForm({ categories, budget, defaultMonth, defaultCurrency, 
         </FieldLabel>
 
         <FieldLabel label="Monthly limit" error={formState.errors.amount?.message}>
-          <Controller control={control} name="amount" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel="Monthly budget amount" autoCorrect={false} keyboardType="decimal-pad" onBlur={onBlur} onChangeText={onChange} placeholder="0.00" placeholderTextColor="#9FB3C8" style={styles.input} value={value} />} />
+          <Controller control={control} name="amount" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel="Monthly budget amount" autoCorrect={false} keyboardType="decimal-pad" onBlur={onBlur} onChangeText={onChange} placeholder="0.00" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
         </FieldLabel>
 
         <FieldLabel label="Month" error={formState.errors.month?.message}>
-          <Controller control={control} name="month" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel="Budget month in YYYY-MM format" autoCorrect={false} onBlur={onBlur} onChangeText={onChange} placeholder="YYYY-MM" placeholderTextColor="#9FB3C8" style={styles.input} value={value} />} />
+          <Controller control={control} name="month" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel="Budget month in YYYY-MM format" autoCorrect={false} onBlur={onBlur} onChangeText={onChange} placeholder="YYYY-MM" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
         </FieldLabel>
 
         <FieldLabel label="Currency" error={formState.errors.currency?.message}>
@@ -101,30 +103,31 @@ export function BudgetForm({ categories, budget, defaultMonth, defaultCurrency, 
 }
 
 function FieldLabel({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  const styles = useThemedStyles(createStyles);
   return <View style={styles.field}><Text style={styles.label}>{label}</Text>{children}{error ? <Text style={styles.fieldError}>{error}</Text> : null}</View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minHeight: 500, padding: 20 },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
   eyebrow: { color: colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 4 },
-  title: { color: colors.navy, fontSize: 22, fontWeight: "800" },
+  title: { color: colors.text, fontSize: 22, fontWeight: "800" },
   closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 999, borderWidth: 1, height: 36, justifyContent: "center", width: 36 },
-  closeText: { color: colors.navy, fontSize: 26, fontWeight: "300", lineHeight: 28 },
+  closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
   fields: { gap: 18, paddingBottom: 8 },
   field: { gap: 7 },
-  label: { color: colors.navy, fontSize: 14, fontWeight: "800" },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, color: colors.navy, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
+  label: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  selectedChip: { backgroundColor: colors.navy, borderColor: colors.navy },
-  chipText: { color: colors.navy, fontSize: 13, fontWeight: "700" },
-  selectedChipText: { color: colors.surface },
+  selectedChip: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  selectedChipText: { color: colors.onPrimary },
   currencyRow: { flexDirection: "row", gap: 8 },
-  fieldError: { color: colors.coral, fontSize: 13 },
-  error: { backgroundColor: "#FFF2F0", borderRadius: 10, color: colors.coral, fontSize: 14, padding: 12 },
-  saveButton: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 12, justifyContent: "center", minHeight: 50 },
-  saveText: { color: colors.surface, fontSize: 15, fontWeight: "800" },
+  fieldError: { color: colors.negative, fontSize: 13 },
+  error: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
+  saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, justifyContent: "center", minHeight: 50 },
+  saveText: { color: colors.onPrimary, fontSize: 15, fontWeight: "800" },
   cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 42 },
   cancelText: { color: colors.muted, fontSize: 14, fontWeight: "700" }
 });

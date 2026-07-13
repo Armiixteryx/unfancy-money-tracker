@@ -1,7 +1,7 @@
 import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors } from "./theme";
+import { useThemedStyles, type ThemeColors } from "./theme";
 
 type AppScreenProps = {
   title: string;
@@ -10,6 +10,7 @@ type AppScreenProps = {
 };
 
 export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === "web" && width >= 768;
@@ -47,6 +48,7 @@ export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
 }
 
 export function EmptyState({ title, description, children }: { title: string; description: string; children?: React.ReactNode }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.emptyState}>
       <View style={styles.emptyIcon} />
@@ -57,23 +59,23 @@ export function EmptyState({ title, description, children }: { title: string; de
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   content: { minHeight: "100%", maxWidth: 1240, width: "100%", alignSelf: "center", gap: 24 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
   eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "600", marginBottom: 6 },
-  title: { color: colors.navy, fontSize: 32, fontWeight: "800", letterSpacing: -0.5 },
+  title: { color: colors.text, fontSize: 32, fontWeight: "800", letterSpacing: -0.5 },
   statusPill: {
     alignItems: "center",
-    backgroundColor: "#E9F7EF",
+    backgroundColor: colors.positiveSubtle,
     borderRadius: 999,
     flexDirection: "row",
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8
   },
-  statusDot: { backgroundColor: colors.emerald, borderRadius: 999, height: 8, width: 8 },
-  statusText: { color: colors.emerald, fontSize: 13, fontWeight: "700" },
+  statusDot: { backgroundColor: colors.positive, borderRadius: 999, height: 8, width: 8 },
+  statusText: { color: colors.positive, fontSize: 13, fontWeight: "700" },
   emptyState: {
     alignItems: "center",
     alignSelf: "stretch",
@@ -85,8 +87,8 @@ const styles = StyleSheet.create({
     minHeight: 300,
     padding: 32
   },
-  emptyIcon: { backgroundColor: "#ECF2F8", borderRadius: 24, height: 64, marginBottom: 20, width: 64 },
-  emptyTitle: { color: colors.navy, fontSize: 20, fontWeight: "800", textAlign: "center" },
+  emptyIcon: { backgroundColor: colors.infoSubtle, borderRadius: 24, height: 64, marginBottom: 20, width: 64 },
+  emptyTitle: { color: colors.text, fontSize: 20, fontWeight: "800", textAlign: "center" },
   emptyDescription: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 8, maxWidth: 420, textAlign: "center" },
   emptyAction: { marginTop: 24 }
 });

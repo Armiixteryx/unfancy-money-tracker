@@ -83,4 +83,24 @@ describe("local dataset store", () => {
     expect(store.getState().dataset?.budgets[0]?.categoryId).toBe(deleted.ok ? deleted.value.id : "");
     expect(store.getState().dataset?.preferences.baseCurrency).toBe("EUR");
   });
+
+  it("persists the theme preference without replacing system with a resolved value", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter));
+    await store.getState().initialize();
+
+    const darkResult = await store.getState().setPreferences({ theme: "dark" });
+    expect(darkResult.ok).toBe(true);
+
+    const rehydrated = createDatasetStore(new DatasetPersistence(adapter));
+    await rehydrated.getState().initialize();
+    expect(rehydrated.getState().dataset?.preferences.theme).toBe("dark");
+
+    const systemResult = await rehydrated.getState().setPreferences({ theme: "system" });
+    expect(systemResult.ok).toBe(true);
+
+    const rehydratedAgain = createDatasetStore(new DatasetPersistence(adapter));
+    await rehydratedAgain.getState().initialize();
+    expect(rehydratedAgain.getState().dataset?.preferences.theme).toBe("system");
+  });
 });

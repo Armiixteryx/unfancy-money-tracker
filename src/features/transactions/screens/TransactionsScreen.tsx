@@ -12,7 +12,7 @@ import {
 
 import { filterTransactions } from "../../../domain/transactions";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
-import { colors } from "../../../ui/theme";
+import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { TransactionForm, type TransactionFormResult } from "../components/TransactionForm";
 import { TransactionRow } from "../components/TransactionRow";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
@@ -21,6 +21,8 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 export function TransactionsScreen() {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
   const dataset = useDatasetStore((state) => state.dataset);
   const transactionFilters = useDatasetStore((state) => state.transactionFilters);
@@ -94,7 +96,7 @@ export function TransactionsScreen() {
             accessibilityLabel="Search transactions"
             onChangeText={(query) => setTransactionFilters({ query })}
             placeholder="Search transactions"
-            placeholderTextColor="#829AB1"
+            placeholderTextColor={colors.placeholder}
             style={styles.searchInput}
             value={transactionFilters.query ?? ""}
           />
@@ -115,7 +117,7 @@ export function TransactionsScreen() {
       {showMoreFilters ? <View style={styles.advancedFilters}>
         <View style={styles.filterGroup}><Text style={styles.filterLabel}>Category</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>{<FilterChip label="All categories" active={!transactionFilters.categoryId} onPress={() => setTransactionFilters({ categoryId: "all" })} />}{categories.map((category) => <FilterChip key={category.id} label={category.name} active={transactionFilters.categoryId === category.id} onPress={() => setTransactionFilters({ categoryId: category.id })} />)}</ScrollView></View>
         <View style={styles.filterGroup}><Text style={styles.filterLabel}>Currency</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}><FilterChip label="All currencies" active={!transactionFilters.currency} onPress={() => setTransactionFilters({ currency: "all" })} />{currencies.map((currency) => <FilterChip key={currency} label={currency} active={transactionFilters.currency === currency} onPress={() => setTransactionFilters({ currency })} />)}</ScrollView></View>
-        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>From date</Text><TextInput accessibilityLabel="Filter from date" autoCapitalize="none" onChangeText={(fromDate) => setTransactionFilters({ fromDate })} placeholder="YYYY-MM-DD" placeholderTextColor="#829AB1" style={styles.dateInput} value={transactionFilters.fromDate ?? ""} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>To date</Text><TextInput accessibilityLabel="Filter to date" autoCapitalize="none" onChangeText={(toDate) => setTransactionFilters({ toDate })} placeholder="YYYY-MM-DD" placeholderTextColor="#829AB1" style={styles.dateInput} value={transactionFilters.toDate ?? ""} /></View></View>
+        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>From date</Text><TextInput accessibilityLabel="Filter from date" autoCapitalize="none" onChangeText={(fromDate) => setTransactionFilters({ fromDate })} placeholder="YYYY-MM-DD" placeholderTextColor={colors.placeholder} style={styles.dateInput} value={transactionFilters.fromDate ?? ""} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>To date</Text><TextInput accessibilityLabel="Filter to date" autoCapitalize="none" onChangeText={(toDate) => setTransactionFilters({ toDate })} placeholder="YYYY-MM-DD" placeholderTextColor={colors.placeholder} style={styles.dateInput} value={transactionFilters.toDate ?? ""} /></View></View>
       </View> : null}
 
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
@@ -172,49 +174,50 @@ export function TransactionsScreen() {
 }
 
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useThemedStyles(createStyles);
   return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.filterChip, active && styles.activeFilterChip]}><Text style={[styles.filterText, active && styles.activeFilterText]}>{label}</Text></Pressable>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
   searchWrap: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flexDirection: "row", flex: 1, maxWidth: 560, minHeight: 48, paddingHorizontal: 12 },
   searchIcon: { color: colors.muted, fontSize: 22, marginRight: 8 },
-  searchInput: { color: colors.navy, flex: 1, fontSize: 15, minHeight: 44 },
-  addButton: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
-  addButtonText: { color: colors.surface, fontSize: 14, fontWeight: "800" },
+  searchInput: { color: colors.text, flex: 1, fontSize: 15, minHeight: 44 },
+  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
+  addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "800" },
   filterRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  advancedFilters: { backgroundColor: "#F8FAFC", borderColor: colors.border, borderRadius: 14, borderWidth: 1, gap: 14, padding: 14 },
+  advancedFilters: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 14, borderWidth: 1, gap: 14, padding: 14 },
   filterGroup: { gap: 8 },
-  filterLabel: { color: colors.navy, fontSize: 12, fontWeight: "800" },
+  filterLabel: { color: colors.text, fontSize: 12, fontWeight: "800" },
   filterScroll: { gap: 8, paddingRight: 8 },
   dateFilters: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   dateField: { flex: 1, gap: 8, minWidth: 180 },
-  dateInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.navy, minHeight: 42, paddingHorizontal: 12 },
+  dateInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.text, minHeight: 42, paddingHorizontal: 12 },
   filterChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 },
-  activeFilterChip: { backgroundColor: "#EAF0F8", borderColor: "#B8CBE0" },
+  activeFilterChip: { backgroundColor: colors.infoSubtle, borderColor: colors.border },
   filterText: { color: colors.muted, fontSize: 13, fontWeight: "700" },
-  activeFilterText: { color: colors.navy },
-  errorBanner: { backgroundColor: "#FFF2F0", borderRadius: 10, color: colors.coral, fontSize: 14, padding: 12 },
-  successBanner: { backgroundColor: "#E9F7EF", borderRadius: 10, color: colors.emerald, fontSize: 14, padding: 12 },
-  confirmation: { alignItems: "center", backgroundColor: "#FFF9F8", borderColor: "#F4C7C7", borderRadius: 14, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between", padding: 16 },
+  activeFilterText: { color: colors.text },
+  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
+  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 10, color: colors.positive, fontSize: 14, padding: 12 },
+  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between", padding: 16 },
   confirmationCopy: { flex: 1, gap: 4, minWidth: 220 },
-  confirmationTitle: { color: colors.navy, fontSize: 15, fontWeight: "800" },
+  confirmationTitle: { color: colors.text, fontSize: 15, fontWeight: "800" },
   confirmationText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   confirmationActions: { flexDirection: "row", gap: 8 },
   cancelSmallButton: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
-  cancelSmallText: { color: colors.navy, fontSize: 13, fontWeight: "700" },
-  deleteConfirmButton: { backgroundColor: colors.coral, borderRadius: 10, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
-  deleteConfirmText: { color: colors.surface, fontSize: 13, fontWeight: "800" },
+  cancelSmallText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  deleteConfirmButton: { backgroundColor: colors.negative, borderRadius: 10, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
+  deleteConfirmText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
   workspace: { gap: 18 },
   browserWorkspace: { flexDirection: "row", alignItems: "flex-start" },
   listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
   listHeader: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 },
-  cardTitle: { color: colors.navy, fontSize: 18, fontWeight: "800" },
+  cardTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
   resultCount: { color: colors.muted, fontSize: 13 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
-  emptyAction: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  emptyAction: { backgroundColor: colors.positive, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
   noMatch: { alignItems: "center", padding: 42 },
-  noMatchTitle: { color: colors.navy, fontSize: 17, fontWeight: "800" },
+  noMatchTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
   noMatchText: { color: colors.muted, fontSize: 14, marginTop: 7 },
   mobileModal: { backgroundColor: colors.canvas, flex: 1, padding: 16 }
 });

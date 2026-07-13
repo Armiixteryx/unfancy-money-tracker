@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { formatMoneyForDisplay } from "../../../domain/money";
 import type { Category, Transaction } from "../../../domain/types";
-import { colors } from "../../../ui/theme";
+import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 
 type TransactionRowProps = {
   transaction: Transaction;
@@ -12,6 +12,7 @@ type TransactionRowProps = {
 };
 
 export function TransactionRow({ transaction, category, onPress, onDelete }: TransactionRowProps) {
+  const styles = useThemedStyles(createStyles);
   const isIncome = transaction.type === "income";
   return (
     <View style={styles.row}>
@@ -34,20 +35,19 @@ export function TransactionRow({ transaction, category, onPress, onDelete }: Tra
   );
 }
 
-const styles = StyleSheet.create({
-  row: { alignItems: "center", borderBottomColor: "#EEF2F5", borderBottomWidth: 1, flexDirection: "row", minHeight: 74, paddingVertical: 10 },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  row: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", minHeight: 74, paddingVertical: 10 },
   main: { alignItems: "center", flex: 1, flexDirection: "row", gap: 12, minHeight: 54 },
   icon: { alignItems: "center", borderRadius: 999, height: 38, justifyContent: "center", width: 38 },
-  incomeIcon: { backgroundColor: "#DDF4E5" },
-  expenseIcon: { backgroundColor: "#FFF0EE" },
-  iconText: { color: colors.navy, fontSize: 20, fontWeight: "800" },
+  incomeIcon: { backgroundColor: colors.positiveSubtle },
+  expenseIcon: { backgroundColor: colors.negativeSubtle },
+  iconText: { color: colors.text, fontSize: 20, fontWeight: "800" },
   copy: { flex: 1, gap: 4, minWidth: 0 },
-  description: { color: colors.navy, fontSize: 15, fontWeight: "800" },
+  description: { color: colors.text, fontSize: 15, fontWeight: "800" },
   meta: { color: colors.muted, fontSize: 12 },
   amount: { fontSize: 14, fontWeight: "800", textAlign: "right" },
-  incomeAmount: { color: colors.emerald },
-  expenseAmount: { color: colors.coral },
+  incomeAmount: { color: colors.positive },
+  expenseAmount: { color: colors.negative },
   deleteButton: { alignItems: "center", borderRadius: 999, height: 36, justifyContent: "center", marginLeft: 8, width: 36 },
   deleteText: { color: colors.muted, fontSize: 22 }
 });
-

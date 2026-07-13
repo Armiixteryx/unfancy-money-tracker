@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 
 import { DatasetHydrationGate } from "./DatasetHydrationGate";
 import { AnalyticsProvider } from "./AnalyticsProvider";
+import { AppThemeProvider } from "../ui/theme";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,7 +18,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <AnalyticsProvider>
-        <DatasetHydrationGate>{children}</DatasetHydrationGate>
+        <AppThemeProvider>
+          <DatasetHydrationGate>{children}</DatasetHydrationGate>
+        </AppThemeProvider>
       </AnalyticsProvider>
     </QueryClientProvider>
   );

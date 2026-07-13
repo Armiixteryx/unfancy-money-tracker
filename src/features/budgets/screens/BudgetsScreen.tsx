@@ -5,7 +5,7 @@ import { calculateBudgetProgress, formatMonthLabel, shiftCalendarMonth, type Bud
 import type { BudgetInput } from "../../../domain/validation";
 import { currentCalendarMonth } from "../../../domain/aggregates";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
-import { colors } from "../../../ui/theme";
+import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useDatasetStore } from "../../sync/store/useDatasetStore";
 import { BudgetForm, type BudgetFormResult } from "../components/BudgetForm";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
@@ -13,6 +13,7 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 export function BudgetsScreen() {
+  const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   const dataset = useDatasetStore((state) => state.dataset);
   const addBudget = useDatasetStore((state) => state.addBudget);
@@ -80,6 +81,7 @@ export function BudgetsScreen() {
 }
 
 function BudgetCard({ progress, onEdit, onDelete }: { progress: BudgetProgress; onEdit: () => void; onDelete: () => void }) {
+  const styles = useThemedStyles(createStyles);
   const usedWidth = `${Math.min(progress.percentUsed, 100)}%` as `${number}%`;
   const statusLabel = progress.status === "over_budget" ? "Over budget" : progress.status === "attention" ? "Near limit" : "On track";
   return <View style={styles.budgetCard}>
@@ -92,57 +94,57 @@ function BudgetCard({ progress, onEdit, onDelete }: { progress: BudgetProgress; 
   </View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
   monthControl: { alignItems: "center", flexDirection: "row", gap: 10 },
   monthButton: { alignItems: "center", borderColor: colors.border, borderRadius: 10, borderWidth: 1, height: 42, justifyContent: "center", width: 42 },
-  monthButtonText: { color: colors.navy, fontSize: 28, fontWeight: "300", lineHeight: 30 },
-  monthLabel: { color: colors.navy, fontSize: 18, fontWeight: "800", minWidth: 118, textAlign: "center" },
-  addButton: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 12, justifyContent: "center", minHeight: 48, paddingHorizontal: 16 },
-  addButtonText: { color: colors.surface, fontSize: 14, fontWeight: "800" },
-  errorBanner: { backgroundColor: "#FFF2F0", borderRadius: 10, color: colors.coral, fontSize: 14, padding: 12 },
-  successBanner: { backgroundColor: "#E9F7EF", borderRadius: 10, color: colors.emerald, fontSize: 14, padding: 12 },
-  confirmation: { alignItems: "center", backgroundColor: "#FFF9F8", borderColor: "#F4C7C7", borderRadius: 14, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between", padding: 16 },
-  confirmationText: { color: colors.navy, flex: 1, fontSize: 13, lineHeight: 19, minWidth: 220 },
+  monthButtonText: { color: colors.text, fontSize: 28, fontWeight: "300", lineHeight: 30 },
+  monthLabel: { color: colors.text, fontSize: 18, fontWeight: "800", minWidth: 118, textAlign: "center" },
+  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, justifyContent: "center", minHeight: 48, paddingHorizontal: 16 },
+  addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "800" },
+  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
+  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 10, color: colors.positive, fontSize: 14, padding: 12 },
+  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between", padding: 16 },
+  confirmationText: { color: colors.text, flex: 1, fontSize: 13, lineHeight: 19, minWidth: 220 },
   confirmationActions: { flexDirection: "row", gap: 8 },
   cancelSmall: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, justifyContent: "center", minHeight: 42, paddingHorizontal: 12 },
-  cancelSmallText: { color: colors.navy, fontSize: 13, fontWeight: "700" },
-  deleteSmall: { backgroundColor: colors.coral, borderRadius: 10, justifyContent: "center", minHeight: 42, paddingHorizontal: 12 },
-  deleteSmallText: { color: colors.surface, fontSize: 13, fontWeight: "800" },
+  cancelSmallText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  deleteSmall: { backgroundColor: colors.negative, borderRadius: 10, justifyContent: "center", minHeight: 42, paddingHorizontal: 12 },
+  deleteSmallText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
   workspace: { gap: 18 },
   browserWorkspace: { alignItems: "flex-start", flexDirection: "row" },
   listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
   listHeader: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 },
-  cardTitle: { color: colors.navy, fontSize: 18, fontWeight: "800" },
+  cardTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
   cardHint: { color: colors.muted, fontSize: 12, marginTop: 4 },
   count: { color: colors.muted, fontSize: 13 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
-  emptyAction: { backgroundColor: colors.emerald, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  emptyAction: { backgroundColor: colors.positive, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
   cards: { gap: 12, paddingTop: 14 },
-  budgetCard: { borderColor: "#EEF2F5", borderRadius: 16, borderWidth: 1, gap: 12, padding: 16 },
+  budgetCard: { borderColor: colors.divider, borderRadius: 16, borderWidth: 1, gap: 12, padding: 16 },
   cardTop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  categoryName: { color: colors.navy, fontSize: 16, fontWeight: "800" },
+  categoryName: { color: colors.text, fontSize: 16, fontWeight: "800" },
   meta: { color: colors.muted, fontSize: 12, marginTop: 4 },
   status: { borderRadius: 999, fontSize: 12, fontWeight: "800", overflow: "hidden", paddingHorizontal: 9, paddingVertical: 6 },
-  onTrackStatus: { backgroundColor: "#E9F7EF", color: colors.emerald },
-  attentionStatus: { backgroundColor: "#FFF7E6", color: "#9A6700" },
-  overStatus: { backgroundColor: "#FFF2F0", color: colors.coral },
+  onTrackStatus: { backgroundColor: colors.positiveSubtle, color: colors.positive },
+  attentionStatus: { backgroundColor: colors.warningSubtle, color: colors.warning },
+  overStatus: { backgroundColor: colors.negativeSubtle, color: colors.negative },
   amountRow: { flexDirection: "row", justifyContent: "space-between" },
   amountRight: { alignItems: "flex-end" },
   amountLabel: { color: colors.muted, fontSize: 12, fontWeight: "700" },
-  spent: { color: colors.navy, fontSize: 17, fontWeight: "800", marginTop: 3 },
-  limit: { color: colors.navy, fontSize: 17, fontWeight: "800", marginTop: 3 },
-  progressTrack: { backgroundColor: "#EDF1F5", borderRadius: 999, height: 10, overflow: "hidden" },
+  spent: { color: colors.text, fontSize: 17, fontWeight: "800", marginTop: 3 },
+  limit: { color: colors.text, fontSize: 17, fontWeight: "800", marginTop: 3 },
+  progressTrack: { backgroundColor: colors.track, borderRadius: 999, height: 10, overflow: "hidden" },
   progressFill: { borderRadius: 999, height: 10 },
-  onTrackFill: { backgroundColor: colors.emerald },
-  attentionFill: { backgroundColor: "#E3A62F" },
-  overFill: { backgroundColor: colors.coral },
+  onTrackFill: { backgroundColor: colors.positive },
+  attentionFill: { backgroundColor: colors.warning },
+  overFill: { backgroundColor: colors.negative },
   remaining: { color: colors.muted, fontSize: 13, fontWeight: "700" },
   note: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   cardActions: { flexDirection: "row", gap: 8 },
   editButton: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, justifyContent: "center", minHeight: 40, paddingHorizontal: 13 },
-  editText: { color: colors.navy, fontSize: 13, fontWeight: "800" },
+  editText: { color: colors.text, fontSize: 13, fontWeight: "800" },
   deleteButton: { justifyContent: "center", minHeight: 40, paddingHorizontal: 8 },
-  deleteText: { color: colors.coral, fontSize: 13, fontWeight: "800" },
+  deleteText: { color: colors.negative, fontSize: 13, fontWeight: "800" },
   mobileModal: { backgroundColor: colors.canvas, flex: 1, padding: 16 }
 });

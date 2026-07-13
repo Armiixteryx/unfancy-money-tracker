@@ -1,9 +1,22 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
-import { colors } from "./theme";
+import { useAppTheme, useThemedStyles, type ThemeColors } from "./theme";
 
 type TabBarRoute = BottomTabBarProps["state"]["routes"][number];
+
+const routeIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
+  index: "grid-outline",
+  transactions: "receipt-outline",
+  budgets: "wallet-outline",
+  reports: "bar-chart-outline",
+  settings: "settings-outline"
+};
+
+function iconForRoute(route: TabBarRoute) {
+  return routeIcons[route.name] ?? "ellipse-outline";
+}
 
 function labelForRoute({ route, descriptors }: Pick<BottomTabBarProps, "descriptors"> & { route: TabBarRoute }) {
   const options = descriptors[route.key]?.options;
@@ -19,6 +32,8 @@ function selectRoute({ navigation, route, isFocused }: Pick<BottomTabBarProps, "
 }
 
 function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
   return (
     <View accessibilityRole="tablist" style={styles.webContainer}>
       <View style={styles.brandBlock}>
@@ -41,7 +56,7 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
               onPress={() => selectRoute({ navigation, route, isFocused })}
               style={[styles.webItem, isFocused && styles.webItemActive]}
             >
-              <View style={[styles.navDot, isFocused && styles.navDotActive]} />
+              <Ionicons color={isFocused ? colors.positive : colors.muted} name={iconForRoute(route)} size={22} />
               <Text style={[styles.webLabel, isFocused && styles.webLabelActive]}>{label}</Text>
             </Pressable>
           );
@@ -56,6 +71,8 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
   return (
     <View style={styles.mobileContainer}>
       {state.routes.map((route, index) => {
@@ -70,7 +87,7 @@ function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             onPress={() => selectRoute({ navigation, route, isFocused })}
             style={[styles.mobileItem, isFocused && styles.mobileItemActive]}
           >
-            <View style={[styles.mobileDot, isFocused && styles.mobileDotActive]} />
+            <Ionicons color={isFocused ? colors.positive : colors.muted} name={iconForRoute(route)} size={22} />
             <Text style={[styles.mobileLabel, isFocused && styles.mobileLabelActive]}>{label}</Text>
           </Pressable>
         );
@@ -86,7 +103,7 @@ export function AppTabBar(props: BottomTabBarProps) {
   return isDesktopWeb ? <WebSideNav {...props} /> : <MobileTabBar {...props} />;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   webContainer: {
     alignItems: "stretch",
     backgroundColor: colors.surface,
@@ -101,24 +118,20 @@ const styles = StyleSheet.create({
     width: 232
   },
   brandBlock: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 36, paddingHorizontal: 10 },
-  brandMark: { alignItems: "center", backgroundColor: colors.navy, borderRadius: 10, color: colors.surface, fontSize: 18, fontWeight: "900", height: 34, lineHeight: 34, textAlign: "center", width: 34 },
-  brandName: { color: colors.navy, fontSize: 16, fontWeight: "900" },
+  brandMark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 10, color: colors.onPrimary, fontSize: 18, fontWeight: "900", height: 34, lineHeight: 34, textAlign: "center", width: 34 },
+  brandName: { color: colors.text, fontSize: 16, fontWeight: "900" },
   brandSubtitle: { color: colors.muted, fontSize: 11, fontWeight: "700", marginTop: 2 },
   webItems: { gap: 6 },
   webItem: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 12, minHeight: 48, paddingHorizontal: 14 },
-  webItemActive: { backgroundColor: "#E9F7EF" },
-  navDot: { backgroundColor: colors.border, borderRadius: 999, height: 8, width: 8 },
-  navDotActive: { backgroundColor: colors.emerald },
+  webItemActive: { backgroundColor: colors.positiveSubtle },
   webLabel: { color: colors.muted, fontSize: 14, fontWeight: "700" },
-  webLabelActive: { color: colors.navy },
+  webLabelActive: { color: colors.text },
   localNote: { alignItems: "center", flexDirection: "row", gap: 8, marginTop: "auto", padding: 12 },
-  localDot: { backgroundColor: colors.emerald, borderRadius: 999, height: 7, width: 7 },
+  localDot: { backgroundColor: colors.positive, borderRadius: 999, height: 7, width: 7 },
   localNoteText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
   mobileContainer: { alignItems: "stretch", backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", height: 76, justifyContent: "space-around", paddingTop: 8 },
   mobileItem: { alignItems: "center", flex: 1, gap: 6, justifyContent: "center", minHeight: 56 },
-  mobileItemActive: { backgroundColor: "#E9F7EF", borderRadius: 12, marginBottom: 6, marginHorizontal: 4 },
-  mobileDot: { backgroundColor: colors.border, borderRadius: 999, height: 8, width: 8 },
-  mobileDotActive: { backgroundColor: colors.emerald },
+  mobileItemActive: { backgroundColor: colors.positiveSubtle, borderRadius: 12, marginBottom: 6, marginHorizontal: 4 },
   mobileLabel: { color: colors.muted, fontSize: 11, fontWeight: "700" },
-  mobileLabelActive: { color: colors.navy }
+  mobileLabelActive: { color: colors.text }
 });

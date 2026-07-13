@@ -2,9 +2,10 @@ import { useEffect, useState, type PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useDatasetStore } from "../features/sync/store/useDatasetStore";
-import { colors } from "../ui/theme";
+import { useThemedStyles, type ThemeColors } from "../ui/theme";
 
 function HydrationScreen() {
+  const styles = useThemedStyles(createStyles);
   return (
     <View accessible accessibilityLabel="Loading your local data" style={styles.centered}>
       <View style={styles.spinner} />
@@ -15,6 +16,7 @@ function HydrationScreen() {
 }
 
 function RecoveryScreen() {
+  const styles = useThemedStyles(createStyles);
   const retryHydration = useDatasetStore((state) => state.retryHydration);
   const recoverLocalData = useDatasetStore((state) => state.recoverLocalData);
   const resetLocalData = useDatasetStore((state) => state.resetLocalData);
@@ -69,18 +71,18 @@ export function DatasetHydrationGate({ children }: PropsWithChildren) {
   return <>{children}</>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   centered: { alignItems: "center", backgroundColor: colors.canvas, flex: 1, justifyContent: "center", padding: 32 },
-  spinner: { backgroundColor: colors.emerald, borderRadius: 999, height: 48, marginBottom: 24, opacity: 0.85, width: 48 },
-  recoveryIcon: { backgroundColor: colors.coral },
-  title: { color: colors.navy, fontSize: 22, fontWeight: "800", textAlign: "center" },
+  spinner: { backgroundColor: colors.positive, borderRadius: 999, height: 48, marginBottom: 24, opacity: 0.85, width: 48 },
+  recoveryIcon: { backgroundColor: colors.negative },
+  title: { color: colors.text, fontSize: 22, fontWeight: "800", textAlign: "center" },
   description: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 10, maxWidth: 520, textAlign: "center" },
   actions: { alignItems: "center", gap: 12, marginTop: 24, width: "100%" },
   secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 12, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
-  secondaryButtonText: { color: colors.navy, fontSize: 15, fontWeight: "700" },
-  dangerButton: { alignItems: "center", backgroundColor: colors.coral, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
-  dangerButtonText: { color: colors.surface, fontSize: 15, fontWeight: "700" },
-  confirmation: { alignItems: "center", borderColor: "#F4C7C7", borderRadius: 14, borderWidth: 1, gap: 12, maxWidth: 520, padding: 16, width: "100%" },
-  confirmationText: { color: colors.navy, fontSize: 14, textAlign: "center" },
+  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  dangerButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700" },
+  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, gap: 12, maxWidth: 520, padding: 16, width: "100%" },
+  confirmationText: { color: colors.text, fontSize: 14, textAlign: "center" },
   confirmationActions: { flexDirection: "row", gap: 10 }
 });
