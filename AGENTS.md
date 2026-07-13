@@ -51,6 +51,8 @@ Do not introduce an alternative framework, state library, styling system, or per
 
 ## Working conventions
 
+- Start Android with `npm run android`; it automatically configures ADB port reversal for the local SAM API. Do not invoke `expo run:android` directly.
+- To run Android, iOS, and web from one Expo server, use `npm run start:all`, then open each target with Expo's `a`, `i`, and `w` shortcuts.
 - Keep TypeScript strict; avoid `any` and validate external or persisted data at boundaries.
 - Prefer small, focused components and feature-local code over large shared abstractions.
 - Add or update tests for behavior changes, especially calculations, validation, persistence, conversion fallbacks, and sync/conflict states.

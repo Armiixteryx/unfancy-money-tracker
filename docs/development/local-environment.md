@@ -52,10 +52,25 @@ This app uses `react-native-mmkv` 3.x and Expo New Architecture, so Android must
 npm run android
 ```
 
+This command waits for the emulator or connected device and automatically runs
+`adb reverse tcp:3001 tcp:3001`, allowing Android to use the same
+`http://127.0.0.1:3001` SAM API configuration as web and the iOS Simulator. Run
+Android through this command instead of invoking `expo run:android` directly.
+
 Then start Metro with:
 
 ```sh
 npm run start
 ```
+
+To run Android, iOS, and web together from one Expo server, use:
+
+```sh
+npm run start:all
+```
+
+Then press `a`, `i`, and `w` in the Expo terminal. `start:all` waits for Android
+in the background and applies the same port reversal automatically when the
+emulator or connected device becomes available.
 
 Press `a` in the Expo terminal to open the installed development client. If the Android SDK is not configured, set `ANDROID_HOME` or create `android/local.properties` with the machine-specific `sdk.dir` path. The generated `android/` directory and local SDK path are not committed.
