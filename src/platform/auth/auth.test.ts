@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CognitoAuthClient, createLocalAuthEmailSender, LocalAuthClient, MemoryAuthSessionStore, type LocalAuthEmail, type LocalAuthEmailSender } from "./index";
+import { resolveLocalApiUrl } from "../runtime/localApiUrl";
 
 class TestLocalEmailSender implements LocalAuthEmailSender {
   readonly sent: LocalAuthEmail[] = [];
@@ -34,6 +35,47 @@ describe("local auth adapter", () => {
     await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
     expect(requestUrl).toBe("http://127.0.0.1:3001/auth/email");
     expect(JSON.parse(requestBody)).toEqual({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
+  });
+
+  it("uses a preflight-free content type for the local Chrome preview", async () => {
+    let contentType = "";
+    const sender = createLocalAuthEmailSender(async (_input, init) => {
+      contentType = new Headers(init?.headers).get("content-type") ?? "";
+      return new Response(null, { status: 204 });
+    }, "http://127.0.0.1:3001/auth/email", true);
+    await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
+    expect(contentType).toBe("text/plain;charset=UTF-8");
+  });
+
+  it("invokes Chrome's fetch with the browser global as its receiver", async () => {
+    const fetcher = function(this: unknown): Promise<Response> {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    } as typeof fetch;
+    const sender = createLocalAuthEmailSender(fetcher, "http://127.0.0.1:3001/auth/email", true);
+    await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
+  });
+
+  it("keeps local API requests on Chrome's active loopback hostname", () => {
+    expect(resolveLocalApiUrl("http://127.0.0.1:3001/auth/email", "http://localhost:8081/settings")).toBe("http://localhost:3001/auth/email");
+    expect(resolveLocalApiUrl("http://127.0.0.1:3001/auth/email", "http://127.0.0.1:8081/settings")).toBe("http://127.0.0.1:3001/auth/email");
+    expect(resolveLocalApiUrl("https://api.example.test/auth/email", "http://localhost:8081/settings")).toBe("https://api.example.test/auth/email");
+  });
+
+  it("uses the same synthetic local account subject on each device", async () => {
+    const first = new LocalAuthClient();
+    const second = new LocalAuthClient();
+    for (const client of [first, second]) {
+      await client.signUp({ email: "synthetic@example.test", password: "SyntheticPassword1!" });
+      await client.confirmSignUp("synthetic@example.test", "000000");
+    }
+    const firstSession = await first.signIn({ email: "synthetic@example.test", password: "SyntheticPassword1!" });
+    const secondSession = await second.signIn({ email: "synthetic@example.test", password: "SyntheticPassword1!" });
+    expect(firstSession.status).toBe("signed_in");
+    expect(secondSession.status).toBe("signed_in");
+    if (firstSession.status === "signed_in" && secondSession.status === "signed_in") {
+      expect(secondSession.session.accountId).toBe(firstSession.session.accountId);
+    }
   });
 
   it("supports a cached offline session and generic credential errors", async () => {

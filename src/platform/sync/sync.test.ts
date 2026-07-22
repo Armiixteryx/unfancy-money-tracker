@@ -34,4 +34,27 @@ describe("http sync adapter", () => {
     });
     await expect(client.push({ datasetId, changes: [] })).rejects.toMatchObject({ code: "invalid_request" });
   });
+
+  it("uses preflight-free requests without credentials only for local web preview", async () => {
+    let headers = new Headers();
+    const client = new HttpSyncClient("http://127.0.0.1:3001", async () => "synthetic-token", {
+      useSimpleLocalRequests: true,
+      fetcher: async (_input, init) => {
+        headers = new Headers(init?.headers);
+        return new Response(JSON.stringify({ acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "0" }), { status: 200 });
+      }
+    });
+    await client.push({ datasetId, changes: [] });
+    expect(headers.get("content-type")).toBe("text/plain;charset=UTF-8");
+    expect(headers.has("authorization")).toBe(false);
+  });
+
+  it("invokes Chrome's fetch with the browser global as its receiver", async () => {
+    const fetcher = function(this: unknown): Promise<Response> {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(new Response(JSON.stringify({ acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "0" }), { status: 200 }));
+    } as typeof fetch;
+    const client = new HttpSyncClient("http://127.0.0.1:3001", async () => "synthetic-token", { fetcher, useSimpleLocalRequests: true });
+    await client.push({ datasetId, changes: [] });
+  });
 });

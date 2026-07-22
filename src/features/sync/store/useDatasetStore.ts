@@ -9,7 +9,7 @@ import type { BudgetInput, CategoryInput, TransactionInput } from "../../../doma
 import { createPersistenceAdapter, DatasetPersistence } from "../../../platform/persistence";
 import type { HydrationState } from "../../../platform/persistence";
 import { createUuid } from "../../../platform/identifiers/createUuid";
-import { mergeAccountDatasets } from "../services";
+import { mergeAccountDatasets, scopeDatasetToAccount } from "../services";
 import { createMockDataset, type MockDatasetPreset } from "../../development/mockData";
 import { isLocalDevelopmentRuntime } from "../../../platform/runtime/localDevelopment";
 
@@ -279,7 +279,9 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         const result = await nextPersistence.hydrate();
         if (result.status !== "ready") return { ok: false, message: "The account cache needs recovery before it can be opened." };
         const hasSnapshot = await nextPersistence.hasSnapshot();
-        const merged = hasSnapshot ? mergeAccountDatasets(current, result.dataset) : current;
+        const localDataset = scopeDatasetToAccount(current, accountId);
+        const accountDataset = scopeDatasetToAccount(result.dataset, accountId);
+        const merged = hasSnapshot ? mergeAccountDatasets(localDataset, accountDataset) : localDataset;
         activePersistence = nextPersistence;
         activeNamespace = `account:${accountId}`;
         set({ hydration: { status: "ready", dataset: merged }, dataset: merged, saveStatus: "saving", saveError: null, isAnonymousDataset: false });

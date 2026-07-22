@@ -17,4 +17,10 @@ describe("HTTP exchange-rate boundary", () => {
     expect(requestedSearch).toContain("date=2026-07-10");
     expect(result.rate).toBe("0.91");
   });
+
+  it("distinguishes a missing ECB reference rate from an unreachable provider", async () => {
+    const provider = new HttpExchangeRateProvider("https://api.example.test/rates", async () => new Response(JSON.stringify({ error: "no_rate_available" }), { status: 404 }));
+
+    await expect(provider.getLatestRate("USD", "VES")).rejects.toMatchObject({ code: "no_rate_available" });
+  });
 });

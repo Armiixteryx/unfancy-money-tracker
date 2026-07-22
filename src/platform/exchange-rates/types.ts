@@ -24,7 +24,7 @@ export const rateRecordSchema = z.object({
 });
 
 export class ExchangeRateError extends Error {
-  constructor(readonly code: "unavailable" | "invalid_response" | "unsupported_currency", message: string) {
+  constructor(readonly code: "unavailable" | "no_rate_available" | "invalid_response" | "unsupported_currency", message: string) {
     super(message);
     this.name = "ExchangeRateError";
   }

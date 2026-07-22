@@ -1,5 +1,8 @@
 import type { CurrencyCode } from "../../domain/currency";
+import { z } from "zod";
 import { ExchangeRateError, rateRecordSchema, type ExchangeRateProvider, type RateRecord } from "./types";
+
+const errorResponseSchema = z.object({ error: z.literal("no_rate_available") });
 
 export class HttpExchangeRateProvider implements ExchangeRateProvider {
   constructor(private readonly baseUrl: string, private readonly fetcher: typeof fetch = fetch) {}
@@ -24,7 +27,13 @@ export class HttpExchangeRateProvider implements ExchangeRateProvider {
     } catch {
       throw new ExchangeRateError("unavailable", "Exchange rates are temporarily unavailable.");
     }
-    if (!response.ok) throw new ExchangeRateError("unavailable", "Exchange rates are temporarily unavailable.");
+    if (!response.ok) {
+      const payload = await response.json().catch(() => undefined);
+      if (response.status === 404 && errorResponseSchema.safeParse(payload).success) {
+        throw new ExchangeRateError("no_rate_available", "No ECB reference rate is available for this currency and date.");
+      }
+      throw new ExchangeRateError("unavailable", "Exchange rates are temporarily unavailable.");
+    }
     let payload: unknown;
     try {
       payload = await response.json();

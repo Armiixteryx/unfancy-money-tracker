@@ -28,4 +28,15 @@ describe("Frankfurter exchange-rate adapter", () => {
     const stale = await adapter.getLatestRate("USD", "EUR");
     expect(stale.status).toBe("stale");
   });
+
+  it("reports an unavailable ECB currency without retrying through decades of dates", async () => {
+    let calls = 0;
+    const adapter = new FrankfurterExchangeRateAdapter(new MemoryRateCache(), async () => {
+      calls += 1;
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+
+    await expect(adapter.getHistoricalRate("USD", "VES", "2026-07-22")).rejects.toMatchObject({ code: "no_rate_available" });
+    expect(calls).toBe(11);
+  });
 });

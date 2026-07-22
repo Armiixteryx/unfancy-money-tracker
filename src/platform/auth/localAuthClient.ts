@@ -2,8 +2,10 @@ import { AuthClientError, type AuthActionResult, type AuthClient, type AuthSessi
 import { MemoryAuthSessionStore, type AuthSessionStore } from "./sessionStore";
 import { createUuid } from "../identifiers/createUuid";
 import { createLocalAuthEmailSender, type LocalAuthEmailSender } from "./localEmailSender";
+import { v5 as uuid } from "uuid";
 
 type LocalUser = { email: string; password: string; confirmed: boolean; resetCode: string | null; accountId: string };
+const LOCAL_ACCOUNT_NAMESPACE = "e162fd3f-39e7-449b-a63d-3060e8568e31";
 
 export class LocalAuthClient implements AuthClient {
   private readonly users = new Map<string, LocalUser>();
@@ -23,7 +25,7 @@ export class LocalAuthClient implements AuthClient {
   async signUp(input: SignUpInput): Promise<AuthActionResult> {
     this.requireOnline();
     if (this.users.has(input.email)) throw new AuthClientError("account_exists", "This account cannot be created.");
-    const user: LocalUser = { email: input.email, password: input.password, confirmed: false, resetCode: null, accountId: `local-${createUuid()}` };
+    const user: LocalUser = { email: input.email, password: input.password, confirmed: false, resetCode: null, accountId: `local-${uuid(input.email, LOCAL_ACCOUNT_NAMESPACE)}` };
     this.users.set(input.email, user);
     try {
       await this.emailSender.send({ to: input.email, code: "000000", kind: "confirmation" });

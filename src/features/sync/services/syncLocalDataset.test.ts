@@ -30,4 +30,26 @@ describe("initial sync changes", () => {
     expect(attempts).toBe(3);
     expect(sleeps).toEqual([10, 20]);
   });
+
+  it("does not push duplicate default scaffolding when a fresh device finds cloud data", async () => {
+    const dataset = createEmptyDataset(() => "11111111-1111-4111-8111-111111111111", "2026-07-01T00:00:00.000Z");
+    const pushedBatchSizes: number[] = [];
+    let pullCount = 0;
+    const client: SyncClient = {
+      async pull() {
+        pullCount += 1;
+        return pullCount === 1
+          ? { changes: [{ idempotencyKey: "22222222-2222-4222-8222-222222222222", recordType: "preference", recordId: dataset.datasetId, operation: "upsert", baseRevision: 0, revision: 1, payload: dataset.preferences, tombstone: false }], cursor: "1" }
+          : { changes: [], cursor: "1" };
+      },
+      async push(request) {
+        pushedBatchSizes.push(request.changes.length);
+        return { acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "1" };
+      },
+      async resolveConflict() { return { acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "1" }; }
+    };
+    const result = await syncLocalDatasetWithRetry(dataset, client);
+    expect(pushedBatchSizes).toEqual([0]);
+    expect(result.pulledChangeCount).toBe(1);
+  });
 });

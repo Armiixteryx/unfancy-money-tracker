@@ -8,6 +8,10 @@ const SNAPSHOT_KEY = "dataset.snapshot";
 const RECOVERY_KEY = "dataset.recovery";
 const MIGRATION_BACKUP_KEY = "dataset.migration-backup";
 
+function encryptionKeyName(datasetId: string): string {
+  return `unfancy.dataset-key.${datasetId.replace(/[^A-Za-z0-9._-]/g, "_")}`;
+}
+
 async function getOrCreateEncryptionKey(keyName: string): Promise<string> {
   const stored = await SecureStore.getItemAsync(keyName);
   if (stored) return stored;
@@ -26,7 +30,7 @@ export class NativePersistenceAdapter implements PersistenceAdapter {
 
   private async getStorage(): Promise<MMKV> {
     if (this.storage) return this.storage;
-    const encryptionKey = await getOrCreateEncryptionKey(`unfancy.dataset-key.${this.datasetId}`);
+    const encryptionKey = await getOrCreateEncryptionKey(encryptionKeyName(this.datasetId));
     this.storage = new MMKV({ id: `unfancy.dataset.${this.datasetId}`, encryptionKey });
     return this.storage;
   }
@@ -63,7 +67,7 @@ export class NativePersistenceAdapter implements PersistenceAdapter {
     storage.delete(SNAPSHOT_KEY);
     storage.delete(RECOVERY_KEY);
     storage.delete(MIGRATION_BACKUP_KEY);
-    await SecureStore.deleteItemAsync(`unfancy.dataset-key.${this.datasetId}`);
+    await SecureStore.deleteItemAsync(encryptionKeyName(this.datasetId));
     this.storage = null;
   }
 }

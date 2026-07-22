@@ -15,11 +15,12 @@ export async function syncLocalDataset(dataset: Dataset, client: SyncClient): Pr
   const initialSync = dataset.sync.lastSyncedAt === null;
   const initialChanges = buildInitialSyncChanges(dataset);
   const pendingKeys = new Set(dataset.sync.outbox.map((change) => `${change.recordType}:${change.recordId}`));
+  const firstPull: PullResponse | null = initialSync ? await client.pull({ datasetId: dataset.datasetId, cursor: dataset.sync.inboxCursor ?? "0" }) : null;
+  const skipPristineSnapshot = (firstPull?.changes.length ?? 0) > 0 && isPristineDataset(dataset);
   const changes = initialSync
-    ? [...dataset.sync.outbox.map(toTransportChange), ...initialChanges.filter((change) => !pendingKeys.has(`${change.recordType}:${change.recordId}`))]
+    ? [...dataset.sync.outbox.map(toTransportChange), ...(skipPristineSnapshot ? [] : initialChanges.filter((change) => !pendingKeys.has(`${change.recordType}:${change.recordId}`)))]
     : dataset.sync.outbox.map(toTransportChange);
   const pushResponses: PushResponse[] = [];
-  const firstPull: PullResponse | null = initialSync ? await client.pull({ datasetId: dataset.datasetId, cursor: dataset.sync.inboxCursor ?? "0" }) : null;
   for (let index = 0; index < changes.length || index === 0; index += 100) {
     const batch = changes.slice(index, index + 100);
     pushResponses.push(await client.push({ datasetId: dataset.datasetId, changes: batch }));
@@ -40,6 +41,23 @@ export async function syncLocalDataset(dataset: Dataset, client: SyncClient): Pr
     pulledChanges,
     acknowledgedChanges: pushResponses.flatMap((response) => response.acknowledgedChanges)
   };
+}
+
+const DEFAULT_CATEGORY_SIGNATURES = new Set([
+  "income:Uncategorized:true", "expense:Uncategorized:true", "income:Income:false",
+  "expense:Food:false", "expense:Housing:false", "expense:Transport:false", "expense:Shopping:false",
+  "expense:Utilities:false", "expense:Entertainment:false", "expense:Health:false",
+  "expense:Education:false", "expense:Subscriptions:false"
+]);
+
+function isPristineDataset(dataset: Dataset): boolean {
+  return dataset.transactions.length === 0
+    && dataset.budgets.length === 0
+    && dataset.recordTombstones.length === 0
+    && dataset.categoryDeletionTombstones.length === 0
+    && dataset.sync.outbox.length === 0
+    && dataset.categories.length === DEFAULT_CATEGORY_SIGNATURES.size
+    && dataset.categories.every((category) => !category.isArchived && DEFAULT_CATEGORY_SIGNATURES.has(`${category.kind}:${category.name}:${category.isSystem}`));
 }
 
 export type SyncRetryOptions = {

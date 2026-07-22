@@ -7,7 +7,7 @@ import type { SyncStatus } from "../../../domain/types";
 import type { SyncConflict } from "../../../platform/sync/types";
 import { SyncClientError } from "../../../platform/sync/types";
 import { createRuntimeAuthClient, createRuntimeSyncClient, runtimeCloudMode } from "../../../platform/runtime";
-import { mergeSyncChanges } from "../services";
+import { mergeSyncChanges, reconcileRestoredSession } from "../services";
 import { useAuthRemoteState } from "../../auth/hooks/useAuthRemoteState";
 import { useSyncRemoteState } from "../hooks/useSyncRemoteState";
 import { useDatasetStore } from "../store/useDatasetStore";
@@ -40,10 +40,6 @@ export function AccountSyncCard() {
   const [conflicts, setConflicts] = useState<readonly SyncConflict[]>([]);
   const [showOfflineSignOutWarning, setShowOfflineSignOutWarning] = useState(false);
   const syncInFlight = useRef(false);
-
-  useEffect(() => {
-    void authClient.getSession().then((session) => setAuthState(session.state));
-  }, [authClient]);
 
   useEffect(() => {
     setConflicts(dataset?.sync.conflicts ?? []);
@@ -114,6 +110,29 @@ export function AccountSyncCard() {
       syncInFlight.current = false;
     }
   }, [analytics, applyRemoteMerge, setSyncMetadata, syncRemote.sync]);
+  const startSyncRef = useRef(startSync);
+  startSyncRef.current = startSync;
+
+  useEffect(() => {
+    let cancelled = false;
+    void reconcileRestoredSession(authClient, switchToAccountNamespace).then(async (restored) => {
+      if (cancelled) return;
+      setAuthState(restored.state);
+      if (!restored.namespaceResult?.ok) {
+        setError(restored.namespaceResult?.message ?? "Your account data could not be opened on this device.");
+        return;
+      }
+      if (restored.state === "signed_in" && restored.session) await startSyncRef.current();
+    }).catch(() => {
+      if (!cancelled) {
+        setAuthState("error");
+        setError("Your saved session could not be restored.");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authClient, switchToAccountNamespace]);
 
   useEffect(() => {
     if (authState !== "signed_in" && authState !== "offline_session") return;
@@ -123,7 +142,7 @@ export function AccountSyncCard() {
     const appStateSubscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") syncIfActive();
     });
-    const browserWindow = typeof window === "undefined" ? null : window;
+    const browserWindow = typeof window === "undefined" || typeof window.addEventListener !== "function" ? null : window;
     browserWindow?.addEventListener("online", syncIfActive);
     return () => {
       appStateSubscription.remove();

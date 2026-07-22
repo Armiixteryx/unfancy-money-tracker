@@ -25,7 +25,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     return json(200, record);
   } catch (error) {
     if (error instanceof z.ZodError) return json(400, { error: "invalid_request" });
-    if (error instanceof ExchangeRateError) return json(error.code === "unsupported_currency" ? 400 : 503, { error: error.code });
+    if (error instanceof ExchangeRateError) return json(error.code === "unsupported_currency" ? 400 : error.code === "no_rate_available" ? 404 : 503, { error: error.code });
     return json(503, { error: "unavailable" });
   }
 }

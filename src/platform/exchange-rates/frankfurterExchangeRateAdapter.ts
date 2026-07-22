@@ -6,6 +6,7 @@ import { ExchangeRateError, type ExchangeRateProvider, type RateCache, type Rate
 
 const responseSchema = z.array(z.object({ date: z.string(), base: z.string(), quote: z.string(), rate: z.number().or(z.string()) }));
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_HISTORICAL_LOOKBACK_DAYS = 10;
 
 export class FrankfurterExchangeRateAdapter implements ExchangeRateProvider {
   constructor(
@@ -35,18 +36,18 @@ export class FrankfurterExchangeRateAdapter implements ExchangeRateProvider {
     const cached = await this.cache.get(exactKey);
     if (cached) return cached;
     let candidate = date;
-    while (candidate >= "1999-01-04") {
+    for (let lookbackDays = 0; lookbackDays <= MAX_HISTORICAL_LOOKBACK_DAYS && candidate >= "1999-01-04"; lookbackDays += 1) {
       try {
         const record = await this.fetchRate(base, quote, candidate);
         await this.cache.set(exactKey, record);
         await this.cache.set(`historical:${base}:${quote}:${record.effectiveDate}`, record);
         return record;
       } catch (error) {
-        if (!(error instanceof ExchangeRateError) || error.code !== "unavailable") throw error;
+        if (!(error instanceof ExchangeRateError) || error.code !== "no_rate_available") throw error;
         candidate = previousDate(candidate);
       }
     }
-    throw new ExchangeRateError("unavailable", "No historical exchange rate is available for this date.");
+    throw new ExchangeRateError("no_rate_available", "No ECB reference rate is available for this currency and date.");
   }
 
   private async fetchRate(base: CurrencyCode, quote: CurrencyCode, date?: string): Promise<RateRecord> {
@@ -71,7 +72,7 @@ export class FrankfurterExchangeRateAdapter implements ExchangeRateProvider {
     }
     const parsed = responseSchema.safeParse(payload);
     const row = parsed.success ? parsed.data.find((candidate) => candidate.quote === quote && candidate.base === base) : undefined;
-    if (!row) throw new ExchangeRateError("unavailable", "No exchange rate is available for this date.");
+    if (!row) throw new ExchangeRateError("no_rate_available", "No ECB reference rate is available for this currency and date.");
     const rate = new Decimal(String(row.rate));
     if (!rate.isFinite() || rate.isNegative() || rate.isZero()) throw new ExchangeRateError("invalid_response", "Exchange rates returned an invalid response.");
     return { base, quote, rate: rate.toSignificantDigits(24).toString(), effectiveDate: row.date, fetchedAt: new Date().toISOString(), provider: "frankfurter-ecb", status: "fresh" };

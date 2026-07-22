@@ -4,12 +4,13 @@ import { useQueries } from "@tanstack/react-query";
 import type { CurrencyCode } from "../../../domain/currency";
 import { FrankfurterExchangeRateAdapter } from "../../../platform/exchange-rates/frankfurterExchangeRateAdapter";
 import { HttpExchangeRateProvider } from "../../../platform/exchange-rates/httpExchangeRateProvider";
+import { resolveLocalApiUrl } from "../../../platform/runtime/localApiUrl";
 import { createRateCache } from "../../../platform/exchange-rates/createRateCache";
-import type { ExchangeRateProvider, RateRecord } from "../../../platform/exchange-rates/types";
+import { ExchangeRateError, type ExchangeRateProvider, type RateRecord } from "../../../platform/exchange-rates/types";
 
 const rateCache = createRateCache();
 const exchangeRateProvider: ExchangeRateProvider = process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL
-  ? new HttpExchangeRateProvider(process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL)
+  ? new HttpExchangeRateProvider(resolveLocalApiUrl(process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL))
   : new FrankfurterExchangeRateAdapter(rateCache);
 
 export type RateRequest = { currency: CurrencyCode; date?: string };
@@ -48,6 +49,8 @@ export function useExchangeRates(baseCurrency: CurrencyCode, requests: readonly 
         ? "loading"
         : query.data?.status === "stale"
           ? "stale"
+          : query.error instanceof ExchangeRateError && query.error.code === "no_rate_available"
+            ? "unavailable"
           : query.isError
             ? "error"
             : query.data
@@ -68,11 +71,19 @@ export function useExchangeRates(baseCurrency: CurrencyCode, requests: readonly 
     return result;
   }, [states, uniqueRequests]);
 
+  const unavailableCurrencies = useMemo(
+    () => [...new Set(uniqueRequests
+      .filter((request) => request.currency !== baseCurrency && states.get(`${request.currency}:${request.date ?? "latest"}`)?.state === "unavailable")
+      .map((request) => request.currency))],
+    [baseCurrency, states, uniqueRequests]
+  );
+
   return {
     states,
     latestRates,
     isLoading: queries.some((query) => query.isPending),
-    hasError: queries.some((query) => query.isError),
+    hasError: queries.some((query) => query.isError && !(query.error instanceof ExchangeRateError && query.error.code === "no_rate_available")),
+    unavailableCurrencies,
     retry: () => Promise.all(queries.map((query) => query.refetch()))
   };
 }

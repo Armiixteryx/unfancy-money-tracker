@@ -132,4 +132,25 @@ describe("local dataset store", () => {
       message: "Mock data is available only in the local development environment."
     });
   });
+
+  it("uses one account dataset id across fresh devices without dropping local records", async () => {
+    const first = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    const second = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    await first.getState().initialize();
+    await second.getState().initialize();
+    const category = first.getState().dataset?.categories.find((candidate) => candidate.kind === "expense" && !candidate.isSystem);
+    if (!category) return;
+    await first.getState().addTransaction({ amount: "10.00", type: "expense", categoryId: category.id, description: "Synthetic local record", date: "2026-07-11", currency: "USD" });
+
+    const firstSwitch = await first.getState().switchToAccountNamespace("local-shared-account");
+    const secondSwitch = await second.getState().switchToAccountNamespace("local-shared-account");
+
+    expect(firstSwitch.ok).toBe(true);
+    expect(secondSwitch.ok).toBe(true);
+    expect(second.getState().dataset?.datasetId).toBe(first.getState().dataset?.datasetId);
+    expect(first.getState().dataset?.transactions).toHaveLength(1);
+    expect(first.getState().dataset?.sync.outbox).toHaveLength(1);
+    expect(first.getState().dataset?.sync.inboxCursor).toBeNull();
+    expect(first.getState().dataset?.sync.lastSyncedAt).toBeNull();
+  });
 });

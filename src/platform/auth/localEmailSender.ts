@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isLoopbackUrl, isWebRuntime, resolveLocalApiUrl } from "../runtime/localApiUrl";
 
 export const localAuthEmailSchema = z.object({
   to: z.string().email(),
@@ -19,19 +20,23 @@ class NoopLocalAuthEmailSender implements LocalAuthEmailSender {
 }
 
 class HttpLocalAuthEmailSender implements LocalAuthEmailSender {
-  constructor(private readonly endpoint: string, private readonly fetcher: typeof fetch = fetch) {}
+  private readonly fetcher: typeof fetch;
+
+  constructor(private readonly endpoint: string, fetcher: typeof fetch = fetch, private readonly useSimpleLocalRequest = false) {
+    this.fetcher = fetcher.bind(globalThis);
+  }
 
   async send(email: LocalAuthEmail): Promise<void> {
     const response = await this.fetcher(this.endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": this.useSimpleLocalRequest ? "text/plain;charset=UTF-8" : "application/json" },
       body: JSON.stringify(email)
     });
     if (!response.ok) throw new Error("Local email service unavailable");
   }
 }
 
-export function createLocalAuthEmailSender(fetcher: typeof fetch = fetch, configuredEndpoint = process.env.EXPO_PUBLIC_LOCAL_AUTH_EMAIL_URL ?? (process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/auth/email` : "")): LocalAuthEmailSender {
-  const endpoint = configuredEndpoint;
-  return endpoint ? new HttpLocalAuthEmailSender(endpoint, fetcher) : new NoopLocalAuthEmailSender();
+export function createLocalAuthEmailSender(fetcher: typeof fetch = fetch, configuredEndpoint = process.env.EXPO_PUBLIC_LOCAL_AUTH_EMAIL_URL ?? (process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/auth/email` : ""), useSimpleLocalRequest = process.env.EXPO_PUBLIC_ENV === "local" && isWebRuntime() && isLoopbackUrl(configuredEndpoint)): LocalAuthEmailSender {
+  const endpoint = resolveLocalApiUrl(configuredEndpoint);
+  return endpoint ? new HttpLocalAuthEmailSender(endpoint, fetcher, useSimpleLocalRequest) : new NoopLocalAuthEmailSender();
 }

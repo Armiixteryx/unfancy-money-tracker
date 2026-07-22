@@ -1,13 +1,15 @@
 import { pullRequestSchema, pullResponseSchema, pushRequestSchema, pushResponseSchema, resolveConflictRequestSchema, SyncClientError, type PullRequest, type PullResponse, type PushRequest, type PushResponse, type ResolveConflictRequest, type SyncClient } from "./types";
 
 type AccessTokenProvider = () => Promise<string | null>;
-type HttpSyncClientConfig = { fetcher?: typeof fetch };
+type HttpSyncClientConfig = { fetcher?: typeof fetch; useSimpleLocalRequests?: boolean };
 
 export class HttpSyncClient implements SyncClient {
   private readonly fetcher: typeof fetch;
+  private readonly useSimpleLocalRequests: boolean;
 
   constructor(private readonly baseUrl: string, private readonly getAccessToken: AccessTokenProvider, config: HttpSyncClientConfig = {}) {
-    this.fetcher = config.fetcher ?? fetch;
+    this.fetcher = (config.fetcher ?? fetch).bind(globalThis);
+    this.useSimpleLocalRequests = config.useSimpleLocalRequests ?? false;
   }
 
   push(request: PushRequest): Promise<PushResponse> {
@@ -28,7 +30,9 @@ export class HttpSyncClient implements SyncClient {
     try {
       const response = await this.fetcher(`${this.baseUrl.replace(/\/$/, "")}${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: this.useSimpleLocalRequests
+          ? { "Content-Type": "text/plain;charset=UTF-8" }
+          : { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
       if (!response.ok) {
