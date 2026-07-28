@@ -55,13 +55,13 @@ pnpm run local:seed-app --preset=edge-cases --target=android
 pnpm run local:seed-app --preset=dashboard --target=web
 ```
 
-The app must already be running on the requested target. The command opens a confirmation screen; it does not write encrypted device/browser storage directly. Confirmation replaces the entire anonymous local dataset. It refuses signed-in account namespaces and any environment where `EXPO_PUBLIC_ENV` is not `local`. Use `--dry-run` to print the target URL without opening it. The dashboard preset covers ordinary current-month and report content; the edge-case preset additionally covers mixed currencies, over-budget states, archived history, and category deletion reassignment.
+The app must already be running on the requested target. The command opens a confirmation screen; it does not write encrypted device/browser storage directly. Confirmation signs out of the local preview, clears only that device/browser's local account cache, and replaces the anonymous local dataset. It never calls the sync API or deletes PostgreSQL/backend data. The flow is available only when `EXPO_PUBLIC_ENV` is `local`. Use `--dry-run` to print the target URL without opening it. The dashboard preset covers ordinary current-month and report content; the edge-case preset additionally covers mixed currencies, over-budget states, archived history, and category deletion reassignment.
 
 Native targets use the Expo Router path form `unfancy-money-tracker:///developer-seed?...` (three slashes); this is required so `developer-seed` is interpreted as a route rather than a URL host.
 
 Mock fixtures are contract-tested whenever `pnpm test` runs. Run `pnpm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
 
-To verify a fixture upload from a clean local environment, run `pnpm run local:reset`, clear the browser's site data for the app, start the local services, load and confirm the fixture while signed out, then sign in and use **Sync now**. The local PostgreSQL `sync_records` table should contain the fixture's records and deletion tombstone after the successful backup message.
+To verify a fixture upload from a clean local environment, run `pnpm run local:reset`, start the local services, load and confirm the fixture, then sign in and use **Sync now**. The local PostgreSQL `sync_records` table should contain the fixture's records and deletion tombstone after the successful backup message. Start the sync API in a separate terminal with `pnpm run local:sam`; run Expo separately with `pnpm run start` or `pnpm run start:all`.
 
 ## Android development client
 
