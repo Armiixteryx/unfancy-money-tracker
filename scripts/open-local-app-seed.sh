@@ -14,7 +14,7 @@ for argument in "$@"; do
     --target=ios|--target=android|--target=web) target="${argument#--target=}" ;;
     --dry-run) dry_run=true ;;
     *)
-      echo "Usage: npm run local:seed-app -- --preset=<dashboard|edge-cases> --target=<ios|android|web> [--dry-run]" >&2
+      echo "Usage: pnpm run local:seed-app -- --preset=<dashboard|edge-cases> --target=<ios|android|web> [--dry-run]" >&2
       exit 1
       ;;
   esac

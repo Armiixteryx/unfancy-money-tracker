@@ -123,20 +123,20 @@ case "${1:-help}" in
     echo "Local prerequisites and Compose configuration are ready."
     ;;
   test)
-    npm test -- --run
+    pnpm test -- --run
     ;;
   typecheck)
-    npm run typecheck
+    pnpm run typecheck
     ;;
   lint)
-    npm run lint
+    pnpm run lint
     ;;
   contract)
     require_sam
-    npm run test:contract
+    pnpm run test:contract
     ;;
   integration)
-    npm run test:integration
+    pnpm run test:integration
     ;;
   help|*)
     cat <<'HELP'

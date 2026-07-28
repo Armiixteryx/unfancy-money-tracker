@@ -16,7 +16,7 @@ scripts/local-env.sh verify
 scripts/local-env.sh start
 scripts/local-env.sh migrate
 scripts/local-env.sh seed
-npm run local:seed-app -- --preset=dashboard --target=ios
+pnpm run local:seed-app -- --preset=dashboard --target=ios
 scripts/local-env.sh status
 scripts/local-env.sh health
 ```
@@ -26,13 +26,13 @@ Use `scripts/local-env.sh sam-api` for the local API loop, `scripts/local-env.sh
 The deterministic application checks are:
 
 ```sh
-npm test
-npm run typecheck
-npm run lint
+pnpm test
+pnpm run typecheck
+pnpm run lint
 sam validate --template sam/template.yaml --lint
 sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
-npm run test:integration
-npm run test:contract
+pnpm run test:integration
+pnpm run test:contract
 ```
 
 The same checks are available through `scripts/local-env.sh test`, `integration`, `contract`, `typecheck`, and `lint`. `contract` validates the local SAM routes and synthesizes the AWS CDK boundary; it never deploys or requires AWS credentials.
@@ -50,25 +50,25 @@ The client starts with a new empty anonymous dataset. The PostgreSQL seed is for
 Use the local-only app seeder when visual or manual QA needs a populated anonymous dataset:
 
 ```sh
-npm run local:seed-app -- --preset=dashboard --target=ios
-npm run local:seed-app -- --preset=edge-cases --target=android
-npm run local:seed-app -- --preset=dashboard --target=web
+pnpm run local:seed-app -- --preset=dashboard --target=ios
+pnpm run local:seed-app -- --preset=edge-cases --target=android
+pnpm run local:seed-app -- --preset=dashboard --target=web
 ```
 
 The app must already be running on the requested target. The command opens a confirmation screen; it does not write encrypted device/browser storage directly. Confirmation replaces the entire anonymous local dataset. It refuses signed-in account namespaces and any environment where `EXPO_PUBLIC_ENV` is not `local`. Use `--dry-run` to print the target URL without opening it. The dashboard preset covers ordinary current-month and report content; the edge-case preset additionally covers mixed currencies, over-budget states, archived history, and category deletion reassignment.
 
 Native targets use the Expo Router path form `unfancy-money-tracker:///developer-seed?...` (three slashes); this is required so `developer-seed` is interpreted as a route rather than a URL host.
 
-Mock fixtures are contract-tested whenever `npm test` runs. Run `npm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
+Mock fixtures are contract-tested whenever `pnpm test` runs. Run `pnpm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
 
-To verify a fixture upload from a clean local environment, run `npm run local:reset`, clear the browser's site data for the app, start the local services, load and confirm the fixture while signed out, then sign in and use **Sync now**. The local PostgreSQL `sync_records` table should contain the fixture's records and deletion tombstone after the successful backup message.
+To verify a fixture upload from a clean local environment, run `pnpm run local:reset`, clear the browser's site data for the app, start the local services, load and confirm the fixture while signed out, then sign in and use **Sync now**. The local PostgreSQL `sync_records` table should contain the fixture's records and deletion tombstone after the successful backup message.
 
 ## Android development client
 
 This app uses `react-native-mmkv` 3.x and Expo New Architecture, so Android must run in the project development client rather than Expo Go. Build and install it once with:
 
 ```sh
-npm run android
+pnpm run android
 ```
 
 This command waits for the emulator or connected device and automatically runs
@@ -79,13 +79,13 @@ Android through this command instead of invoking `expo run:android` directly.
 Then start Metro with:
 
 ```sh
-npm run start
+pnpm run start
 ```
 
 To run Android, iOS, and web together from one Expo server, use:
 
 ```sh
-npm run start:all
+pnpm run start:all
 ```
 
 Then press `a`, `i`, and `w` in the Expo terminal. `start:all` waits for Android

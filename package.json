@@ -2,6 +2,7 @@
   "name": "unfancy-money-tracker",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@11.17.0",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start --dev-client",
@@ -12,7 +13,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --run src/features/sync/services/syncLocalDataset.test.ts src/features/sync/services/mergeSyncChanges.test.ts src/platform/persistence/persistence.test.ts src/platform/exchange-rates/httpExchangeRateProvider.test.ts",
     "test:fixtures": "vitest run src/features/development/mockData.test.ts",
-    "test:contract": "sam validate --template sam/template.yaml --lint && npm run infra:synth",
+    "test:contract": "sam validate --template sam/template.yaml --lint && pnpm run infra:synth",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
