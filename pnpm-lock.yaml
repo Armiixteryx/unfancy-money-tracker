@@ -20,6 +20,9 @@ importers:
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.5(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.1.17)(react@19.1.0)(supports-color@8.1.1))
+      '@react-navigation/bottom-tabs':
+        specifier: 7.18.8
+        version: 7.18.8(39c6f6dcd2a18addc64384916664dacf)
       '@tanstack/react-query':
         specifier: ^5.90.0
         version: 5.101.2(react@19.1.0)
@@ -92,6 +95,9 @@ importers:
       react-native:
         specifier: 0.81.5
         version: 0.81.5(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.1.17)(react@19.1.0)(supports-color@8.1.1)
+      react-native-css-interop:
+        specifier: 0.2.6
+        version: 0.2.6(608b9e1e5927a725e2283951cb3780f9)
       react-native-mmkv:
         specifier: ^3.3.0
         version: 3.3.3(react-native@0.81.5(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.1.17)(react@19.1.0)(supports-color@8.1.1))(react@19.1.0)
