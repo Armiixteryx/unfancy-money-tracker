@@ -110,9 +110,6 @@ export function AccountSyncCard() {
       syncInFlight.current = false;
     }
   }, [analytics, applyRemoteMerge, setSyncMetadata, syncRemote.sync]);
-  const startSyncRef = useRef(startSync);
-  startSyncRef.current = startSync;
-
   useEffect(() => {
     let cancelled = false;
     void reconcileRestoredSession(authClient, switchToAccountNamespace).then(async (restored) => {
@@ -122,7 +119,6 @@ export function AccountSyncCard() {
         setError(restored.namespaceResult?.message ?? "Your account data could not be opened on this device.");
         return;
       }
-      if (restored.state === "signed_in" && restored.session) await startSyncRef.current();
     }).catch(() => {
       if (!cancelled) {
         setAuthState("error");
