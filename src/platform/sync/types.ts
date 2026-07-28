@@ -32,7 +32,7 @@ export type PullResponse = { changes: readonly SyncChange[]; cursor: string };
 export type ResolveConflictRequest = { datasetId: string; conflict: SyncConflict; choice: "keep_local" | "keep_cloud" };
 
 export class SyncClientError extends Error {
-  constructor(readonly code: "unauthenticated" | "offline" | "conflict" | "invalid_request" | "server_error", message: string) {
+  constructor(readonly code: "unauthenticated" | "offline" | "conflict" | "invalid_request" | "incomplete_sync" | "server_error", message: string) {
     super(message);
     this.name = "SyncClientError";
   }

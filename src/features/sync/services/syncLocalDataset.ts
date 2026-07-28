@@ -26,6 +26,7 @@ export async function syncLocalDataset(dataset: Dataset, client: SyncClient): Pr
     pushResponses.push(await client.push({ datasetId: dataset.datasetId, changes: batch }));
     if (changes.length === 0) break;
   }
+  assertAllChangesHandled(changes, pushResponses);
 
   const pull = await client.pull({ datasetId: dataset.datasetId, cursor: firstPull?.cursor ?? dataset.sync.inboxCursor ?? "0" });
   const pulledChanges = [...(firstPull?.changes ?? []), ...pull.changes];
@@ -41,6 +42,13 @@ export async function syncLocalDataset(dataset: Dataset, client: SyncClient): Pr
     pulledChanges,
     acknowledgedChanges: pushResponses.flatMap((response) => response.acknowledgedChanges)
   };
+}
+
+function assertAllChangesHandled(changes: readonly SyncChange[], responses: readonly PushResponse[]): void {
+  const acknowledged = new Set(responses.flatMap((response) => response.acknowledged));
+  const conflicts = new Set(responses.flatMap((response) => response.conflicts.map((conflict) => `${conflict.recordType}:${conflict.recordId}`)));
+  const missing = changes.some((change) => !acknowledged.has(change.idempotencyKey) && !conflicts.has(`${change.recordType}:${change.recordId}`));
+  if (missing) throw new SyncClientError("incomplete_sync", "The sync service did not confirm every local change.");
 }
 
 const DEFAULT_CATEGORY_SIGNATURES = new Set([

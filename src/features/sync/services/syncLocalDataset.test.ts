@@ -19,16 +19,27 @@ describe("initial sync changes", () => {
     const sleeps: number[] = [];
     const client: SyncClient = {
       async pull() { return { changes: [], cursor: "0" }; },
-      async push() {
+      async push(request) {
         attempts += 1;
         if (attempts < 3) throw new SyncClientError("offline", "offline");
-        return { acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "0" };
+        return { acknowledged: request.changes.map((change) => change.idempotencyKey), acknowledgedChanges: request.changes.map((change) => ({ idempotencyKey: change.idempotencyKey, recordType: change.recordType, recordId: change.recordId, revision: 1 })), conflicts: [], cursor: "0" };
       },
       async resolveConflict() { return { acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "0" }; }
     };
     await syncLocalDatasetWithRetry(dataset, client, { initialDelayMs: 10, sleep: async (delay) => { sleeps.push(delay); } });
     expect(attempts).toBe(3);
     expect(sleeps).toEqual([10, 20]);
+  });
+
+  it("does not report a successful sync when the server omits outgoing changes", async () => {
+    const dataset = createEmptyDataset(() => "11111111-1111-4111-8111-111111111111", "2026-07-01T00:00:00.000Z");
+    const client: SyncClient = {
+      async pull() { return { changes: [], cursor: "0" }; },
+      async push() { return { acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "0" }; },
+      async resolveConflict() { return { acknowledged: [], acknowledgedChanges: [], conflicts: [], cursor: "0" }; }
+    };
+
+    await expect(syncLocalDatasetWithRetry(dataset, client)).rejects.toMatchObject({ code: "incomplete_sync" });
   });
 
   it("does not push duplicate default scaffolding when a fresh device finds cloud data", async () => {

@@ -61,6 +61,8 @@ Native targets use the Expo Router path form `unfancy-money-tracker:///developer
 
 Mock fixtures are contract-tested whenever `npm test` runs. Run `npm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
 
+To verify a fixture upload from a clean local environment, run `npm run local:reset`, clear the browser's site data for the app, start the local services, load and confirm the fixture while signed out, then sign in and use **Sync now**. The local PostgreSQL `sync_records` table should contain the fixture's records and deletion tombstone after the successful backup message.
+
 ## Android development client
 
 This app uses `react-native-mmkv` 3.x and Expo New Architecture, so Android must run in the project development client rather than Expo Go. Build and install it once with:
