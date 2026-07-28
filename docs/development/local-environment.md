@@ -16,7 +16,7 @@ scripts/local-env.sh verify
 scripts/local-env.sh start
 scripts/local-env.sh migrate
 scripts/local-env.sh seed
-pnpm run local:seed-app -- --preset=dashboard --target=ios
+pnpm run local:seed-app --preset=dashboard --target=ios
 scripts/local-env.sh status
 scripts/local-env.sh health
 ```
@@ -50,9 +50,9 @@ The client starts with a new empty anonymous dataset. The PostgreSQL seed is for
 Use the local-only app seeder when visual or manual QA needs a populated anonymous dataset:
 
 ```sh
-pnpm run local:seed-app -- --preset=dashboard --target=ios
-pnpm run local:seed-app -- --preset=edge-cases --target=android
-pnpm run local:seed-app -- --preset=dashboard --target=web
+pnpm run local:seed-app --preset=dashboard --target=ios
+pnpm run local:seed-app --preset=edge-cases --target=android
+pnpm run local:seed-app --preset=dashboard --target=web
 ```
 
 The app must already be running on the requested target. The command opens a confirmation screen; it does not write encrypted device/browser storage directly. Confirmation replaces the entire anonymous local dataset. It refuses signed-in account namespaces and any environment where `EXPO_PUBLIC_ENV` is not `local`. Use `--dry-run` to print the target URL without opening it. The dashboard preset covers ordinary current-month and report content; the edge-case preset additionally covers mixed currencies, over-budget states, archived history, and category deletion reassignment.
