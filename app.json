@@ -7,6 +7,9 @@
     "userInterfaceStyle": "automatic",
     "scheme": "unfancy-money-tracker",
     "newArchEnabled": true,
+    "experiments": {
+      "autolinkingModuleResolution": true
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.unfancy.moneytracker"
