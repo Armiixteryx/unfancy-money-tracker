@@ -32,6 +32,7 @@ export function AccountSyncCard() {
   const [mode, setMode] = useState<AuthMode>("sign_in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -202,6 +203,18 @@ export function AccountSyncCard() {
     void performSignOut();
   };
 
+  const submitAuthForm = () => {
+    if (mode === "sign_up") {
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+      void runAuthAction(() => authClient.signUp({ email, password }));
+      return;
+    }
+    void (mode === "sign_in" ? runAuthAction(() => authClient.signIn({ email, password })) : mode === "confirm_sign_up" ? runAuthAction(() => authClient.confirmSignUp(email, code)) : mode === "request_reset" ? runAuthAction(() => authClient.requestPasswordReset(email)) : runAuthAction(() => authClient.confirmPasswordReset({ email, code, newPassword })));
+  };
+
   return <View style={styles.card}>
     <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional and begins only after email confirmation.</Text></View><Text style={styles.mode}>{runtimeCloudMode() === "configured" ? "CLOUD CONFIGURED" : "LOCAL PREVIEW"}</Text></View>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
@@ -212,8 +225,8 @@ export function AccountSyncCard() {
       {showOfflineSignOutWarning ? <View style={styles.warningBox}><Text style={styles.warningTitle}>Unsynced changes will stay on this account</Text><Text style={styles.helper}>You are offline and {dataset.sync.outbox.length} local change{dataset.sync.outbox.length === 1 ? " is" : "s are"} waiting to sync. Signing out now clears this account’s device cache. Continue only if you accept losing those unsynced changes.</Text><View style={styles.actions}><Pressable accessibilityRole="button" disabled={busy} onPress={() => setShowOfflineSignOutWarning(false)} style={styles.secondary}><Text style={styles.secondaryText}>Keep working</Text></Pressable><Pressable accessibilityRole="button" disabled={busy} onPress={() => void performSignOut()} style={styles.danger}><Text style={styles.dangerText}>Discard and sign out</Text></Pressable></View></View> : null}
       {conflicts.length > 0 ? <View style={styles.conflictBox}><Text style={styles.conflictTitle}>{conflicts.length} cloud change{conflicts.length === 1 ? "" : "s"} need a choice</Text>{conflicts.map((conflict) => <View key={`${conflict.recordType}:${conflict.recordId}`} style={styles.conflictRow}><Text style={styles.helper}>A {conflict.recordType} changed in two places. Choose which version to keep.</Text><View style={styles.actions}><Pressable accessibilityRole="button" disabled={busy} onPress={() => void resolve(conflict, "keep_local")} style={styles.secondary}><Text style={styles.secondaryText}>Keep local</Text></Pressable><Pressable accessibilityRole="button" disabled={busy} onPress={() => void resolve(conflict, "keep_cloud")} style={styles.secondary}><Text style={styles.secondaryText}>Keep cloud</Text></Pressable></View></View>)}</View> : null}
     </> : <>
-      {mode === "confirm_sign_up" ? <AuthField label="Confirmation code" value={code} onChangeText={setCode} placeholder="Enter the email code" /> : mode === "confirm_reset" ? <><AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" /><AuthField label="Reset code" value={code} onChangeText={setCode} placeholder="Enter the email code" /><AuthField label="New password" value={newPassword} onChangeText={setNewPassword} placeholder="Use a strong password" secureTextEntry /></> : <><AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" /><AuthField label="Password" value={password} onChangeText={setPassword} placeholder="Use a strong password" secureTextEntry />{mode === "sign_in" || mode === "sign_up" ? null : null}</>}
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => void (mode === "sign_in" ? runAuthAction(() => authClient.signIn({ email, password })) : mode === "sign_up" ? runAuthAction(() => authClient.signUp({ email, password })) : mode === "confirm_sign_up" ? runAuthAction(() => authClient.confirmSignUp(email, code)) : mode === "request_reset" ? runAuthAction(() => authClient.requestPasswordReset(email)) : runAuthAction(() => authClient.confirmPasswordReset({ email, code, newPassword })))} style={styles.primary}><Text style={styles.primaryText}>{busy ? "Working…" : mode === "sign_in" ? "Sign in" : mode === "sign_up" ? "Create account" : mode === "confirm_sign_up" ? "Confirm email" : mode === "request_reset" ? "Send reset code" : "Reset password"}</Text></Pressable>
+      {mode === "confirm_sign_up" ? <AuthField label="Confirmation code" value={code} onChangeText={setCode} placeholder="Enter the email code" /> : mode === "confirm_reset" ? <><AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" /><AuthField label="Reset code" value={code} onChangeText={setCode} placeholder="Enter the email code" /><AuthField label="New password" value={newPassword} onChangeText={setNewPassword} placeholder="Use a strong password" secureTextEntry /></> : <><AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" /><AuthField label="Password" value={password} onChangeText={setPassword} placeholder="Use a strong password" secureTextEntry />{mode === "sign_up" ? <AuthField label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Re-enter your password" secureTextEntry /> : null}</>}
+      <Pressable accessibilityRole="button" disabled={busy} onPress={submitAuthForm} style={styles.primary}><Text style={styles.primaryText}>{busy ? "Working…" : mode === "sign_in" ? "Sign in" : mode === "sign_up" ? "Create account" : mode === "confirm_sign_up" ? "Confirm email" : mode === "request_reset" ? "Send reset code" : "Reset password"}</Text></Pressable>
       <View style={styles.linkRow}>{mode !== "confirm_sign_up" && mode !== "confirm_reset" ? <Pressable accessibilityRole="button" onPress={() => { setError(null); setMessage(null); setMode(mode === "sign_in" ? "sign_up" : "sign_in"); }}><Text style={styles.link}>{mode === "sign_in" ? "Create an account" : "Use sign in"}</Text></Pressable> : <Pressable accessibilityRole="button" onPress={() => { setError(null); setMode("sign_in"); }}><Text style={styles.link}>Back to sign in</Text></Pressable>}{mode === "sign_in" ? <Pressable accessibilityRole="button" onPress={() => { setError(null); setMessage(null); setMode("request_reset"); }}><Text style={styles.link}>Forgot password?</Text></Pressable> : null}</View>
     </>}
   </View>;
