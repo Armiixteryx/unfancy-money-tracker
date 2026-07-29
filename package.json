@@ -25,8 +25,14 @@
     "local:seed-app": "./scripts/open-local-app-seed.sh",
     "local:sam": "./scripts/local-env.sh sam-api",
     "local:verify": "./scripts/local-env.sh verify",
-    "infra:synth": "cdk synth --quiet",
-    "infra:diff": "cdk diff"
+    "infra:synth": "pnpm run infra:synth:dev",
+    "infra:synth:dev": "cdk synth --quiet -c stage=dev",
+    "infra:synth:prod": "cdk synth --quiet -c stage=prod",
+    "infra:diff": "pnpm run infra:diff:dev",
+    "infra:diff:dev": "cdk diff -c stage=dev",
+    "infra:diff:prod": "cdk diff -c stage=prod",
+    "infra:deploy:dev": "./scripts/deploy-infrastructure.sh dev",
+    "infra:deploy:prod": "./scripts/deploy-infrastructure.sh prod"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.1085.0",

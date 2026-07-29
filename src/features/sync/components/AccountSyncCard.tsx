@@ -6,7 +6,7 @@ import { AuthClientError } from "../../../platform/auth/types";
 import type { SyncStatus } from "../../../domain/types";
 import type { SyncConflict } from "../../../platform/sync/types";
 import { SyncClientError } from "../../../platform/sync/types";
-import { createRuntimeAuthClient, createRuntimeSyncClient, runtimeCloudMode } from "../../../platform/runtime";
+import { createRuntimeAuthClient, createRuntimeSyncClient, readRuntimeCloudConfig, type RuntimeCloudConfig } from "../../../platform/runtime";
 import { mergeSyncChanges, reconcileRestoredSession } from "../services";
 import { useAuthRemoteState } from "../../auth/hooks/useAuthRemoteState";
 import { useSyncRemoteState } from "../hooks/useSyncRemoteState";
@@ -17,6 +17,18 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 type AuthMode = "sign_in" | "sign_up" | "confirm_sign_up" | "request_reset" | "confirm_reset";
 
 export function AccountSyncCard() {
+  const configResult = useMemo(() => readRuntimeCloudConfig(), []);
+  const styles = useThemedStyles(createStyles);
+  if (!configResult.ok) {
+    return <View style={styles.card}>
+      <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional. Your anonymous records remain stored on this device.</Text></View></View>
+      <Text accessibilityRole="alert" style={styles.error}>{configResult.message}</Text>
+    </View>;
+  }
+  return <ConfiguredAccountSyncCard config={configResult.value} />;
+}
+
+function ConfiguredAccountSyncCard({ config }: { config: RuntimeCloudConfig }) {
   const styles = useThemedStyles(createStyles);
   const dataset = useDatasetStore((state) => state.dataset);
   const setSyncMetadata = useDatasetStore((state) => state.setSyncMetadata);
@@ -24,8 +36,8 @@ export function AccountSyncCard() {
   const switchToAccountNamespace = useDatasetStore((state) => state.switchToAccountNamespace);
   const switchToAnonymousNamespace = useDatasetStore((state) => state.switchToAnonymousNamespace);
   const analytics = useAnalytics();
-  const authClient = useMemo(() => createRuntimeAuthClient(), []);
-  const syncClient = useMemo(() => createRuntimeSyncClient(async () => (await authClient.getSession()).session?.accessToken ?? null), [authClient]);
+  const authClient = useMemo(() => createRuntimeAuthClient(config), [config]);
+  const syncClient = useMemo(() => createRuntimeSyncClient(config, async () => (await authClient.getSession()).session?.accessToken ?? null), [authClient, config]);
   const authRemote = useAuthRemoteState(authClient);
   const syncRemote = useSyncRemoteState(syncClient);
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -65,7 +77,7 @@ export function AccountSyncCard() {
         setAuthState("signed_in");
         await analytics.identifyAccount(result.session.accountId);
         setMessage("Signed in. Your local dataset remains the source of truth while backup runs.");
-        const switched = await switchToAccountNamespace(result.session.accountId);
+        const switched = await switchToAccountNamespace(result.session.accountId, config.backendStage);
         if (!switched.ok) setError(switched.message);
         else await startSync();
       } else {
@@ -113,7 +125,7 @@ export function AccountSyncCard() {
   }, [analytics, applyRemoteMerge, setSyncMetadata, syncRemote.sync]);
   useEffect(() => {
     let cancelled = false;
-    void reconcileRestoredSession(authClient, switchToAccountNamespace).then(async (restored) => {
+    void reconcileRestoredSession(authClient, (accountId) => switchToAccountNamespace(accountId, config.backendStage)).then(async (restored) => {
       if (cancelled) return;
       setAuthState(restored.state);
       if (!restored.namespaceResult?.ok) {
@@ -129,7 +141,7 @@ export function AccountSyncCard() {
     return () => {
       cancelled = true;
     };
-  }, [authClient, switchToAccountNamespace]);
+  }, [authClient, config.backendStage, switchToAccountNamespace]);
 
   useEffect(() => {
     if (authState !== "signed_in" && authState !== "offline_session") return;
@@ -216,7 +228,7 @@ export function AccountSyncCard() {
   };
 
   return <View style={styles.card}>
-    <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional and begins only after email confirmation.</Text></View><Text style={styles.mode}>{runtimeCloudMode() === "configured" ? "CLOUD CONFIGURED" : "LOCAL PREVIEW"}</Text></View>
+    <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.title}>Backup and sync</Text><Text style={styles.description}>Cloud sync is optional and begins only after email confirmation.</Text></View><Text style={styles.mode}>{config.backendStage.toUpperCase()}</Text></View>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {message ? <Text accessibilityLiveRegion="polite" style={styles.success}>{message}</Text> : null}
     {authState === "signed_in" || authState === "offline_session" ? <>

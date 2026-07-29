@@ -20,7 +20,7 @@ Use this AWS-native backend stack:
 - TypeScript AWS Lambda functions for sync, conflict resolution, and server-side exchange-rate proxying;
 - Aurora PostgreSQL Serverless v2 as the managed relational database;
 - RDS Proxy between Lambda and Aurora for connection management;
-- Amazon SES for Cognito confirmation and password-recovery email delivery;
+- Cognito-managed email delivery for confirmation and password recovery during the initial low-volume rollout;
 - AWS Secrets Manager and KMS for credentials and encryption keys;
 - Amazon CloudWatch for operational logs and metrics;
 - AWS CDK in TypeScript for infrastructure and environment configuration.
@@ -53,7 +53,7 @@ Use versioned SQL migrations managed through AWS CDK deployment workflows. Do no
 
 ### Environment and operations
 
-Maintain isolated development, staging, and production configuration. Store AWS resource identifiers, database credentials, and service secrets outside the repository. CloudWatch logs and metrics must exclude financial values, descriptions, categories, tokens, and raw provider errors.
+Maintain isolated development and production stacks in the same AWS account. Each stack owns its Cognito User Pool, API, Lambdas, Aurora cluster, proxy, VPC, KMS key, and logs. Local interactive builds use development; production infrastructure is synthesized but deployment is deferred until release readiness. Store AWS resource identifiers, database credentials, and service secrets outside the repository. CloudWatch logs and metrics must exclude financial values, descriptions, categories, tokens, and raw provider errors.
 
 ## Consequences
 
@@ -71,6 +71,6 @@ Maintain isolated development, staging, and production configuration. Store AWS 
 - Push, pull, conflict, resolution, tombstone, cursor, and idempotency behavior matches ADR 0005.
 - PostgreSQL transactions enforce revision checks and budget/category uniqueness.
 - RDS Proxy handles concurrent Lambda connections without leaking credentials.
-- SES confirmation and password-recovery messages work in configured environments.
+- Cognito confirmation and password-recovery messages work in configured environments.
 - CDK deployments produce isolated environments and migrations are repeatable.
 - CloudWatch diagnostics contain no financial or authentication secrets.

@@ -53,31 +53,6 @@ Resources:
         EntryPoints:
           - src/server/handlers/sync.ts
 
-  LocalAuthEmailFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ..
-      Handler: src/server/handlers/localAuthEmail.handler
-      Environment:
-        Variables:
-          APP_ENV: local
-          MAILHOG_HOST: host.docker.internal
-          MAILHOG_SMTP_PORT: 1025
-      Events:
-        SendAuthEmail:
-          Type: HttpApi
-          Properties:
-            Path: /auth/email
-            Method: post
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/server/handlers/localAuthEmail.ts
-
   ExchangeRateFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -1,13 +1,22 @@
 # Local development environment
 
-The default development loop is local-only and does not require AWS credentials:
+Anonymous application development remains local-first. Interactive account and sync testing uses the deployed AWS development stack:
 
 - PostgreSQL 16 runs in Docker on port `5432`.
-- MailHog captures local confirmation and password-reset email on SMTP `1025` and UI `http://127.0.0.1:8025`.
-- SAM CLI builds and runs the API Gateway-compatible Lambda routes in `sam/template.yaml` on `http://127.0.0.1:3001`. Web, iOS Simulator, and Android (through ADB port reversal) use its `/rates` route for exchange rates.
+- SAM CLI builds the API Gateway-compatible Lambda routes in `sam/template.yaml` for automated integration and contract testing.
 - LocalStack is optional and runs only when an AWS SDK contract test needs it, on port `4566`.
 
-Copy `.env.example` to `.env.local` only when a local override is needed. The committed defaults are synthetic and non-production. Never place AWS credentials, production database credentials, PostHog project keys, real email destinations, or real financial data in local configuration or fixtures.
+Copy `.env.example` to `.env.local` and populate the public Cognito region/client ID and API URLs from the development stack outputs. Missing values leave anonymous tracking available and disable only cloud backup. Never place AWS credentials, database credentials, tokens, PostHog production keys, or real financial data in local configuration or fixtures.
+
+## AWS development stack
+
+```sh
+pnpm run infra:synth:dev
+pnpm run infra:diff:dev
+pnpm run infra:deploy:dev
+```
+
+The deployment writes `.cdk-outputs.dev.json`, which is ignored by Git. Copy `CognitoRegion`, `CognitoClientId`, and `ApiUrl` into the corresponding `EXPO_PUBLIC_*` values in `.env.local`. Production can be synthesized and diffed with the `:prod` commands, but deployment is deferred and `infra:deploy:prod` refuses to run unless `ALLOW_PROD_DEPLOY=1` is explicitly supplied.
 
 ## Commands
 
@@ -21,7 +30,7 @@ scripts/local-env.sh status
 scripts/local-env.sh health
 ```
 
-Use `scripts/local-env.sh sam-api` for the local API loop, `scripts/local-env.sh sam-lambda` for direct Lambda invocation, and `scripts/local-env.sh localstack-start` only for optional AWS SDK wiring experiments. SAM uses the locally available Lambda image with `--skip-pull-image`, so these commands do not need Docker registry credentials.
+Use `scripts/local-env.sh sam-api` for focused handler testing, `scripts/local-env.sh sam-lambda` for direct Lambda invocation, and `scripts/local-env.sh localstack-start` only for optional AWS SDK wiring experiments. SAM uses the locally available Lambda image with `--skip-pull-image`.
 
 The deterministic application checks are:
 
@@ -55,13 +64,13 @@ pnpm run local:seed-app --preset=edge-cases --target=android
 pnpm run local:seed-app --preset=dashboard --target=web
 ```
 
-The app must already be running on the requested target. The command opens a confirmation screen; it does not write encrypted device/browser storage directly. Confirmation signs out of the local preview, clears only that device/browser's local account cache, and replaces the anonymous local dataset. It never calls the sync API or deletes PostgreSQL/backend data. The flow is available only when `EXPO_PUBLIC_ENV` is `local`. Use `--dry-run` to print the target URL without opening it. The dashboard preset covers ordinary current-month and report content; the edge-case preset additionally covers mixed currencies, over-budget states, archived history, and category deletion reassignment.
+The app must already be running on the requested target and must be using its anonymous dataset. The command opens a destructive confirmation screen; it does not write encrypted device/browser storage directly or delete backend data. The flow is available only when `EXPO_PUBLIC_ENV` is `local`. Use `--dry-run` to print the target URL without opening it.
 
 Native targets use the Expo Router path form `unfancy-money-tracker:///developer-seed?...` (three slashes); this is required so `developer-seed` is interpreted as a route rather than a URL host.
 
 Mock fixtures are contract-tested whenever `pnpm test` runs. Run `pnpm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
 
-To verify a fixture upload from a clean local environment, run `pnpm run local:reset`, start the local services, load and confirm the fixture, then sign in and use **Sync now**. The local PostgreSQL `sync_records` table should contain the fixture's records and deletion tombstone after the successful backup message. Start the sync API in a separate terminal with `pnpm run local:sam`; run Expo separately with `pnpm run start` or `pnpm run start:all`.
+To verify a fixture upload, load and confirm the fixture, sign into a synthetic Cognito development account, and use **Sync now**. Verify the result only through safe status messages or synthetic development records; never use real financial data.
 
 ## Android development client
 
@@ -71,10 +80,9 @@ This app uses `react-native-mmkv` 3.x and Expo New Architecture, so Android must
 pnpm run android
 ```
 
-This command waits for the emulator or connected device and automatically runs
-`adb reverse tcp:3001 tcp:3001`, allowing Android to use the same
-`http://127.0.0.1:3001` SAM API configuration as web and the iOS Simulator. Run
-Android through this command instead of invoking `expo run:android` directly.
+This command waits for the emulator or connected device and preserves the optional
+ADB reversal used by focused SAM tests. Run Android through this command instead
+of invoking `expo run:android` directly.
 
 Then start Metro with:
 

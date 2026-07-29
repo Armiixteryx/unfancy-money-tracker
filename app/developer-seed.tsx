@@ -1,11 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { isMockDatasetPreset, type MockDatasetPreset } from "../src/features/development/mockData";
-import { resetLocalMockSeedSession } from "../src/features/development/resetLocalMockSeed";
 import { useDatasetStore } from "../src/features/sync/store/useDatasetStore";
-import { createRuntimeAuthClient } from "../src/platform/runtime";
 import { isLocalDevelopmentRuntime } from "../src/platform/runtime/localDevelopment";
 import { AppScreen } from "../src/ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../src/ui/theme";
@@ -17,13 +15,10 @@ function presetLabel(preset: MockDatasetPreset): string {
 export default function DeveloperSeedScreen() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
-  const { preset: requestedPreset, resetLocalPreview: requestedReset } = useLocalSearchParams<{ preset?: string | string[]; resetLocalPreview?: string | string[] }>();
+  const { preset: requestedPreset } = useLocalSearchParams<{ preset?: string | string[] }>();
   const preset = typeof requestedPreset === "string" && isMockDatasetPreset(requestedPreset) ? requestedPreset : null;
-  const shouldResetLocalPreview = requestedReset === "1";
   const isAnonymousDataset = useDatasetStore((state) => state.isAnonymousDataset);
   const replaceWithMockData = useDatasetStore((state) => state.replaceWithMockData);
-  const switchToAnonymousNamespace = useDatasetStore((state) => state.switchToAnonymousNamespace);
-  const authClient = useMemo(() => createRuntimeAuthClient(), []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -31,7 +26,7 @@ export default function DeveloperSeedScreen() {
     ? "Mock data is available only in the local development environment."
     : !preset
       ? "The requested mock-data preset is not available."
-      : !isAnonymousDataset && !shouldResetLocalPreview
+      : !isAnonymousDataset
         ? "Sign out before replacing anonymous local data with a mock dataset."
         : null;
 
@@ -39,20 +34,6 @@ export default function DeveloperSeedScreen() {
     if (!preset || unavailable) return;
     setBusy(true);
     setMessage(null);
-    if (shouldResetLocalPreview) {
-      try {
-        const reset = await resetLocalMockSeedSession(authClient, switchToAnonymousNamespace);
-        if (!reset.ok) {
-          setMessage(reset.message);
-          setBusy(false);
-          return;
-        }
-      } catch {
-        setMessage("The local preview session could not be cleared. Mock data was not loaded.");
-        setBusy(false);
-        return;
-      }
-    }
     const result = await replaceWithMockData(preset);
     setBusy(false);
     if (!result.ok) {
@@ -67,9 +48,7 @@ export default function DeveloperSeedScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>{preset ? presetLabel(preset) : "Mock data unavailable"}</Text>
         <Text style={styles.copy}>
-          {unavailable ?? (shouldResetLocalPreview
-            ? "This signs out of the local preview and clears this device or browser's account cache before replacing the anonymous dataset with synthetic records, categories, budgets, preferences, and sync state. Backend data is not changed."
-            : "This replaces the entire anonymous local dataset with synthetic records, categories, budgets, preferences, and sync state.")}
+          {unavailable ?? "This replaces the entire anonymous local dataset with synthetic records, categories, budgets, preferences, and sync state. Backend data is not changed."}
         </Text>
         {preset && !unavailable ? <Text style={styles.warning}>This is destructive. It cannot be undone from this screen.</Text> : null}
         {message ? <Text accessibilityRole="alert" style={styles.error}>{message}</Text> : null}

@@ -33,7 +33,7 @@ if [[ "$environment" != "local" ]]; then
   exit 1
 fi
 
-route="developer-seed?preset=$preset&resetLocalPreview=1"
+route="developer-seed?preset=$preset"
 case "$target" in
   ios)
     url="unfancy-money-tracker:///$route"

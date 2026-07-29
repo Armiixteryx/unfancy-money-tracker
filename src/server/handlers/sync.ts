@@ -65,7 +65,7 @@ function getSubject(event: APIGatewayProxyEventV2): string | null {
   const claimedSubject = typeof claims?.sub === "string" ? claims.sub : null;
   if (claimedSubject) return claimedSubject;
   const isLocalRuntime = process.env.APP_ENV === "local" || process.env.AWS_SAM_LOCAL === "true";
-  if (isLocalRuntime) return event.headers?.["x-local-subject"] ?? event.headers?.["X-Local-Subject"] ?? "local-synthetic-user";
+  if (isLocalRuntime) return event.headers?.["x-local-subject"] ?? event.headers?.["X-Local-Subject"] ?? null;
   return null;
 }
 

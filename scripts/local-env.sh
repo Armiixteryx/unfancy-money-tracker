@@ -35,12 +35,12 @@ require_sam() {
 case "${1:-help}" in
   start)
     require_docker
-    compose up -d postgres mailhog
+    compose up -d postgres
     compose ps
     ;;
   stop)
     require_docker
-    compose stop postgres mailhog localstack
+    compose stop postgres localstack
     ;;
   reset)
     require_docker
@@ -109,8 +109,7 @@ case "${1:-help}" in
   health)
     require_docker
     compose exec -T postgres pg_isready -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}"
-    curl --fail --silent "${MAILHOG_HTTP_URL:-http://127.0.0.1:8025}/api/v2/messages?limit=1" >/dev/null
-    echo "PostgreSQL and MailHog are healthy."
+    echo "PostgreSQL is healthy."
     ;;
   verify)
     require_docker
@@ -144,7 +143,7 @@ Unfancy Money Tracker local environment
 
 Usage: scripts/local-env.sh <command>
 
-  start              Start PostgreSQL and MailHog
+  start              Start PostgreSQL
   stop               Stop local services without deleting data
   reset              Delete local containers, volumes, and generated artifacts
   migrate            Apply ordered PostgreSQL migrations
@@ -154,7 +153,7 @@ Usage: scripts/local-env.sh <command>
   localstack-start   Start optional LocalStack services on port 4566
   localstack-stop    Stop optional LocalStack services
   status             Show local service status
-  health             Check PostgreSQL and MailHog health endpoints
+  health             Check PostgreSQL health
   verify             Check Docker, SAM CLI, and Compose configuration
   test               Run the deterministic unit test suite
   integration        Run local adapter and sync integration tests
@@ -162,8 +161,8 @@ Usage: scripts/local-env.sh <command>
   typecheck          Run the strict TypeScript check
   lint               Run ESLint
 
-The default ports are PostgreSQL 5432, MailHog SMTP 1025, MailHog UI 8025,
-SAM API 3001, SAM Lambda 3002, and optional LocalStack 4566.
+The default ports are PostgreSQL 5432, SAM API 3001, SAM Lambda 3002,
+and optional LocalStack 4566.
 Set LOCAL_ENV_FILE=.env.local to use a local override file.
 HELP
     ;;

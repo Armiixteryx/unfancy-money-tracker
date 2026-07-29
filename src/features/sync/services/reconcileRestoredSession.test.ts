@@ -4,6 +4,8 @@ import type { AuthSession } from "../../../platform/auth/types";
 import { reconcileRestoredSession } from "./reconcileRestoredSession";
 
 const session: AuthSession = {
+  provider: "cognito",
+  backendStage: "dev",
   accountId: "shared-account",
   status: "verified",
   accessToken: "access-token",

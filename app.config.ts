@@ -1,0 +1,35 @@
+import type { ConfigContext, ExpoConfig } from "expo/config";
+
+export default ({ config }: ConfigContext): ExpoConfig => {
+  const isProduction = process.env.EXPO_PUBLIC_ENV === "prod";
+  return {
+    ...config,
+    name: isProduction ? "Unfancy Money Tracker" : "Unfancy Money Tracker (Dev)",
+    slug: "unfancy-money-tracker",
+    version: "1.0.0",
+    orientation: "portrait",
+    userInterfaceStyle: "automatic",
+    scheme: "unfancy-money-tracker",
+    newArchEnabled: true,
+    experiments: {
+      autolinkingModuleResolution: true
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: isProduction ? "com.unfancy.moneytracker" : "com.unfancy.moneytracker.dev"
+    },
+    android: {
+      package: isProduction ? "com.unfancy.moneytracker" : "com.unfancy.moneytracker.dev",
+      adaptiveIcon: {
+        backgroundColor: "#F7F5F0"
+      }
+    },
+    web: {
+      bundler: "metro",
+      output: "static"
+    },
+    plugins: [
+      "expo-router"
+    ]
+  };
+};

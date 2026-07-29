@@ -14,3 +14,4 @@ cdk.out/
 .env.*.local
 *.log
 .DS_Store
+.cdk-outputs.*.json

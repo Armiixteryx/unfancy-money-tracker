@@ -1,27 +1,22 @@
 import { CognitoAuthClient } from "../auth/cognitoAuthClient";
-import { LocalAuthClient } from "../auth/localAuthClient";
-import { createLocalAuthEmailSender } from "../auth/localEmailSender";
 import { RuntimeAuthSessionStore } from "../auth/sessionStore";
 import type { AuthClient } from "../auth/types";
 import { HttpSyncClient } from "../sync/httpSyncClient";
-import { LocalSyncClient } from "../sync/localSyncClient";
 import type { SyncClient } from "../sync/types";
-import { isLoopbackUrl, isWebRuntime, resolveLocalApiUrl } from "./localApiUrl";
+import type { RuntimeCloudConfig } from "./cloudConfig";
 
-export function createRuntimeAuthClient(): AuthClient {
-  const region = process.env.EXPO_PUBLIC_COGNITO_REGION;
-  const clientId = process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID;
-  return region && clientId ? new CognitoAuthClient({ region, clientId }) : new LocalAuthClient(new RuntimeAuthSessionStore(), createLocalAuthEmailSender());
+export function createRuntimeAuthClient(config: RuntimeCloudConfig): AuthClient {
+  return new CognitoAuthClient({
+    region: config.cognitoRegion,
+    clientId: config.cognitoClientId,
+    backendStage: config.backendStage,
+    sessionStore: new RuntimeAuthSessionStore(config.backendStage)
+  });
 }
 
-export function createRuntimeSyncClient(getAccessToken: () => Promise<string | null>): SyncClient {
-  const baseUrl = process.env.EXPO_PUBLIC_SYNC_API_URL;
-  const resolvedBaseUrl = baseUrl ? resolveLocalApiUrl(baseUrl) : "";
-  return resolvedBaseUrl ? new HttpSyncClient(resolvedBaseUrl, getAccessToken, {
-    useSimpleLocalRequests: process.env.EXPO_PUBLIC_ENV === "local" && isWebRuntime() && isLoopbackUrl(resolvedBaseUrl)
-  }) : new LocalSyncClient();
-}
-
-export function runtimeCloudMode(): "configured" | "local" {
-  return process.env.EXPO_PUBLIC_COGNITO_REGION && process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID && process.env.EXPO_PUBLIC_SYNC_API_URL ? "configured" : "local";
+export function createRuntimeSyncClient(
+  config: RuntimeCloudConfig,
+  getAccessToken: () => Promise<string | null>
+): SyncClient {
+  return new HttpSyncClient(config.syncApiUrl, getAccessToken);
 }

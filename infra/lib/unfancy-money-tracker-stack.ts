@@ -11,19 +11,22 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as rds from "aws-cdk-lib/aws-rds";
-import * as ses from "aws-cdk-lib/aws-ses";
 import { Construct } from "constructs";
 
-export class UnfancyMoneyTrackerStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+export type DeploymentStage = "dev" | "prod";
 
-    const sesFromEmail = new cdk.CfnParameter(this, "SesFromEmail", {
-      type: "String",
-      description: "A verified SES email identity used by Cognito confirmation and password recovery.",
-      default: "no-reply@example.invalid"
-    });
-    const sesIdentity = new ses.EmailIdentity(this, "CognitoSesIdentity", { identity: ses.Identity.email(sesFromEmail.valueAsString) });
+export interface UnfancyMoneyTrackerStackProps extends cdk.StackProps {
+  deploymentStage: DeploymentStage;
+}
+
+export class UnfancyMoneyTrackerStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: UnfancyMoneyTrackerStackProps) {
+    super(scope, id, props);
+    const isProduction = props.deploymentStage === "prod";
+    const retainedRemovalPolicy = isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
+
+    cdk.Tags.of(this).add("Application", "UnfancyMoneyTracker");
+    cdk.Tags.of(this).add("Environment", props.deploymentStage);
 
     const userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: `${this.stackName}-users`,
@@ -31,12 +34,11 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       autoVerify: { email: true },
       selfSignUpEnabled: true,
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      email: cognito.UserPoolEmail.withSES({ fromEmail: sesFromEmail.valueAsString, fromName: "Unfancy Money Tracker" }),
+      email: cognito.UserPoolEmail.withCognito(),
       passwordPolicy: { minLength: 12, requireLowercase: true, requireUppercase: true, requireDigits: true, requireSymbols: true },
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN
+      deletionProtection: isProduction,
+      removalPolicy: retainedRemovalPolicy
     });
-    new cdk.CfnOutput(this, "SesIdentityArn", { value: sesIdentity.emailIdentityArn });
     const userPoolClient = userPool.addClient("MobileAndWebClient", {
       userPoolClientName: `${this.stackName}-client`,
       generateSecret: false,
@@ -50,7 +52,7 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     const encryptionKey = new kms.Key(this, "ApplicationKey", {
       alias: `${this.stackName}/application`,
       enableKeyRotation: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN
+      removalPolicy: retainedRemovalPolicy
     });
     const vpc = new ec2.Vpc(this, "ApplicationVpc", { maxAzs: 2, natGateways: 1 });
     const databaseSecurityGroup = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc, description: "Aurora accepts traffic only from the RDS Proxy." });
@@ -69,9 +71,9 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [databaseSecurityGroup],
-      backup: { retention: cdk.Duration.days(7) },
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN
+      backup: { retention: cdk.Duration.days(isProduction ? 14 : 1) },
+      deletionProtection: isProduction,
+      removalPolicy: retainedRemovalPolicy
     });
     const proxy = cluster.addProxy("AuroraProxy", {
       vpc,
@@ -86,9 +88,9 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       DB_PROXY_ENDPOINT: proxy.endpoint,
       DB_SECRET_ARN: cluster.secret!.secretArn,
       DB_NAME: "unfancy",
-      APP_ENV: "cloud"
+      APP_ENV: props.deploymentStage
     });
-    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", vpc, lambdaSecurityGroup, { APP_ENV: "cloud" });
+    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", vpc, lambdaSecurityGroup, { APP_ENV: props.deploymentStage });
     cluster.secret!.grantRead(syncFunction);
 
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
@@ -107,12 +109,18 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     new cdk.CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new cdk.CfnOutput(this, "CognitoUserPoolId", { value: userPool.userPoolId });
     new cdk.CfnOutput(this, "CognitoClientId", { value: userPoolClient.userPoolClientId });
+    new cdk.CfnOutput(this, "CognitoRegion", { value: this.region });
+    new cdk.CfnOutput(this, "DeploymentStage", { value: props.deploymentStage });
     new cdk.CfnOutput(this, "DatabaseProxyEndpoint", { value: proxy.endpoint });
     new cdk.CfnOutput(this, "MigrationSource", { value: "docker/postgres/migrations/*.sql" });
   }
 
   private createLambda(id: string, entry: string, vpc: ec2.Vpc, securityGroup: ec2.SecurityGroup, environment: Record<string, string>): NodejsFunction {
-    const logGroup = new logs.LogGroup(this, `${id}LogGroup`, { retention: logs.RetentionDays.ONE_MONTH, removalPolicy: cdk.RemovalPolicy.RETAIN });
+    const isProduction = this.node.tryGetContext("stage") === "prod";
+    const logGroup = new logs.LogGroup(this, `${id}LogGroup`, {
+      retention: isProduction ? logs.RetentionDays.THREE_MONTHS : logs.RetentionDays.ONE_WEEK,
+      removalPolicy: isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY
+    });
     return new NodejsFunction(this, id, {
       entry: path.join(__dirname, "../..", entry),
       handler: "handler",

@@ -2,8 +2,9 @@ import { z } from "zod";
 
 import { AuthClientError, type AuthActionResult, type AuthClient, type AuthSession, type AuthState, type PasswordResetConfirmation, type SignInInput, type SignUpInput } from "./types";
 import { RuntimeAuthSessionStore, type AuthSessionStore } from "./sessionStore";
+import type { BackendStage } from "../runtime/cloudConfig";
 
-type CognitoAuthConfig = { region: string; clientId: string; fetcher?: typeof fetch; sessionStore?: AuthSessionStore };
+type CognitoAuthConfig = { region: string; clientId: string; backendStage?: BackendStage; fetcher?: typeof fetch; sessionStore?: AuthSessionStore };
 type AuthenticationResult = { AccessToken?: string; RefreshToken?: string; ExpiresIn?: number };
 type InitiateAuthResponse = { AuthenticationResult?: AuthenticationResult };
 type GetUserResponse = { UserAttributes?: readonly { Name?: string; Value?: string }[] };
@@ -25,7 +26,7 @@ export class CognitoAuthClient implements AuthClient {
   constructor(private readonly config: CognitoAuthConfig) {
     this.endpoint = `https://cognito-idp.${config.region}.amazonaws.com/`;
     this.fetcher = config.fetcher ?? fetch;
-    this.sessionStore = config.sessionStore ?? new RuntimeAuthSessionStore();
+    this.sessionStore = config.sessionStore ?? new RuntimeAuthSessionStore(config.backendStage ?? "dev");
   }
 
   async signUp(input: SignUpInput): Promise<AuthActionResult> {
@@ -58,6 +59,8 @@ export class CognitoAuthClient implements AuthClient {
       if (!auth?.AccessToken) throw new AuthClientError("invalid_credentials", "The email or password is not valid.");
       const accountId = await this.getAccountId(auth.AccessToken);
       this.session = {
+        provider: "cognito",
+        backendStage: this.config.backendStage ?? "dev",
         accountId,
         status: "verified",
         accessToken: auth.AccessToken,

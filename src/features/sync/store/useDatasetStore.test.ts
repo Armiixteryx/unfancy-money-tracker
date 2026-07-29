@@ -142,8 +142,8 @@ describe("local dataset store", () => {
     if (!category) return;
     await first.getState().addTransaction({ amount: "10.00", type: "expense", categoryId: category.id, description: "Synthetic local record", date: "2026-07-11", currency: "USD" });
 
-    const firstSwitch = await first.getState().switchToAccountNamespace("local-shared-account");
-    const secondSwitch = await second.getState().switchToAccountNamespace("local-shared-account");
+    const firstSwitch = await first.getState().switchToAccountNamespace("local-shared-account", "dev");
+    const secondSwitch = await second.getState().switchToAccountNamespace("local-shared-account", "dev");
 
     expect(firstSwitch.ok).toBe(true);
     expect(secondSwitch.ok).toBe(true);

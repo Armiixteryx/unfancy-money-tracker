@@ -12,6 +12,7 @@ import { createUuid } from "../../../platform/identifiers/createUuid";
 import { mergeAccountDatasets, scopeDatasetToAccount } from "../services";
 import { createMockDataset, type MockDatasetPreset } from "../../development/mockData";
 import { isLocalDevelopmentRuntime } from "../../../platform/runtime/localDevelopment";
+import type { BackendStage } from "../../../platform/runtime/cloudConfig";
 
 type SaveStatus = "idle" | "saving" | "error";
 
@@ -36,7 +37,7 @@ export type DatasetStoreState = {
   setPreferences: (preferences: Partial<Preferences>) => Promise<MutationResult<Preferences>>;
   setSyncMetadata: (sync: Partial<SyncMetadata>) => Promise<MutationResult<SyncMetadata>>;
   applyRemoteMerge: (dataset: Dataset) => Promise<MutationResult<Dataset>>;
-  switchToAccountNamespace: (accountId: string) => Promise<MutationResult<Dataset>>;
+  switchToAccountNamespace: (accountId: string, backendStage: BackendStage) => Promise<MutationResult<Dataset>>;
   switchToAnonymousNamespace: (clearAccountCache: boolean) => Promise<MutationResult<Dataset>>;
   addCategory: (input: CategoryInput) => Promise<MutationResult<Category>>;
   renameCategory: (id: string, name: string) => Promise<MutationResult<Category>>;
@@ -272,10 +273,11 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         await commit(dataset);
         return { ok: true, value: dataset };
       },
-      switchToAccountNamespace: async (accountId) => {
+      switchToAccountNamespace: async (accountId, backendStage) => {
         const current = get().dataset;
         if (!current) return { ok: false, message: "Local data is still loading." };
-        const nextPersistence = new DatasetPersistence(createPersistenceAdapter(`account:${accountId}`));
+        const accountNamespace = `account:${backendStage}:${accountId}`;
+        const nextPersistence = new DatasetPersistence(createPersistenceAdapter(accountNamespace));
         const result = await nextPersistence.hydrate();
         if (result.status !== "ready") return { ok: false, message: "The account cache needs recovery before it can be opened." };
         const hasSnapshot = await nextPersistence.hasSnapshot();
@@ -283,7 +285,7 @@ export function createDatasetStore(persistence: DatasetPersistence) {
         const accountDataset = scopeDatasetToAccount(result.dataset, accountId);
         const merged = hasSnapshot ? mergeAccountDatasets(localDataset, accountDataset) : localDataset;
         activePersistence = nextPersistence;
-        activeNamespace = `account:${accountId}`;
+        activeNamespace = accountNamespace;
         set({ hydration: { status: "ready", dataset: merged }, dataset: merged, saveStatus: "saving", saveError: null, isAnonymousDataset: false });
         try {
           await activePersistence.save(merged);

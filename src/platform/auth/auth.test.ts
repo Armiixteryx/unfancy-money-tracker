@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CognitoAuthClient, createLocalAuthEmailSender, LocalAuthClient, MemoryAuthSessionStore, type LocalAuthEmail, type LocalAuthEmailSender } from "./index";
-import { resolveLocalApiUrl } from "../runtime/localApiUrl";
+import { CognitoAuthClient, LocalAuthClient, MemoryAuthSessionStore, type TestAuthEmail, type TestAuthEmailSender } from "./index";
 
-class TestLocalEmailSender implements LocalAuthEmailSender {
-  readonly sent: LocalAuthEmail[] = [];
-  async send(email: LocalAuthEmail): Promise<void> { this.sent.push(email); }
+class TestLocalEmailSender implements TestAuthEmailSender {
+  readonly sent: TestAuthEmail[] = [];
+  async send(email: TestAuthEmail): Promise<void> { this.sent.push(email); }
 }
 
 describe("local auth adapter", () => {
@@ -22,44 +21,6 @@ describe("local auth adapter", () => {
     await auth.confirmPasswordReset({ email: "synthetic@example.test", code: "000000", newPassword: "SyntheticPassword2!" });
     await auth.signOut();
     expect((await auth.signIn({ email: "synthetic@example.test", password: "SyntheticPassword2!" })).status).toBe("signed_in");
-  });
-
-  it("posts local auth codes through the configured MailHog boundary", async () => {
-    let requestUrl = "";
-    let requestBody = "";
-    const sender = createLocalAuthEmailSender(async (input, init) => {
-      requestUrl = input.toString();
-      requestBody = String(init?.body);
-      return new Response(null, { status: 204 });
-    }, "http://127.0.0.1:3001/auth/email");
-    await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
-    expect(requestUrl).toBe("http://127.0.0.1:3001/auth/email");
-    expect(JSON.parse(requestBody)).toEqual({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
-  });
-
-  it("uses a preflight-free content type for the local Chrome preview", async () => {
-    let contentType = "";
-    const sender = createLocalAuthEmailSender(async (_input, init) => {
-      contentType = new Headers(init?.headers).get("content-type") ?? "";
-      return new Response(null, { status: 204 });
-    }, "http://127.0.0.1:3001/auth/email", true);
-    await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
-    expect(contentType).toBe("text/plain;charset=UTF-8");
-  });
-
-  it("invokes Chrome's fetch with the browser global as its receiver", async () => {
-    const fetcher = function(this: unknown): Promise<Response> {
-      expect(this).toBe(globalThis);
-      return Promise.resolve(new Response(null, { status: 204 }));
-    } as typeof fetch;
-    const sender = createLocalAuthEmailSender(fetcher, "http://127.0.0.1:3001/auth/email", true);
-    await sender.send({ to: "synthetic@example.test", code: "000000", kind: "confirmation" });
-  });
-
-  it("keeps local API requests on Chrome's active loopback hostname", () => {
-    expect(resolveLocalApiUrl("http://127.0.0.1:3001/auth/email", "http://localhost:8081/settings")).toBe("http://localhost:3001/auth/email");
-    expect(resolveLocalApiUrl("http://127.0.0.1:3001/auth/email", "http://127.0.0.1:8081/settings")).toBe("http://127.0.0.1:3001/auth/email");
-    expect(resolveLocalApiUrl("https://api.example.test/auth/email", "http://localhost:8081/settings")).toBe("https://api.example.test/auth/email");
   });
 
   it("uses the same synthetic local account subject on each device", async () => {
@@ -107,6 +68,7 @@ describe("local auth adapter", () => {
     const auth = new CognitoAuthClient({
       region: "us-east-1",
       clientId: "synthetic-client",
+      backendStage: "dev",
       sessionStore,
       fetcher: async (_input, init) => {
         const target = new Headers(init?.headers).get("X-Amz-Target") ?? "";
@@ -120,6 +82,7 @@ describe("local auth adapter", () => {
     const result = await auth.signIn({ email: "person@example.com", password: "synthetic-password" });
     expect(result.status).toBe("signed_in");
     expect((await auth.getSession()).session?.accountId).toBe("account-subject");
+    expect((await auth.getSession()).session).toMatchObject({ provider: "cognito", backendStage: "dev" });
     await auth.signOut();
     expect((await auth.getSession()).state).toBe("signed_out");
     expect(targets).toContain("AWSCognitoIdentityProviderService.InitiateAuth");

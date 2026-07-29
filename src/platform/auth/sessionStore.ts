@@ -1,5 +1,6 @@
 import type { AuthSession } from "./types";
 import { z } from "zod";
+import type { BackendStage } from "../runtime/cloudConfig";
 
 export interface AuthSessionStore {
   get(): Promise<AuthSession | null>;
@@ -7,8 +8,9 @@ export interface AuthSessionStore {
   clear(): Promise<void>;
 }
 
-const SESSION_KEY = "unfancy.auth.session";
 const authSessionSchema = z.object({
+  provider: z.literal("cognito"),
+  backendStage: z.enum(["dev", "prod"]),
   accountId: z.string().min(1),
   status: z.enum(["verified", "unverified"]),
   accessToken: z.string().min(1),
@@ -24,15 +26,21 @@ export class MemoryAuthSessionStore implements AuthSessionStore {
 }
 
 export class RuntimeAuthSessionStore implements AuthSessionStore {
+  private readonly sessionKey: string;
+
+  constructor(private readonly backendStage: BackendStage) {
+    this.sessionKey = `unfancy.auth.session:${backendStage}`;
+  }
+
   async get(): Promise<AuthSession | null> {
     try {
       const secureStore = await import("expo-secure-store");
-      const raw = await secureStore.getItemAsync(SESSION_KEY);
+      const raw = await secureStore.getItemAsync(this.sessionKey);
       if (!raw) return null;
       return parseSession(raw);
     } catch {
       if (typeof globalThis.localStorage === "undefined") return null;
-      const raw = globalThis.localStorage.getItem(SESSION_KEY);
+      const raw = globalThis.localStorage.getItem(this.sessionKey);
       if (!raw) return null;
       return parseSession(raw);
     }
@@ -42,19 +50,19 @@ export class RuntimeAuthSessionStore implements AuthSessionStore {
     const raw = JSON.stringify(session);
     try {
       const secureStore = await import("expo-secure-store");
-      await secureStore.setItemAsync(SESSION_KEY, raw, { keychainAccessible: secureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY });
+      await secureStore.setItemAsync(this.sessionKey, raw, { keychainAccessible: secureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY });
       return;
     } catch {
-      if (typeof globalThis.localStorage !== "undefined") globalThis.localStorage.setItem(SESSION_KEY, raw);
+      if (typeof globalThis.localStorage !== "undefined") globalThis.localStorage.setItem(this.sessionKey, raw);
     }
   }
 
   async clear(): Promise<void> {
     try {
       const secureStore = await import("expo-secure-store");
-      await secureStore.deleteItemAsync(SESSION_KEY);
+      await secureStore.deleteItemAsync(this.sessionKey);
     } catch {
-      if (typeof globalThis.localStorage !== "undefined") globalThis.localStorage.removeItem(SESSION_KEY);
+      if (typeof globalThis.localStorage !== "undefined") globalThis.localStorage.removeItem(this.sessionKey);
     }
   }
 }

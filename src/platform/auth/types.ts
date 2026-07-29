@@ -1,3 +1,5 @@
+import type { BackendStage } from "../runtime/cloudConfig";
+
 export type AuthState =
   | "signed_out"
   | "loading"
@@ -18,6 +20,8 @@ export type AuthErrorCode =
   | "provider_unavailable";
 
 export type AuthSession = {
+  provider: "cognito" | "test";
+  backendStage: BackendStage | "test";
   accountId: string;
   status: "verified" | "unverified";
   accessToken: string;
@@ -52,4 +56,3 @@ export interface AuthClient {
   confirmPasswordReset(input: PasswordResetConfirmation): Promise<AuthActionResult>;
   getSession(): Promise<{ state: AuthState; session: AuthSession | null }>;
 }
-
