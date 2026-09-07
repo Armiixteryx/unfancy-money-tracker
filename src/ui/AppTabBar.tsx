@@ -62,10 +62,6 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
           );
         })}
       </View>
-      <View style={styles.localNote}>
-        <View style={styles.localDot} />
-        <Text style={styles.localNoteText}>Saved locally</Text>
-      </View>
     </View>
   );
 }
@@ -126,9 +122,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   webItemActive: { backgroundColor: colors.positiveSubtle },
   webLabel: { color: colors.muted, fontSize: 14, fontWeight: "700" },
   webLabelActive: { color: colors.text },
-  localNote: { alignItems: "center", flexDirection: "row", gap: 8, marginTop: "auto", padding: 12 },
-  localDot: { backgroundColor: colors.positive, borderRadius: 999, height: 7, width: 7 },
-  localNoteText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
   mobileContainer: { alignItems: "stretch", backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", height: 76, justifyContent: "space-around", paddingTop: 8 },
   mobileItem: { alignItems: "center", flex: 1, gap: 6, justifyContent: "center", minHeight: 56 },
   mobileItemActive: { backgroundColor: colors.positiveSubtle, borderRadius: 12, marginBottom: 6, marginHorizontal: 4 },
