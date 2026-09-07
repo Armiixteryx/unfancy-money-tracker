@@ -38,10 +38,6 @@ export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
             {title}
           </Text>
         </View>
-        <View accessibilityLabel="Local mode" style={styles.statusPill}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Local mode</Text>
-        </View>
       </View>
       {children}
     </ScrollView>
@@ -68,17 +64,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
   eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "600", marginBottom: 6 },
   title: { color: colors.text, fontSize: 32, fontWeight: "800", letterSpacing: -0.5 },
-  statusPill: {
-    alignItems: "center",
-    backgroundColor: colors.positiveSubtle,
-    borderRadius: 999,
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8
-  },
-  statusDot: { backgroundColor: colors.positive, borderRadius: 999, height: 8, width: 8 },
-  statusText: { color: colors.positive, fontSize: 13, fontWeight: "700" },
   emptyState: {
     alignItems: "center",
     alignSelf: "stretch",

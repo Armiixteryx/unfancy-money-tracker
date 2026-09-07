@@ -50,7 +50,7 @@ export function SettingsScreen() {
   return (
     <AppScreen eyebrow="Preferences and privacy" title="Settings">
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
-      {message ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{message}</Text> : null}
+      {message ? <View accessibilityLiveRegion="polite" style={styles.successBanner}><Text style={styles.successBannerText}>{message}</Text><Pressable accessibilityLabel="Dismiss confirmation" accessibilityRole="button" hitSlop={8} onPress={() => setMessage(null)} style={styles.dismissBannerButton}><Ionicons color={colors.positive} name="close" size={20} /></Pressable></View> : null}
 
       {isMobile && mobileSection === null ? <MobileSettingsIndex onSelect={setMobileSection} /> : null}
       {isMobile && mobileSection !== null ? <Pressable accessibilityRole="button" onPress={() => setMobileSection(null)} style={styles.mobileBack}><Ionicons color={colors.text} name="chevron-back" size={20} /><Text style={styles.mobileBackText}>All settings</Text></Pressable> : null}
@@ -212,7 +212,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   infoBox: { backgroundColor: colors.infoSubtle, borderRadius: 12, gap: 4, padding: 13 },
   infoTitle: { color: colors.text, fontSize: 13, fontWeight: "800" },
   errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
-  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 10, color: colors.positive, fontSize: 14, padding: 12 },
+  successBanner: { alignItems: "center", backgroundColor: colors.positiveSubtle, borderRadius: 10, flexDirection: "row", gap: 8, paddingLeft: 12, paddingVertical: 8 },
+  successBannerText: { color: colors.positive, flex: 1, fontSize: 14, paddingVertical: 4 },
+  dismissBannerButton: { alignItems: "center", justifyContent: "center", minHeight: 36, minWidth: 36 },
   toggleRow: { alignItems: "center", flexDirection: "row", gap: 11 },
   toggle: { backgroundColor: colors.border, borderRadius: 999, height: 26, justifyContent: "center", padding: 3, width: 46 },
   toggleOn: { backgroundColor: colors.positive },
