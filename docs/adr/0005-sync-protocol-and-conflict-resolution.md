@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md). The retained server protocol remains available for a future client reintroduction.
 
 ## Context
 

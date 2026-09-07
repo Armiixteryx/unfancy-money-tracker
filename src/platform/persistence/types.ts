@@ -10,6 +10,7 @@ export type PersistenceRecoveryCode =
   | "snapshot_invalid"
   | "migration_failed"
   | "encryption_key_unavailable"
+  | "legacy_cleanup_failed"
   | "storage_unavailable";
 
 export interface PersistenceAdapter {

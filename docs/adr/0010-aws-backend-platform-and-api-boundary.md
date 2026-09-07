@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted; persistence, database-networking, and migration portions superseded by ADR 0015.
 
 ## Context
 

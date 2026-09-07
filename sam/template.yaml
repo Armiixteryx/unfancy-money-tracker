@@ -27,7 +27,8 @@ Resources:
       Environment:
         Variables:
           APP_ENV: local
-          DATABASE_URL: postgresql://unfancy_local:unfancy_local_only@host.docker.internal:5432/unfancy_local
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          SYNC_TABLE_NAME: unfancy-local-sync
       Events:
         Push:
           Type: HttpApi

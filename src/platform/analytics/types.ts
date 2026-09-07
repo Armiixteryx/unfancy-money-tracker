@@ -4,30 +4,21 @@ export const ANALYTICS_EVENTS = [
   "transaction_created",
   "budget_created",
   "transaction_filter_applied",
-  "sync_account_intent",
-  "sync_account_completed",
-  "csv_upgrade_interest_clicked",
-  "auth_signup_status",
-  "auth_signin_status",
-  "auth_password_reset_status",
-  "auth_confirmation_status",
-  "auth_error"
+  "csv_upgrade_interest_clicked"
 ] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 export type AnalyticsProperties = {
   platform?: "web" | "ios" | "android";
   appVersion?: string;
-  surface?: "dashboard" | "reports" | "transactions" | "budgets" | "settings" | "auth" | "sync";
+  surface?: "dashboard" | "reports" | "transactions" | "budgets" | "settings";
   actionResult?: "success" | "error" | "started" | "cancelled";
   errorCode?: string;
-  syncStatus?: string;
 };
 
 export interface AnalyticsClient {
   initialize(): Promise<void>;
   setConsent(enabled: boolean): Promise<void>;
-  identifyAccount(accountSubject: string): Promise<void>;
   capture(event: AnalyticsEvent, properties?: AnalyticsProperties): Promise<void>;
 }
 

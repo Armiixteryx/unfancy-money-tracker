@@ -1,7 +1,7 @@
 import { archiveCategory, createCategory, findUncategorizedCategory } from "../../domain/categories";
 import { createBudget } from "../../domain/budgets";
 import { createTransaction } from "../../domain/transactions";
-import type { Budget, Category, Dataset, RecordTombstone, Transaction, UUID } from "../../domain/types";
+import type { Budget, Category, CategoryDeletionTombstone, Dataset, Transaction, UUID } from "../../domain/types";
 import { createEmptyDataset } from "../../platform/persistence";
 import { createUuid } from "../../platform/identifiers/createUuid";
 
@@ -69,8 +69,7 @@ export function createMockDataset(preset: MockDatasetPreset, existingDatasetId: 
     addTransaction({ type: "expense", amount: "1200", categoryId: housing.id, description: "Sample rent", date: dateAtMonthOffset(now, offset, 2), currency: "USD" });
   }
 
-  const categoryDeletionTombstones: RecordTombstone[] = [];
-  const recordTombstones: RecordTombstone[] = [];
+  const categoryDeletionTombstones: CategoryDeletionTombstone[] = [];
   if (preset === "edge-cases") {
     addTransaction({ type: "expense", amount: "180", categoryId: food.id, description: "Sample dinner", date: dateAtMonthOffset(now, 0, 12), currency: "EUR" });
     addTransaction({ type: "expense", amount: "5600", categoryId: transport.id, description: "Sample rail pass", date: dateAtMonthOffset(now, 0, 13), currency: "JPY" });
@@ -95,7 +94,6 @@ export function createMockDataset(preset: MockDatasetPreset, existingDatasetId: 
     categories.splice(categories.findIndex((candidate) => candidate.id === deleted.id), 1);
     const tombstone = { recordType: "category" as const, recordId: deleted.id, deletedAt };
     categoryDeletionTombstones.push(tombstone);
-    recordTombstones.push(tombstone);
   }
 
   return {
@@ -104,8 +102,6 @@ export function createMockDataset(preset: MockDatasetPreset, existingDatasetId: 
     transactions,
     categories,
     budgets,
-    categoryDeletionTombstones,
-    recordTombstones,
-    sync: { status: "idle", inboxCursor: null, outbox: [], conflicts: [], revisions: {}, lastSyncedAt: null, reason: null }
+    categoryDeletionTombstones
   };
 }

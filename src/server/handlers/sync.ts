@@ -1,9 +1,9 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { z } from "zod";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-import { pullRequestSchema, pushRequestSchema, resolveConflictRequestSchema } from "../../platform/sync/types";
-import { PostgresSyncRepository, type SyncRepository } from "../repository";
+import { pullRequestSchema, pushRequestSchema, resolveConflictRequestSchema } from "../contracts/sync";
+import { DynamoDbSyncRepository, type SyncRepository } from "../repository";
 
 let repository: Promise<SyncRepository> | null = null;
 
@@ -13,21 +13,21 @@ async function getRepository(): Promise<SyncRepository> {
 }
 
 async function createRepository(): Promise<SyncRepository> {
-  const databaseUrl = process.env.DATABASE_URL ?? await loadProxyDatabaseUrl();
-  return new PostgresSyncRepository(databaseUrl);
+  const tableName = process.env.SYNC_TABLE_NAME;
+  if (!tableName) throw new Error("Sync persistence is not configured");
+  const endpoint = process.env.DYNAMODB_ENDPOINT;
+  const client = new DynamoDBClient({
+    endpoint,
+    region: process.env.AWS_REGION ?? "us-east-1",
+    credentials: endpoint
+      ? { accessKeyId: "local", secretAccessKey: "local" }
+      : undefined
+  });
+  return new DynamoDbSyncRepository(
+    DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } }),
+    tableName
+  );
 }
-
-async function loadProxyDatabaseUrl(): Promise<string> {
-  const secretArn = process.env.DB_SECRET_ARN;
-  const proxyEndpoint = process.env.DB_PROXY_ENDPOINT;
-  if (!secretArn || !proxyEndpoint) throw new Error("Database boundary is not configured");
-  const response = await new SecretsManagerClient({}).send(new GetSecretValueCommand({ SecretId: secretArn }));
-  const secret = databaseSecretSchema.parse(response.SecretString ? JSON.parse(response.SecretString) : null);
-  const databaseName = process.env.DB_NAME ?? secret.dbname ?? "unfancy";
-  return `postgresql://${encodeURIComponent(secret.username)}:${encodeURIComponent(secret.password)}@${proxyEndpoint}:5432/${encodeURIComponent(databaseName)}`;
-}
-
-const databaseSecretSchema = z.object({ username: z.string().min(1), password: z.string().min(1), dbname: z.string().min(1).optional() });
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   try {

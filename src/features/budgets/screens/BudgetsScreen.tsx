@@ -6,7 +6,7 @@ import type { BudgetInput } from "../../../domain/validation";
 import { currentCalendarMonth } from "../../../domain/aggregates";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
-import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { BudgetForm, type BudgetFormResult } from "../components/BudgetForm";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
@@ -15,11 +15,11 @@ type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 export function BudgetsScreen() {
   const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
-  const dataset = useDatasetStore((state) => state.dataset);
-  const addBudget = useDatasetStore((state) => state.addBudget);
-  const editBudget = useDatasetStore((state) => state.editBudget);
-  const deleteBudget = useDatasetStore((state) => state.deleteBudget);
-  const saveError = useDatasetStore((state) => state.saveError);
+  const dataset = useLocalDatasetStore((state) => state.dataset);
+  const addBudget = useLocalDatasetStore((state) => state.addBudget);
+  const editBudget = useLocalDatasetStore((state) => state.editBudget);
+  const deleteBudget = useLocalDatasetStore((state) => state.deleteBudget);
+  const saveError = useLocalDatasetStore((state) => state.saveError);
   const analytics = useAnalytics();
   const [month, setMonth] = useState(currentCalendarMonth());
   const [formState, setFormState] = useState<FormState>(null);
@@ -66,7 +66,7 @@ export function BudgetsScreen() {
 
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
       {message ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{message}</Text> : null}
-      {pendingDeleteId ? <View style={styles.confirmation}><Text style={styles.confirmationText}>Delete this budget? Its local deletion will be retained for future sync.</Text><View style={styles.confirmationActions}><Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.cancelSmall}><Text style={styles.cancelSmallText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void confirmDelete()} style={styles.deleteSmall}><Text style={styles.deleteSmallText}>Delete budget</Text></Pressable></View></View> : null}
+      {pendingDeleteId ? <View style={styles.confirmation}><Text style={styles.confirmationText}>Delete this budget? You can’t undo this action here.</Text><View style={styles.confirmationActions}><Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.cancelSmall}><Text style={styles.cancelSmallText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void confirmDelete()} style={styles.deleteSmall}><Text style={styles.deleteSmallText}>Delete budget</Text></Pressable></View></View> : null}
 
       <View style={[styles.workspace, isBrowserWorkspace && styles.browserWorkspace]}>
         <View style={styles.listCard}>

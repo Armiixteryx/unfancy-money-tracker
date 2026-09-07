@@ -1,21 +1,15 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: unfancy-money-tracker-postgres
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: unfancy-money-tracker-dynamodb
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-unfancy_local}
-      POSTGRES_USER: ${POSTGRES_USER:-unfancy_local}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unfancy_local_only}
+    user: root
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${DYNAMODB_PORT:-8000}:8000"
     volumes:
-      - unfancy-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 2s
-      timeout: 5s
-      retries: 15
+      - unfancy-dynamodb-data:/home/dynamodblocal/data
 
   localstack:
     image: localstack/localstack:3.8
@@ -33,5 +27,5 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
-  unfancy-postgres-data:
+  unfancy-dynamodb-data:
   unfancy-localstack-data:

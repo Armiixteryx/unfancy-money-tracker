@@ -29,15 +29,7 @@ function assertFixtureIntegrity(dataset: Dataset): void {
     expect(budgetKeys.has(key), `duplicate fixture budget ${key}`).toBe(false);
     budgetKeys.add(key);
   }
-  expect(dataset.sync).toEqual({
-    status: "idle",
-    inboxCursor: null,
-    outbox: [],
-    conflicts: [],
-    revisions: {},
-    lastSyncedAt: null,
-    reason: null
-  });
+  expect(dataset).not.toHaveProperty("sync");
 }
 
 describe("local mock datasets", () => {

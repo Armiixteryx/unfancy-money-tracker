@@ -1,15 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DatasetPersistence, MemoryPersistenceAdapter } from "../../../platform/persistence";
-import { createDatasetStore } from "./useDatasetStore";
-
-const categoryId = "00000000-0000-4000-8000-000000000001";
+import { createDatasetStore } from "./useLocalDatasetStore";
 
 describe("local dataset store", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("hydrates before exposing records and persists transaction CRUD", async () => {
-    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+  it("hydrates before exposing records and persists transaction CRUD without sync mutations", async () => {
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
     expect(store.getState().dataset).toBeNull();
 
     await store.getState().initialize();
@@ -44,17 +42,14 @@ describe("local dataset store", () => {
     const deleted = await store.getState().deleteTransaction(added.value.id);
     expect(deleted.ok).toBe(true);
     expect(store.getState().dataset?.transactions).toHaveLength(0);
-    expect(store.getState().dataset?.recordTombstones).toHaveLength(1);
-    expect(store.getState().dataset?.sync.outbox).toHaveLength(1);
-    expect(store.getState().dataset?.sync.outbox[0]?.operation).toBe("delete");
-    expect(store.getState().dataset?.sync.outbox[0]?.tombstone).toBe(true);
+    expect(store.getState().dataset).not.toHaveProperty("recordTombstones");
+    expect(store.getState().dataset).not.toHaveProperty("sync");
   });
 
   it("rejects a category from the wrong transaction kind at the domain boundary", async () => {
-    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
     await store.getState().initialize();
     const incomeCategory = store.getState().dataset?.categories.find((category) => category.kind === "income");
-    expect(incomeCategory?.id).not.toBe(categoryId);
     if (!incomeCategory) return;
 
     const result = await store.getState().addTransaction({
@@ -70,7 +65,7 @@ describe("local dataset store", () => {
   });
 
   it("persists budgets, preferences, and category reassignment locally", async () => {
-    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
     await store.getState().initialize();
     const expenseCategory = store.getState().dataset?.categories.find((category) => category.kind === "expense" && !category.isSystem);
     if (!expenseCategory) return;
@@ -84,32 +79,29 @@ describe("local dataset store", () => {
     expect(store.getState().dataset?.categories.some((category) => category.id === expenseCategory.id)).toBe(false);
     expect(store.getState().dataset?.budgets[0]?.categoryId).toBe(deleted.ok ? deleted.value.id : "");
     expect(store.getState().dataset?.preferences.baseCurrency).toBe("EUR");
+    expect(store.getState().dataset?.categoryDeletionTombstones).toHaveLength(1);
   });
 
   it("persists the theme preference without replacing system with a resolved value", async () => {
     const adapter = new MemoryPersistenceAdapter();
-    const store = createDatasetStore(new DatasetPersistence(adapter));
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
     await store.getState().initialize();
 
-    const darkResult = await store.getState().setPreferences({ theme: "dark" });
-    expect(darkResult.ok).toBe(true);
-
-    const rehydrated = createDatasetStore(new DatasetPersistence(adapter));
+    await store.getState().setPreferences({ theme: "dark" });
+    const rehydrated = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
     await rehydrated.getState().initialize();
     expect(rehydrated.getState().dataset?.preferences.theme).toBe("dark");
 
-    const systemResult = await rehydrated.getState().setPreferences({ theme: "system" });
-    expect(systemResult.ok).toBe(true);
-
-    const rehydratedAgain = createDatasetStore(new DatasetPersistence(adapter));
+    await rehydrated.getState().setPreferences({ theme: "system" });
+    const rehydratedAgain = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
     await rehydratedAgain.getState().initialize();
     expect(rehydratedAgain.getState().dataset?.preferences.theme).toBe("system");
   });
 
-  it("replaces only an anonymous local dataset with a validated mock preset", async () => {
+  it("replaces the local dataset with a development fixture without account restrictions", async () => {
     vi.stubEnv("EXPO_PUBLIC_ENV", "local");
     const adapter = new MemoryPersistenceAdapter();
-    const store = createDatasetStore(new DatasetPersistence(adapter));
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
     await store.getState().initialize();
     const originalId = store.getState().dataset?.datasetId;
 
@@ -118,13 +110,12 @@ describe("local dataset store", () => {
     expect(result.ok).toBe(true);
     expect(store.getState().dataset?.datasetId).toBe(originalId);
     expect(store.getState().dataset?.transactions.length).toBeGreaterThan(10);
-    expect(store.getState().dataset?.sync.lastSyncedAt).toBeNull();
-    expect(store.getState().dataset?.sync.outbox).toEqual([]);
+    expect(store.getState().dataset).not.toHaveProperty("sync");
   });
 
   it("does not replace data outside the explicit local development environment", async () => {
     vi.stubEnv("EXPO_PUBLIC_ENV", "production");
-    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
     await store.getState().initialize();
 
     await expect(store.getState().replaceWithMockData("dashboard")).resolves.toEqual({
@@ -133,24 +124,17 @@ describe("local dataset store", () => {
     });
   });
 
-  it("uses one account dataset id across fresh devices without dropping local records", async () => {
-    const first = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
-    const second = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()));
-    await first.getState().initialize();
-    await second.getState().initialize();
-    const category = first.getState().dataset?.categories.find((candidate) => candidate.kind === "expense" && !candidate.isSystem);
-    if (!category) return;
-    await first.getState().addTransaction({ amount: "10.00", type: "expense", categoryId: category.id, description: "Synthetic local record", date: "2026-07-11", currency: "USD" });
+  it("retries legacy cleanup before hydrating when cleanup fails", async () => {
+    let attempts = 0;
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("synthetic cleanup failure");
+    });
 
-    const firstSwitch = await first.getState().switchToAccountNamespace("local-shared-account", "dev");
-    const secondSwitch = await second.getState().switchToAccountNamespace("local-shared-account", "dev");
-
-    expect(firstSwitch.ok).toBe(true);
-    expect(secondSwitch.ok).toBe(true);
-    expect(second.getState().dataset?.datasetId).toBe(first.getState().dataset?.datasetId);
-    expect(first.getState().dataset?.transactions).toHaveLength(1);
-    expect(first.getState().dataset?.sync.outbox).toHaveLength(1);
-    expect(first.getState().dataset?.sync.inboxCursor).toBeNull();
-    expect(first.getState().dataset?.sync.lastSyncedAt).toBeNull();
+    await store.getState().initialize();
+    expect(store.getState().hydration.status).toBe("recovery");
+    await store.getState().retryHydration();
+    expect(store.getState().hydration.status).toBe("ready");
+    expect(attempts).toBe(2);
   });
 });

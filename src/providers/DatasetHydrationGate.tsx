@@ -1,7 +1,7 @@
 import { useEffect, useState, type PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { useDatasetStore } from "../features/sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 import { useThemedStyles, type ThemeColors } from "../ui/theme";
 
 function HydrationScreen() {
@@ -17,9 +17,10 @@ function HydrationScreen() {
 
 function RecoveryScreen() {
   const styles = useThemedStyles(createStyles);
-  const retryHydration = useDatasetStore((state) => state.retryHydration);
-  const recoverLocalData = useDatasetStore((state) => state.recoverLocalData);
-  const resetLocalData = useDatasetStore((state) => state.resetLocalData);
+  const hydration = useLocalDatasetStore((state) => state.hydration);
+  const retryHydration = useLocalDatasetStore((state) => state.retryHydration);
+  const recoverLocalData = useLocalDatasetStore((state) => state.recoverLocalData);
+  const resetLocalData = useLocalDatasetStore((state) => state.resetLocalData);
   const [confirmReset, setConfirmReset] = useState(false);
 
   return (
@@ -27,15 +28,15 @@ function RecoveryScreen() {
       <View style={[styles.spinner, styles.recoveryIcon]} />
       <Text accessibilityRole="header" style={styles.title}>Local data needs attention</Text>
       <Text style={styles.description}>
-        We preserved the unreadable snapshot and blocked the app from opening partial data. Retry, recover from sync, or reset this local copy.
+        We preserved the unreadable snapshot and blocked the app from opening partial data. Retry, recover the preserved copy, or reset this local copy.
       </Text>
       <View style={styles.actions}>
         <Pressable accessibilityRole="button" accessibilityLabel="Retry local data" onPress={() => void retryHydration()} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Retry</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Recover preserved local data" onPress={() => void recoverLocalData()} style={styles.secondaryButton}>
+        {hydration.status === "recovery" && hydration.backupAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Recover preserved local data" onPress={() => void recoverLocalData()} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Recover preserved copy</Text>
-        </Pressable>
+        </Pressable> : null}
         {confirmReset ? (
           <View style={styles.confirmation}>
             <Text style={styles.confirmationText}>Resetting removes this local copy. Continue?</Text>
@@ -59,8 +60,8 @@ function RecoveryScreen() {
 }
 
 export function DatasetHydrationGate({ children }: PropsWithChildren) {
-  const hydration = useDatasetStore((state) => state.hydration);
-  const initialize = useDatasetStore((state) => state.initialize);
+  const hydration = useLocalDatasetStore((state) => state.hydration);
+  const initialize = useLocalDatasetStore((state) => state.initialize);
 
   useEffect(() => {
     void initialize();

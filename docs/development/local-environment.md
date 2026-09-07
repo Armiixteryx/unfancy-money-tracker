@@ -1,29 +1,40 @@
 # Local development environment
 
-Anonymous application development remains local-first. Interactive account and sync testing uses the deployed AWS development stack:
+The Expo application is anonymous and local-only. Backend contract and repository testing uses the retained AWS/SAM/DynamoDB development stack; app launches do not call that backend:
 
-- PostgreSQL 16 runs in Docker on port `5432`.
+- DynamoDB Local runs in Docker on port `8000`.
 - SAM CLI builds the API Gateway-compatible Lambda routes in `sam/template.yaml` for automated integration and contract testing.
 - LocalStack is optional and runs only when an AWS SDK contract test needs it, on port `4566`.
 
-Copy `.env.example` to `.env.local` and populate the public Cognito region/client ID and API URLs from the development stack outputs. Missing values leave anonymous tracking available and disable only cloud backup. Never place AWS credentials, database credentials, tokens, PostHog production keys, or real financial data in local configuration or fixtures.
+Copy `.env.example` to `.env.local` for local development. The Expo client does not require Cognito or sync API values. Never place AWS credentials, database credentials, tokens, PostHog production keys, or real financial data in local configuration or fixtures.
 
 ## AWS development stack
 
+Authenticate the AWS CLI, then run the repository-owned deployment:
+
 ```sh
-pnpm run infra:synth:dev
-pnpm run infra:diff:dev
+aws login
 pnpm run infra:deploy:dev
 ```
 
-The deployment writes `.cdk-outputs.dev.json`, which is ignored by Git. Copy `CognitoRegion`, `CognitoClientId`, and `ApiUrl` into the corresponding `EXPO_PUBLIC_*` values in `.env.local`. Production can be synthesized and diffed with the `:prod` commands, but deployment is deferred and `infra:deploy:prod` refuses to run unless `ALLOW_PROD_DEPLOY=1` is explicitly supplied.
+`infra:deploy:dev` is a full CDK deployment. It validates TypeScript, unit tests, the SAM contract, CDK assertions, and both stage templates; displays the complete CloudFormation diff; bundles changed TypeScript Lambda handlers; and applies their code, environment, IAM, API Gateway, Cognito, DynamoDB, and logging changes together. It then verifies the CloudFormation and Lambda states and runs non-sensitive API smoke tests. Treat the repository and CDK stack as the source of truth and do not edit deployed resources in the AWS Console.
+
+The account and region must have been bootstrapped once for CDK. If the preflight reports that `CDKToolkit` is missing, run the exact `pnpm exec cdk bootstrap aws://ACCOUNT/REGION -c stage=dev` command it prints, review that one-time infrastructure change, and retry. The deployment stops before making changes when credentials are expired, the selected account conflicts with `CDK_DEFAULT_ACCOUNT`, tests fail, or the existing stack still contains the legacy Aurora database.
+
+### CDK bootstrap record
+
+The development AWS account was bootstrapped in `us-east-1` on August 6, 2026 at 6:27:36 PM America/Caracas (`2026-08-06T22:27:36.380Z`). This created the shared `CDKToolkit` stack used by subsequent CDK deployments. The account identifier is intentionally not stored in the repository.
+
+The deployment writes `.cdk-outputs.dev.json`, which is ignored by Git. Its Cognito, API, and DynamoDB outputs are backend records for contract and future reintroduction work; do not add them to Expo environment configuration. A failed CloudFormation deployment uses the default rollback behavior; inspect the reported stack events, fix the source, and rerun the same command rather than editing resources manually.
+
+For read-only inspection without deployment, use `pnpm run infra:check`, `pnpm run infra:synth:dev`, or `pnpm run infra:diff:dev`. Production can be synthesized and diffed with the `:prod` commands, but deployment is deferred and `infra:deploy:prod` refuses to run unless `ALLOW_PROD_DEPLOY=1` is explicitly supplied.
 
 ## Commands
 
 ```sh
 scripts/local-env.sh verify
 scripts/local-env.sh start
-scripts/local-env.sh migrate
+scripts/local-env.sh init
 scripts/local-env.sh seed
 pnpm run local:seed-app --preset=dashboard --target=ios
 scripts/local-env.sh status
@@ -52,7 +63,7 @@ The same checks are available through `scripts/local-env.sh test`, `integration`
 scripts/local-env.sh reset
 ```
 
-The client starts with a new empty anonymous dataset. The PostgreSQL seed is for backend contract tests only; it is never demo data in the product UI.
+The client starts with a new empty anonymous dataset. The DynamoDB Local seed is for backend contract tests only; it is never demo data in the product UI.
 
 ## App mock data for local development
 
@@ -64,13 +75,11 @@ pnpm run local:seed-app --preset=edge-cases --target=android
 pnpm run local:seed-app --preset=dashboard --target=web
 ```
 
-The app must already be running on the requested target and must be using its anonymous dataset. The command opens a destructive confirmation screen; it does not write encrypted device/browser storage directly or delete backend data. The flow is available only when `EXPO_PUBLIC_ENV` is `local`. Use `--dry-run` to print the target URL without opening it.
+The app must already be running on the requested target. The command opens a destructive confirmation screen; it does not write encrypted device/browser storage directly or delete backend data. The flow is available only when `EXPO_PUBLIC_ENV` is `local`. Use `--dry-run` to print the target URL without opening it.
 
 Native targets use the Expo Router path form `unfancy-money-tracker:///developer-seed?...` (three slashes); this is required so `developer-seed` is interpreted as a route rather than a URL host.
 
-Mock fixtures are contract-tested whenever `pnpm test` runs. Run `pnpm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, clean initial-sync state, report history, and the edge-case budget states.
-
-To verify a fixture upload, load and confirm the fixture, sign into a synthetic Cognito development account, and use **Sync now**. Verify the result only through safe status messages or synthetic development records; never use real financial data.
+Mock fixtures are contract-tested whenever `pnpm test` runs. Run `pnpm run test:fixtures` while changing the preset factory; it verifies the persisted schema, record references, category/budget invariants, date range, local tombstone behavior, report history, and the edge-case budget states. Fixtures replace only the local dataset and never touch the retained backend.
 
 ## Android development client
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted for local persistence; account-scoped cache behavior is superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md).
 
 ## Context
 

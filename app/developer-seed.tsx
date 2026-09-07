@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { isMockDatasetPreset, type MockDatasetPreset } from "../src/features/development/mockData";
-import { useDatasetStore } from "../src/features/sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../src/features/local-data/store/useLocalDatasetStore";
 import { isLocalDevelopmentRuntime } from "../src/platform/runtime/localDevelopment";
 import { AppScreen } from "../src/ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../src/ui/theme";
@@ -17,17 +17,14 @@ export default function DeveloperSeedScreen() {
   const router = useRouter();
   const { preset: requestedPreset } = useLocalSearchParams<{ preset?: string | string[] }>();
   const preset = typeof requestedPreset === "string" && isMockDatasetPreset(requestedPreset) ? requestedPreset : null;
-  const isAnonymousDataset = useDatasetStore((state) => state.isAnonymousDataset);
-  const replaceWithMockData = useDatasetStore((state) => state.replaceWithMockData);
+  const replaceWithMockData = useLocalDatasetStore((state) => state.replaceWithMockData);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const unavailable = !isLocalDevelopmentRuntime()
     ? "Mock data is available only in the local development environment."
-    : !preset
-      ? "The requested mock-data preset is not available."
-      : !isAnonymousDataset
-        ? "Sign out before replacing anonymous local data with a mock dataset."
+      : !preset
+        ? "The requested mock-data preset is not available."
         : null;
 
   const confirm = async () => {
@@ -48,7 +45,7 @@ export default function DeveloperSeedScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>{preset ? presetLabel(preset) : "Mock data unavailable"}</Text>
         <Text style={styles.copy}>
-          {unavailable ?? "This replaces the entire anonymous local dataset with synthetic records, categories, budgets, preferences, and sync state. Backend data is not changed."}
+          {unavailable ?? "This replaces the entire local dataset with synthetic records, categories, budgets, and preferences. The retained backend is not changed."}
         </Text>
         {preset && !unavailable ? <Text style={styles.warning}>This is destructive. It cannot be undone from this screen.</Text> : null}
         {message ? <Text accessibilityRole="alert" style={styles.error}>{message}</Text> : null}

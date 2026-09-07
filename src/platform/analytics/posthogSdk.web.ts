@@ -36,9 +36,6 @@ export function createPostHogSdk(config: PostHogSdkConfig): PostHogSdk | null {
       const flushable = posthog as unknown as { flush?: () => void | Promise<void> };
       await flushable.flush?.();
     },
-    async identify(accountSubject: string) {
-      posthog.identify(accountSubject);
-    },
     async capture(event: AnalyticsEvent, properties: AnalyticsProperties) {
       posthog.capture(event, properties);
     }

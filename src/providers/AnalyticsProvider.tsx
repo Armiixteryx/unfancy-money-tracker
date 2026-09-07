@@ -3,12 +3,11 @@ import { createContext, useContext, useEffect, useMemo, type PropsWithChildren }
 import { createPostHogAnalyticsClient } from "../platform/analytics";
 import type { AnalyticsClient } from "../platform/analytics";
 import { PostHogProviderWrapper } from "../platform/analytics/PostHogProviderWrapper";
-import { useDatasetStore } from "../features/sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 
 const noopAnalytics: AnalyticsClient = {
   initialize: async () => undefined,
   setConsent: async () => undefined,
-  identifyAccount: async () => undefined,
   capture: async () => undefined
 };
 
@@ -16,7 +15,7 @@ const AnalyticsContext = createContext<AnalyticsClient>(noopAnalytics);
 
 export function AnalyticsProvider({ children }: PropsWithChildren) {
   const client = useMemo(() => createPostHogAnalyticsClient(), []);
-  const analyticsConsent = useDatasetStore((state) => state.dataset?.preferences.analyticsConsent);
+  const analyticsConsent = useLocalDatasetStore((state) => state.dataset?.preferences.analyticsConsent);
   useEffect(() => {
     void client.initialize();
   }, [client]);

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted for consent-gated anonymous analytics; account linking and sync-related events are superseded by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md).
 
 ## Context
 

@@ -15,7 +15,7 @@ import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { TransactionForm, type TransactionFormResult } from "../components/TransactionForm";
 import { TransactionRow } from "../components/TransactionRow";
-import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
@@ -24,14 +24,14 @@ export function TransactionsScreen() {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
-  const dataset = useDatasetStore((state) => state.dataset);
-  const transactionFilters = useDatasetStore((state) => state.transactionFilters);
-  const setTransactionFilters = useDatasetStore((state) => state.setTransactionFilters);
-  const clearTransactionFilters = useDatasetStore((state) => state.clearTransactionFilters);
-  const addTransaction = useDatasetStore((state) => state.addTransaction);
-  const editTransaction = useDatasetStore((state) => state.editTransaction);
-  const deleteTransaction = useDatasetStore((state) => state.deleteTransaction);
-  const saveError = useDatasetStore((state) => state.saveError);
+  const dataset = useLocalDatasetStore((state) => state.dataset);
+  const transactionFilters = useLocalDatasetStore((state) => state.transactionFilters);
+  const setTransactionFilters = useLocalDatasetStore((state) => state.setTransactionFilters);
+  const clearTransactionFilters = useLocalDatasetStore((state) => state.clearTransactionFilters);
+  const addTransaction = useLocalDatasetStore((state) => state.addTransaction);
+  const editTransaction = useLocalDatasetStore((state) => state.editTransaction);
+  const deleteTransaction = useLocalDatasetStore((state) => state.deleteTransaction);
+  const saveError = useLocalDatasetStore((state) => state.saveError);
   const analytics = useAnalytics();
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -127,7 +127,7 @@ export function TransactionsScreen() {
         <View style={styles.confirmation}>
           <View style={styles.confirmationCopy}>
             <Text style={styles.confirmationTitle}>Delete this transaction?</Text>
-            <Text style={styles.confirmationText}>This removes it from the local list and records a deletion for future sync.</Text>
+            <Text style={styles.confirmationText}>This removes it from the local list. You can’t undo this action here.</Text>
           </View>
           <View style={styles.confirmationActions}>
             <Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.cancelSmallButton}><Text style={styles.cancelSmallText}>Cancel</Text></Pressable>

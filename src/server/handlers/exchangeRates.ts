@@ -15,7 +15,6 @@ const requestSchema = z.object({
 const provider = new FrankfurterExchangeRateAdapter(new MemoryRateCache());
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  if (process.env.APP_ENV !== "local" && process.env.AWS_SAM_LOCAL !== "true" && !getSubject(event)) return json(401, { error: "unauthenticated" });
   try {
     const request = requestSchema.parse(event.queryStringParameters ?? {});
     if (!isCurrencyCode(request.base) || !isCurrencyCode(request.quote)) return json(400, { error: "unsupported_currency" });
@@ -28,14 +27,6 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     if (error instanceof ExchangeRateError) return json(error.code === "unsupported_currency" ? 400 : error.code === "no_rate_available" ? 404 : 503, { error: error.code });
     return json(503, { error: "unavailable" });
   }
-}
-
-function getSubject(event: APIGatewayProxyEventV2): string | null {
-  const requestContext = event.requestContext as APIGatewayProxyEventV2["requestContext"] & { authorizer?: { jwt?: { claims?: Record<string, unknown> } } };
-  const subject = requestContext.authorizer?.jwt?.claims?.sub;
-  if (typeof subject === "string" && subject.length > 0) return subject;
-  if (process.env.APP_ENV === "local" || process.env.AWS_SAM_LOCAL === "true") return event.headers?.["x-local-subject"] ?? event.headers?.["X-Local-Subject"] ?? "local-synthetic-user";
-  return null;
 }
 
 function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {

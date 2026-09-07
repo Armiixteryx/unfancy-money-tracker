@@ -6,9 +6,8 @@ import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
 import type { CategoryKind } from "../../../domain/types";
 import { AppScreen } from "../../../ui/AppScreen";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
-import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
-import { AccountSyncCard } from "../../sync/components/AccountSyncCard";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function SettingsScreen() {
@@ -16,10 +15,10 @@ export function SettingsScreen() {
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
   const isMobile = Platform.OS !== "web" || width < 768;
-  const dataset = useDatasetStore((state) => state.dataset);
-  const setPreferences = useDatasetStore((state) => state.setPreferences);
-  const resetLocalData = useDatasetStore((state) => state.resetLocalData);
-  const saveError = useDatasetStore((state) => state.saveError);
+  const dataset = useLocalDatasetStore((state) => state.dataset);
+  const setPreferences = useLocalDatasetStore((state) => state.setPreferences);
+  const resetLocalData = useLocalDatasetStore((state) => state.resetLocalData);
+  const saveError = useLocalDatasetStore((state) => state.saveError);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [mobileSection, setMobileSection] = useState<MobileSection | null>(null);
@@ -80,13 +79,11 @@ export function SettingsScreen() {
 
         {activeSection === "privacy" ?
         <View style={styles.card}>
-          <SectionHeader title="Local data and privacy" description="Your tracker starts anonymous and stays on this device until you choose otherwise." />
+          <SectionHeader title="Local data and privacy" description="Your tracker is anonymous and keeps financial data on this device." />
           <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>Local-only dataset</Text><Text style={styles.helper}>{dataset.transactions.length} transactions · {dataset.budgets.length} budgets · {dataset.categories.length} categories</Text></View></View>
           <Pressable accessibilityRole="button" accessibilityState={{ checked: dataset.preferences.analyticsConsent }} onPress={() => void updatePreference({ analyticsConsent: !dataset.preferences.analyticsConsent }, dataset.preferences.analyticsConsent ? "Analytics disabled." : "Analytics enabled with privacy controls.")} style={styles.toggleRow}><View style={[styles.toggle, dataset.preferences.analyticsConsent && styles.toggleOn]}><View style={[styles.toggleKnob, dataset.preferences.analyticsConsent && styles.toggleKnobOn]} /></View><View style={styles.statusCopy}><Text style={styles.statusTitle}>Optional analytics</Text><Text style={styles.helper}>{dataset.preferences.analyticsConsent ? "Enabled. Financial values and user-entered text remain excluded." : "Disabled by default. No product analytics is collected."}</Text></View></Pressable>
           {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>Reset this local copy?</Text><Text style={styles.helper}>This removes local transactions, budgets, categories, and preferences. There is no demo-data restore.</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>Reset local data</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>Reset local data</Text></Pressable>}
         </View> : null}
-
-        {activeSection === "sync" ? <AccountSyncCard /> : null}
 
         {activeSection === "export" ?
         <View style={styles.card}>
@@ -102,7 +99,7 @@ export function SettingsScreen() {
   );
 }
 
-type SettingsSection = "preferences" | "categories" | "rates" | "sync" | "privacy" | "export";
+type SettingsSection = "preferences" | "categories" | "rates" | "privacy" | "export";
 type MobileSection = SettingsSection;
 
 function getMobileGroups(colors: ThemeColors): readonly { title: string; rows: readonly { section: MobileSection; icon: keyof typeof Ionicons.glyphMap; iconBackground: string; title: string; description: string }[] }[] {
@@ -113,7 +110,6 @@ function getMobileGroups(colors: ThemeColors): readonly { title: string; rows: r
   ] },
   { title: "Data", rows: [
     { section: "rates", icon: "swap-horizontal-outline", iconBackground: colors.infoSubtle, title: "Exchange rates", description: "Conversion status and freshness" },
-    { section: "sync", icon: "cloud-outline", iconBackground: colors.proSubtle, title: "Backup & sync", description: "Optional account and cloud backup" },
     { section: "privacy", icon: "shield-checkmark-outline", iconBackground: colors.negativeSubtle, title: "Local data & privacy", description: "Analytics and local data controls" }
   ] },
   { title: "More", rows: [
@@ -156,11 +152,11 @@ function ChoiceChip({ active, label, onPress }: { active: boolean; label: string
 function CategoryManager({ onMessage }: { onMessage: (message: string) => void }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
-  const dataset = useDatasetStore((state) => state.dataset);
-  const addCategory = useDatasetStore((state) => state.addCategory);
-  const renameCategory = useDatasetStore((state) => state.renameCategory);
-  const archiveCategory = useDatasetStore((state) => state.archiveCategory);
-  const deleteCategory = useDatasetStore((state) => state.deleteCategory);
+  const dataset = useLocalDatasetStore((state) => state.dataset);
+  const addCategory = useLocalDatasetStore((state) => state.addCategory);
+  const renameCategory = useLocalDatasetStore((state) => state.renameCategory);
+  const archiveCategory = useLocalDatasetStore((state) => state.archiveCategory);
+  const deleteCategory = useLocalDatasetStore((state) => state.deleteCategory);
   const [kind, setKind] = useState<CategoryKind>("expense");
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);

@@ -23,7 +23,7 @@ Do not introduce an alternative framework, state library, styling system, or per
 - V1 tracks manual income and expenses only.
 - There are no financial accounts, source/destination details, transfers, bank connections, investments, debt tracking, or shared finances.
 - A transaction requires a positive amount, type, category, description, date, and currency.
-- Users begin anonymous and local-first. Email/password cloud sync is opt-in.
+- Users are anonymous and local-only. The retained AWS/SAM/DynamoDB sync backend is dormant and is not called by the Expo app.
 - CSV export is a non-functional Pro-feature preview in V1. Do not implement export, payments, or subscription enforcement unless the product definition changes.
 - Insights must be factual and descriptive; do not present financial advice.
 
@@ -35,12 +35,12 @@ Do not introduce an alternative framework, state library, styling system, or per
 - Use accessible labels, focus behavior, touch targets, semantic controls, and color-independent status indicators.
 - Keep financial UI calm and legible: warm neutral surfaces, deep navy text, emerald positive states, coral overspending states, and high contrast.
 
-## Data, privacy, and sync
+## Data and privacy
 
 - Preserve original transaction amount and currency; only aggregates convert to the user-selected base currency.
 - Show exchange-rate freshness. Cached rates must be visibly stale; without a rate, do not show a misleading combined total.
-- Never silently discard data during first sync, sync conflict resolution, or reset operations.
-- Analytics may record product actions but must never include transaction amounts, descriptions, categories, or other sensitive financial content.
+- Never silently discard data during migrations, recovery, fixture replacement, or reset operations.
+- Analytics is anonymous, consent-gated, and may record product actions but must never include transaction amounts, descriptions, categories, or other sensitive financial content.
 - Treat all financial data as sensitive in logs, errors, test fixtures, and analytics payloads.
 
 ## Documentation
@@ -55,5 +55,5 @@ Do not introduce an alternative framework, state library, styling system, or per
 - To run Android, iOS, and web from one Expo server, use `pnpm run start:all`, then open each target with Expo's `a`, `i`, and `w` shortcuts.
 - Keep TypeScript strict; avoid `any` and validate external or persisted data at boundaries.
 - Prefer small, focused components and feature-local code over large shared abstractions.
-- Add or update tests for behavior changes, especially calculations, validation, persistence, conversion fallbacks, and sync/conflict states.
+- Add or update tests for behavior changes, especially calculations, validation, persistence, conversion fallbacks, migration, recovery, and local cleanup states.
 - Do not commit secrets, provider keys, real financial data, or production analytics credentials.

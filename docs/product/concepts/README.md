@@ -32,10 +32,7 @@ The cross-screen consistency pass is documented in [system-review.md](system-rev
   - Create, rename, archive, and delete categories; deleted categories reassign records to protected Uncategorized.
 - [x] Settings — mobile and browser
   - [Settings concept](settings-mobile-browser.png)
-  - Change currency and theme, manage local data, and view sync status.
-- [x] Local-first and sync onboarding — mobile and browser
-  - [Sync onboarding concept](sync-onboarding-mobile-browser.png)
-  - Continue anonymously, create an email/password account, and resolve first-sync conflicts.
+  - Change currency and theme, manage local data, and review privacy controls.
 - [x] CSV Pro preview — mobile and browser
   - [CSV Pro preview concept](csv-pro-preview-mobile-browser.png)
   - Show the paid-feature CTA without implementing export or payment.

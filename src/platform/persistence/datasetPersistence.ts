@@ -26,17 +26,7 @@ export function createEmptyDataset(
     categories: seedDefaultCategories(idFactory, now),
     budgets: [],
     categoryDeletionTombstones: [],
-    recordTombstones: [],
-    preferences: { baseCurrency: "USD", theme: "system", analyticsConsent: false },
-    sync: {
-      status: "idle",
-      inboxCursor: null,
-      outbox: [],
-      conflicts: [],
-      revisions: {},
-      lastSyncedAt: null,
-      reason: null
-    }
+    preferences: { baseCurrency: "USD", theme: "system", analyticsConsent: false }
   };
 }
 

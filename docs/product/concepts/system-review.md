@@ -13,7 +13,7 @@ Check that the individual concepts behave like one product before implementation
 - Mobile uses a five-item bottom navigation. Browser uses a left navigation rail.
 - Use **Dashboard**, **Transactions**, **Budgets**, and **Reports** consistently; do not alternate with Overview, Activity, Plans, Home, Budget, or Insights.
 - Category management is a Settings sub-area, not a sixth primary navigation item. Category pickers remain available from transaction and budget flows.
-- Sync and backup are Settings content. Export is a Settings/Data & privacy content area and is a Pro preview only.
+- Local data and privacy are Settings content. Export is a Settings/Data & privacy content area and is a Pro preview only.
 - Do not show Accounts as a navigation item or feature; V1 has no financial-account model.
 
 ### Shared visual language
@@ -37,7 +37,7 @@ Check that the individual concepts behave like one product before implementation
 - Transactions supports search, filtering, row inspection, and direct editing.
 - Budgets make category progress and overspending visible without punitive language.
 - Reports combine trend, category breakdown, and descriptive observations.
-- Settings exposes preference, local-data, exchange-rate, and optional sync controls.
+- Settings exposes preference, local-data, exchange-rate, and privacy controls.
 - Empty, loading, offline, validation, and conflict states have clear next actions.
 
 ### Corrections applied
@@ -46,7 +46,6 @@ Check that the individual concepts behave like one product before implementation
 - Placeholder branding and domains were replaced with Unfancy Money Tracker treatment.
 - The Accounts item was removed from the CSV concept.
 - Categories are represented as a Settings sub-area while category pickers remain available in transaction/budget flows.
-- Sync artwork keeps conflict choices explicit without “Continue locally” actions or a full-width “Merge and sync” footer.
 - Settings artwork has no demo-data reset; empty-first behavior remains the product rule.
 - Date, currency, amount, and category conventions were normalized across the linked artwork.
 

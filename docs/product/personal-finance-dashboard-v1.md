@@ -6,7 +6,7 @@ Build a polished, cross-platform finance tracker for individuals who want one cl
 
 Users enter transactions manually. V1 does **not** model bank, cash, credit, or savings accounts; transactions have no source/destination fields and transfers are out of scope.
 
-The app is anonymous and local-first by default. Users may optionally create an email-and-password account to back up and sync their data across devices.
+The app is anonymous and local-only. Financial data stays in the local dataset on the device or browser; account creation and cloud synchronization are not part of the current app scope.
 
 ## Product decisions
 
@@ -18,8 +18,7 @@ The app is anonymous and local-first by default. Users may optionally create an 
 | Categories | UUID-backed income and expense categories; defaults plus custom create, rename, archive, and delete |
 | Budgets | One expense-category budget per calendar month; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
-| Data and identity | Anonymous local use first; optional email/password account enables sync |
-| Initial sync | Merge local and cloud data; require choices for same-record conflicts while preserving duplicate candidates for later review |
+| Data and identity | Anonymous local use only; no account or cloud data capability in the app |
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
 
@@ -41,7 +40,7 @@ The product should demonstrate thoughtful product, design, and engineering pract
 - Create monthly category budgets and monitor progress or overspending.
 - Review monthly trends and category breakdowns.
 - Change base currency and theme, and inspect exchange-rate freshness.
-- Start anonymously, then sign up/sign in to back up and synchronize existing data.
+- Use the tracker anonymously with local persistence from the first launch.
 - Open the CSV export CTA and see a Pro-feature preview.
 
 ## Information architecture
@@ -54,7 +53,7 @@ Primary navigation:
 4. Reports
 5. Settings
 
-The same five labels are used on mobile bottom navigation and the browser left rail. Category management is a Settings sub-area; it is not a sixth primary route. Sync/backup and export are also Settings sub-areas.
+The same five labels are used on mobile bottom navigation and the browser left rail. Category management is a Settings sub-area; it is not a sixth primary route. Export is also a Settings sub-area.
 
 ### Dashboard
 
@@ -84,8 +83,7 @@ The same five labels are used on mobile bottom navigation and the browser left r
 - Base currency and theme.
 - Category management.
 - Exchange-rate status.
-- Optional account/sync entry points.
-- Local-data and sync status.
+- Local-data and privacy controls.
 
 ### Shared UI rules
 
@@ -124,30 +122,26 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Budgets apply only to expense transactions inside their selected calendar month, do not roll over, and may be exceeded.
 - Keep original transaction amount/currency for display. Convert dashboard and budget aggregates using the latest available rate; convert historical reports using the rate published on each transaction date.
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.
-- Anonymous data persists locally. Sign-up/sign-in must retain and upload existing local data.
-- Initial sync never silently discards local or cloud data. Same-record concurrent edits require a user choice; unrelated records may finish syncing while conflicts remain visible. Suspected duplicate candidates are preserved and available for later review.
-- Authentication includes email/password sign-up and sign-in, Cognito confirmation, password reset by one-time email code, persistent multi-device sessions, sign-out, loading, generic invalid-credential, and offline cached-session states.
-- New accounts must complete email confirmation before cloud sync begins.
-- Signing out while offline warns that unsynced changes will be lost and requires confirmation before clearing the local account cache.
-- Account deletion is not included in v1.
+- Anonymous data persists locally. The app does not create accounts or upload the local dataset.
+- The app never runs a cloud-sync flow or performs a cloud reset; retained backend records are outside the app’s current product boundary.
 - Destructive data actions require explicit confirmation and clearly state their local/cloud impact before confirmation.
 - Empty states lead to the next relevant action: add a transaction, create a budget, or select a reporting period.
 
 ## Analytics and privacy
 
-Analytics is opt-in and disabled by default. After an explicit choice, the consent preference syncs across the user’s signed-in devices. Anonymous analytics uses a random distinct ID and links to an opaque account subject only after signup/sign-in.
+Analytics is opt-in and disabled by default. After an explicit choice, the consent preference remains in the local dataset. Analytics uses a random anonymous distinct ID and never identifies a person or account.
 
-Track dashboard/report views, transaction and budget creation, transaction filtering, sync-account intent/completion, CSV-export/upgrade interest, and safe authentication funnel statuses.
+Track dashboard/report views, transaction and budget creation, transaction filtering, and CSV-export/upgrade interest.
 
 Use automatic capture and masked session replay with strict redaction. Mask all user-entered text and financial values, including amounts, descriptions, categories, dates, chart values, and transaction rows. Opting out stops future capture and flushes already queued analytics events.
 
-Allowed event properties are limited to platform, app version, surface, action result, generic error code, and sync status. Never send transaction amounts, descriptions, categories, dates, currencies, transaction IDs, email addresses, credentials, tokens, provider error bodies, or other financial contents to analytics, replay, logs, or error reports.
+Allowed event properties are limited to platform, app version, surface, action result, and generic error code. Never send transaction amounts, descriptions, categories, dates, currencies, transaction IDs, email addresses, credentials, tokens, provider error bodies, or other financial contents to analytics, replay, logs, or error reports.
 
 ## Acceptance checks
 
 - Transaction CRUD, filtering, category management, budget calculations, and reports work across web, iOS, and Android.
 - Base-currency conversion covers current, cached, unavailable-rate, latest-current-aggregate, and transaction-date historical-report states with correct rounding and original-currency display.
-- Anonymous use, account creation/sign-in, email confirmation, local-to-cloud merge, user-resolved sync conflicts, password recovery codes, persistent multi-device sessions, sign-out, offline cached sessions, and offline sign-out warnings are represented and testable.
+- Anonymous local use, persistence, migration, recovery, and local reset are represented and testable.
 - Empty, loading, invalid-input, destructive-confirmation, and Pro-preview states are present.
 - Money validation, currency precision, category deletion reassignment, UUID seeding, and budget uniqueness follow the domain model.
 - Analytics is consent-gated, events fire once per intended action, replay is masked, and no sensitive financial data is collected.

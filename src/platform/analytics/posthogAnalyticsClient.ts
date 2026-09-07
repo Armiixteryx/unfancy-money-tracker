@@ -3,7 +3,7 @@ import { createPostHogSdk, type PostHogSdk } from "./posthogSdk";
 import { createUuid } from "../identifiers/createUuid";
 
 const IDENTITY_KEY = "unfancy.analytics.distinct_id";
-const ALLOWED_PROPERTIES = ["platform", "appVersion", "surface", "actionResult", "errorCode", "syncStatus"] as const;
+const ALLOWED_PROPERTIES = ["platform", "appVersion", "surface", "actionResult", "errorCode"] as const;
 
 export class RuntimeAnalyticsIdentityStore implements AnalyticsIdentityStore {
   private memoryValue: string | null = null;
@@ -41,7 +41,6 @@ export class PostHogAnalyticsClient implements AnalyticsClient {
   private readonly fetcher: typeof fetch;
   private distinctId: string | null = null;
   private consent = false;
-  private accountSubject: string | null = null;
   private readonly sdk: PostHogSdk | null;
 
   constructor(private readonly config: PostHogConfig) {
@@ -79,15 +78,6 @@ export class PostHogAnalyticsClient implements AnalyticsClient {
     }
   }
 
-  async identifyAccount(accountSubject: string): Promise<void> {
-    this.accountSubject = accountSubject;
-    try {
-      await this.sdk?.identify(accountSubject);
-    } catch {
-      // Account linking is best effort and never carries financial data.
-    }
-  }
-
   async capture(event: AnalyticsEvent, properties: AnalyticsProperties = {}): Promise<void> {
     if (!this.consent || !this.config.apiKey || !this.distinctId || !ANALYTICS_EVENTS.includes(event)) return;
     const safeProperties = Object.fromEntries(ALLOWED_PROPERTIES.flatMap((key) => properties[key] === undefined ? [] : [[key, properties[key]]]));
@@ -106,7 +96,7 @@ export class PostHogAnalyticsClient implements AnalyticsClient {
         body: JSON.stringify({
           api_key: this.config.apiKey,
           event,
-          distinct_id: this.accountSubject ?? this.distinctId,
+          distinct_id: this.distinctId,
           properties: { platform: this.config.platform, appVersion: this.config.appVersion, ...safeProperties, $process_person_profile: false, $replay_sample_rate: 0 }
         })
       });

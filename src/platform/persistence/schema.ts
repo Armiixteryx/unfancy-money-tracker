@@ -73,41 +73,10 @@ export const budgetSchema = z
     }
   });
 
-const tombstoneSchema = z.object({
-  recordType: z.enum(["transaction", "category", "budget", "preference"]),
+const categoryDeletionTombstoneSchema = z.object({
+  recordType: z.literal("category"),
   recordId: uuidSchema,
   deletedAt: z.string().datetime()
-});
-
-const syncChangeSchema = z.object({
-  idempotencyKey: uuidSchema,
-  recordType: z.enum(["transaction", "category", "budget", "preference"]),
-  recordId: uuidSchema,
-  operation: z.enum(["upsert", "delete"]),
-  baseRevision: z.number().int().nonnegative(),
-  revision: z.number().int().nonnegative(),
-  payload: z.unknown().nullable(),
-  tombstone: z.boolean()
-});
-
-const syncConflictSchema = z.object({
-  recordType: z.enum(["transaction", "category", "budget", "preference"]),
-  recordId: uuidSchema,
-  localRevision: z.number().int().nonnegative(),
-  cloudRevision: z.number().int().nonnegative(),
-  localPayload: z.unknown().nullable(),
-  cloudPayload: z.unknown().nullable(),
-  resolution: z.literal("pending")
-});
-
-const syncSchema = z.object({
-  status: z.enum(["idle", "syncing", "synced", "offline", "stale", "conflicted", "error"]),
-  inboxCursor: z.string().nullable(),
-  outbox: z.array(syncChangeSchema),
-  conflicts: z.array(syncConflictSchema),
-  revisions: z.record(z.string(), z.number().int().nonnegative()),
-  lastSyncedAt: z.string().datetime().nullable(),
-  reason: z.string().max(160).nullable()
 });
 
 export const preferencesSchema = z.object({
@@ -122,10 +91,8 @@ export const datasetEnvelopeSchema = z.object({
   transactions: z.array(transactionSchema),
   categories: z.array(categorySchema),
   budgets: z.array(budgetSchema),
-  categoryDeletionTombstones: z.array(tombstoneSchema),
-  recordTombstones: z.array(tombstoneSchema),
-  preferences: preferencesSchema,
-  sync: syncSchema
+  categoryDeletionTombstones: z.array(categoryDeletionTombstoneSchema),
+  preferences: preferencesSchema
 });
 
 export type PersistedDataset = z.infer<typeof datasetEnvelopeSchema>;

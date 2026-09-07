@@ -5,13 +5,13 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { categoryReport, convertMonthAggregate, currentCalendarMonth, formatMoneyForDisplay, monthlyReport, reportObservation, type ReportPeriod } from "../../../domain";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
-import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 import { useExchangeRates, rateRequestKey } from "../../exchange-rates/hooks/useExchangeRates";
 
 export function ReportsScreen() {
   const styles = useThemedStyles(createStyles);
-  const dataset = useDatasetStore((state) => state.dataset);
+  const dataset = useLocalDatasetStore((state) => state.dataset);
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<ReportPeriod>("6m");
   const month = currentCalendarMonth();

@@ -22,7 +22,6 @@ export function createPostHogSdk(config: PostHogSdkConfig): PostHogSdk | null {
       const flushable = client as unknown as { flush?: () => void | Promise<void> };
       await flushable.flush?.();
     },
-    async identify(accountSubject: string) { client.identify(accountSubject); },
     async capture(event: AnalyticsEvent, properties: AnalyticsProperties) { client.capture(event, properties); }
   };
 }

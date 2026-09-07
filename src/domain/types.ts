@@ -3,7 +3,6 @@ import type { CurrencyCode } from "./currency";
 export type UUID = string;
 export type CalendarDate = string;
 export type CalendarMonth = `${number}-${number}`;
-export type RecordType = "transaction" | "category" | "budget" | "preference";
 
 export type TransactionType = "income" | "expense";
 export type CategoryKind = TransactionType;
@@ -41,43 +40,10 @@ export type Budget = {
   updatedAt: string;
 };
 
-export type RecordTombstone = {
-  recordType: RecordType;
+export type CategoryDeletionTombstone = {
+  recordType: "category";
   recordId: UUID;
   deletedAt: string;
-};
-
-export type SyncStatus = "idle" | "syncing" | "synced" | "offline" | "stale" | "conflicted" | "error";
-
-export type SyncMetadata = {
-  status: SyncStatus;
-  inboxCursor: string | null;
-  outbox: readonly SyncChange[];
-  conflicts: readonly SyncConflict[];
-  revisions: Readonly<Record<string, number>>;
-  lastSyncedAt: string | null;
-  reason: string | null;
-};
-
-export type SyncChange = {
-  idempotencyKey: UUID;
-  recordType: RecordType;
-  recordId: UUID;
-  operation: "upsert" | "delete";
-  baseRevision: number;
-  revision: number;
-  payload: unknown | null;
-  tombstone: boolean;
-};
-
-export type SyncConflict = {
-  recordType: RecordType;
-  recordId: UUID;
-  localRevision: number;
-  cloudRevision: number;
-  localPayload: unknown | null;
-  cloudPayload: unknown | null;
-  resolution: "pending";
 };
 
 export type Preferences = {
@@ -92,8 +58,6 @@ export type Dataset = {
   transactions: readonly Transaction[];
   categories: readonly Category[];
   budgets: readonly Budget[];
-  categoryDeletionTombstones: readonly RecordTombstone[];
-  recordTombstones: readonly RecordTombstone[];
+  categoryDeletionTombstones: readonly CategoryDeletionTombstone[];
   preferences: Preferences;
-  sync: SyncMetadata;
 };

@@ -11,11 +11,8 @@ function isRecord(value: unknown): value is UnknownRecord {
 }
 
 function cloneRecord(value: UnknownRecord): UnknownRecord {
-  const serialized = JSON.stringify(value);
-  const cloned: unknown = JSON.parse(serialized);
-  if (!isRecord(cloned)) {
-    throw new Error("Snapshot is not an object");
-  }
+  const cloned: unknown = JSON.parse(JSON.stringify(value));
+  if (!isRecord(cloned)) throw new Error("Snapshot is not an object");
   return cloned;
 }
 
@@ -26,9 +23,7 @@ function migrateV0ToV1(input: UnknownRecord, idFactory: IdFactory): UnknownRecor
   migrated.transactions = Array.isArray(migrated.transactions) ? migrated.transactions : [];
   migrated.categories = Array.isArray(migrated.categories) ? migrated.categories : [];
   migrated.budgets = Array.isArray(migrated.budgets) ? migrated.budgets : [];
-  migrated.categoryDeletionTombstones = Array.isArray(migrated.categoryDeletionTombstones)
-    ? migrated.categoryDeletionTombstones
-    : [];
+  migrated.categoryDeletionTombstones = Array.isArray(migrated.categoryDeletionTombstones) ? migrated.categoryDeletionTombstones : [];
   migrated.recordTombstones = Array.isArray(migrated.recordTombstones) ? migrated.recordTombstones : [];
   migrated.preferences = isRecord(migrated.preferences)
     ? {
@@ -79,25 +74,40 @@ function migrateV1ToV2(input: UnknownRecord): UnknownRecord {
   return migrated;
 }
 
+function tombstoneKey(value: unknown): string | null {
+  if (!isRecord(value) || value.recordType !== "category" || typeof value.recordId !== "string" || typeof value.deletedAt !== "string") return null;
+  return `${value.recordId}:${value.deletedAt}`;
+}
+
+function migrateV2ToV3(input: UnknownRecord): UnknownRecord {
+  const migrated = cloneRecord(input);
+  const categoryTombstones = Array.isArray(migrated.categoryDeletionTombstones) ? migrated.categoryDeletionTombstones : [];
+  const legacyTombstones = Array.isArray(migrated.recordTombstones)
+    ? migrated.recordTombstones.filter((tombstone) => tombstoneKey(tombstone) !== null)
+    : [];
+  const seen = new Set<string>();
+  migrated.categoryDeletionTombstones = [...categoryTombstones, ...legacyTombstones].filter((tombstone) => {
+    const key = tombstoneKey(tombstone);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  delete migrated.recordTombstones;
+  delete migrated.sync;
+  migrated.schemaVersion = 3;
+  return migrated;
+}
+
 export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid): Dataset {
-  if (!isRecord(raw)) {
-    throw new Error("Snapshot is not an object");
-  }
+  if (!isRecord(raw)) throw new Error("Snapshot is not an object");
   const version = typeof raw.schemaVersion === "number" ? raw.schemaVersion : 0;
-  if (!Number.isInteger(version) || version < 0) {
-    throw new Error("Snapshot schema version is invalid");
-  }
-  if (version > CURRENT_SCHEMA_VERSION) {
-    throw new Error("Snapshot schema version is newer than this app");
-  }
+  if (!Number.isInteger(version) || version < 0) throw new Error("Snapshot schema version is invalid");
+  if (version > CURRENT_SCHEMA_VERSION) throw new Error("Snapshot schema version is newer than this app");
 
   let migrated = cloneRecord(raw);
-  if (version === 0) {
-    migrated = migrateV0ToV1(migrated, idFactory);
-  }
-  if (version <= 1) {
-    migrated = migrateV1ToV2(migrated);
-  }
+  if (version === 0) migrated = migrateV0ToV1(migrated, idFactory);
+  if (version <= 1) migrated = migrateV1ToV2(migrated);
+  if (version <= 2) migrated = migrateV2ToV3(migrated);
 
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }

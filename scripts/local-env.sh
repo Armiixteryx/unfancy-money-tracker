@@ -9,6 +9,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
   ENV_FILE=".env.example"
   echo "Using safe defaults from .env.example. Copy it to .env.local to customize local ports."
 fi
+set -a
+source "$ENV_FILE"
+set +a
 
 compose() {
   docker compose --env-file "$ENV_FILE" "$@"
@@ -35,12 +38,13 @@ require_sam() {
 case "${1:-help}" in
   start)
     require_docker
-    compose up -d postgres
+    compose up -d dynamodb
+    pnpm exec tsx scripts/local-dynamodb.ts init
     compose ps
     ;;
   stop)
     require_docker
-    compose stop postgres localstack
+    compose stop dynamodb localstack
     ;;
   reset)
     require_docker
@@ -52,24 +56,15 @@ case "${1:-help}" in
     rm -rf .aws-sam .localstack
     echo "Local containers, volumes, and generated SAM/LocalStack artifacts were removed."
     ;;
-  migrate)
+  init)
     require_docker
-    compose up -d postgres
-    until compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}" -c "SELECT 1" >/dev/null 2>&1; do
-      sleep 1
-    done
-    for migration in docker/postgres/migrations/*.sql; do
-      echo "Applying $migration"
-      compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}" < "$migration"
-    done
+    compose up -d dynamodb
+    pnpm exec tsx scripts/local-dynamodb.ts init
     ;;
   seed)
     require_docker
-    "$0" migrate
-    for fixture in docker/postgres/fixtures/*.sql; do
-      echo "Applying $fixture"
-      compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}" < "$fixture"
-    done
+    "$0" init
+    pnpm exec tsx scripts/local-dynamodb.ts seed
     ;;
   sam-api)
     require_docker
@@ -108,8 +103,7 @@ case "${1:-help}" in
     ;;
   health)
     require_docker
-    compose exec -T postgres pg_isready -U "${POSTGRES_USER:-unfancy_local}" -d "${POSTGRES_DB:-unfancy_local}"
-    echo "PostgreSQL is healthy."
+    pnpm exec tsx scripts/local-dynamodb.ts health
     ;;
   verify)
     require_docker
@@ -135,6 +129,8 @@ case "${1:-help}" in
     pnpm run test:contract
     ;;
   integration)
+    require_docker
+    "$0" init
     pnpm run test:integration
     ;;
   help|*)
@@ -143,17 +139,17 @@ Unfancy Money Tracker local environment
 
 Usage: scripts/local-env.sh <command>
 
-  start              Start PostgreSQL
+  start              Start DynamoDB Local and initialize the sync table
   stop               Stop local services without deleting data
   reset              Delete local containers, volumes, and generated artifacts
-  migrate            Apply ordered PostgreSQL migrations
-  seed               Apply synthetic backend fixtures after migrations
+  init               Create the local DynamoDB sync table if needed
+  seed               Apply the synthetic backend fixture
   sam-api            Start the SAM API on port 3001
   sam-lambda         Start the SAM Lambda endpoint on port 3002
   localstack-start   Start optional LocalStack services on port 4566
   localstack-stop    Stop optional LocalStack services
   status             Show local service status
-  health             Check PostgreSQL health
+  health             Check DynamoDB Local and the sync table
   verify             Check Docker, SAM CLI, and Compose configuration
   test               Run the deterministic unit test suite
   integration        Run local adapter and sync integration tests
@@ -161,7 +157,7 @@ Usage: scripts/local-env.sh <command>
   typecheck          Run the strict TypeScript check
   lint               Run ESLint
 
-The default ports are PostgreSQL 5432, SAM API 3001, SAM Lambda 3002,
+The default ports are DynamoDB Local 8000, SAM API 3001, SAM Lambda 3002,
 and optional LocalStack 4566.
 Set LOCAL_ENV_FILE=.env.local to use a local override file.
 HELP

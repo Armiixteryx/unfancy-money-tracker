@@ -82,7 +82,7 @@ export const pullResponseSchema = z.object({
   cursor: z.string().regex(/^\d+$/)
 });
 
-export const pushRequestSchema = z.object({ datasetId: z.string().uuid(), changes: z.array(syncChangeSchema).max(100) });
+export const pushRequestSchema = z.object({ datasetId: z.string().uuid(), changes: z.array(syncChangeSchema).max(20) });
 export const pullRequestSchema = z.object({ datasetId: z.string().uuid(), cursor: z.string().regex(/^\d+$/) });
 export const resolveConflictRequestSchema = z.object({
   datasetId: z.string().uuid(),

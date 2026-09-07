@@ -6,7 +6,7 @@ From the repository root:
 
 ```sh
 scripts/local-env.sh start
-scripts/local-env.sh migrate
+scripts/local-env.sh init
 scripts/local-env.sh sam-api
 ```
 

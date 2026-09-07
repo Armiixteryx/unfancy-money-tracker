@@ -5,12 +5,10 @@ import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as authorizers from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as cognito from "aws-cdk-lib/aws-cognito";
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as kms from "aws-cdk-lib/aws-kms";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as logs from "aws-cdk-lib/aws-logs";
-import * as rds from "aws-cdk-lib/aws-rds";
 import { Construct } from "constructs";
 
 export type DeploymentStage = "dev" | "prod";
@@ -49,73 +47,63 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       idTokenValidity: cdk.Duration.hours(1)
     });
 
-    const encryptionKey = new kms.Key(this, "ApplicationKey", {
-      alias: `${this.stackName}/application`,
-      enableKeyRotation: true,
-      removalPolicy: retainedRemovalPolicy
-    });
-    const vpc = new ec2.Vpc(this, "ApplicationVpc", { maxAzs: 2, natGateways: 1 });
-    const databaseSecurityGroup = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc, description: "Aurora accepts traffic only from the RDS Proxy." });
-    const proxySecurityGroup = new ec2.SecurityGroup(this, "ProxySecurityGroup", { vpc, description: "RDS Proxy accepts traffic only from sync Lambdas." });
-    const lambdaSecurityGroup = new ec2.SecurityGroup(this, "LambdaSecurityGroup", { vpc, description: "Private Lambda network interfaces for the API boundary." });
-    databaseSecurityGroup.addIngressRule(proxySecurityGroup, ec2.Port.tcp(5432), "RDS Proxy to Aurora");
-    proxySecurityGroup.addIngressRule(lambdaSecurityGroup, ec2.Port.tcp(5432), "Sync Lambda to RDS Proxy");
-
-    const cluster = new rds.DatabaseCluster(this, "AuroraCluster", {
-      engine: rds.DatabaseClusterEngine.auroraPostgres({ version: rds.AuroraPostgresEngineVersion.VER_16_4 }),
-      writer: rds.ClusterInstance.serverlessV2("writer"),
-      serverlessV2MinCapacity: 0.5,
-      serverlessV2MaxCapacity: 4,
-      credentials: rds.Credentials.fromGeneratedSecret("unfancy_app", { encryptionKey, secretName: `${this.stackName}/database` }),
-      defaultDatabaseName: "unfancy",
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [databaseSecurityGroup],
-      backup: { retention: cdk.Duration.days(isProduction ? 14 : 1) },
+    const syncTable = new dynamodb.Table(this, "SyncTable", {
+      tableName: `${this.stackName}-sync`,
+      partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "sk", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PROVISIONED,
+      readCapacity: 5,
+      writeCapacity: 10,
+      tableClass: dynamodb.TableClass.STANDARD,
+      encryption: dynamodb.TableEncryption.DEFAULT,
+      pointInTimeRecoverySpecification: isProduction
+        ? { pointInTimeRecoveryEnabled: true, recoveryPeriodInDays: 35 }
+        : undefined,
       deletionProtection: isProduction,
       removalPolicy: retainedRemovalPolicy
     });
-    const proxy = cluster.addProxy("AuroraProxy", {
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [proxySecurityGroup],
-      secrets: [cluster.secret!],
-      requireTLS: true,
-      debugLogging: false
-    });
 
-    const syncFunction = this.createLambda("SyncFunction", "src/server/handlers/sync.ts", vpc, lambdaSecurityGroup, {
-      DB_PROXY_ENDPOINT: proxy.endpoint,
-      DB_SECRET_ARN: cluster.secret!.secretArn,
-      DB_NAME: "unfancy",
+    const syncFunction = this.createLambda("SyncFunction", "src/server/handlers/sync.ts", {
+      SYNC_TABLE_NAME: syncTable.tableName,
       APP_ENV: props.deploymentStage
     });
-    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", vpc, lambdaSecurityGroup, { APP_ENV: props.deploymentStage });
-    cluster.secret!.grantRead(syncFunction);
+    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", { APP_ENV: props.deploymentStage });
+    syncTable.grantReadWriteData(syncFunction);
 
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
     const jwtAuthorizer = new authorizers.HttpJwtAuthorizer("CognitoJwtAuthorizer", issuer, { jwtAudience: [userPoolClient.userPoolClientId] });
     const api = new apigwv2.HttpApi(this, "HttpApi", {
       apiName: `${this.stackName}-api`,
       defaultAuthorizer: jwtAuthorizer,
+      createDefaultStage: false,
       corsPreflight: { allowHeaders: ["authorization", "content-type"], allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST], allowOrigins: ["*"] }
     });
     const syncIntegration = new integrations.HttpLambdaIntegration("SyncIntegration", syncFunction);
     for (const route of ["/sync/push", "/sync/pull", "/sync/conflicts/resolve"]) {
       api.addRoutes({ path: route, methods: [apigwv2.HttpMethod.POST], integration: syncIntegration });
     }
-    api.addRoutes({ path: "/rates", methods: [apigwv2.HttpMethod.GET], integration: new integrations.HttpLambdaIntegration("ExchangeRateIntegration", exchangeRateFunction) });
+    api.addRoutes({
+      path: "/rates",
+      methods: [apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration("ExchangeRateIntegration", exchangeRateFunction),
+      authorizer: new apigwv2.HttpNoneAuthorizer()
+    });
+    new apigwv2.HttpStage(this, "DefaultStage", {
+      httpApi: api,
+      stageName: "$default",
+      autoDeploy: true,
+      throttle: { rateLimit: 5, burstLimit: 10 }
+    });
 
     new cdk.CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new cdk.CfnOutput(this, "CognitoUserPoolId", { value: userPool.userPoolId });
     new cdk.CfnOutput(this, "CognitoClientId", { value: userPoolClient.userPoolClientId });
     new cdk.CfnOutput(this, "CognitoRegion", { value: this.region });
     new cdk.CfnOutput(this, "DeploymentStage", { value: props.deploymentStage });
-    new cdk.CfnOutput(this, "DatabaseProxyEndpoint", { value: proxy.endpoint });
-    new cdk.CfnOutput(this, "MigrationSource", { value: "docker/postgres/migrations/*.sql" });
+    new cdk.CfnOutput(this, "SyncTableName", { value: syncTable.tableName });
   }
 
-  private createLambda(id: string, entry: string, vpc: ec2.Vpc, securityGroup: ec2.SecurityGroup, environment: Record<string, string>): NodejsFunction {
+  private createLambda(id: string, entry: string, environment: Record<string, string>): NodejsFunction {
     const isProduction = this.node.tryGetContext("stage") === "prod";
     const logGroup = new logs.LogGroup(this, `${id}LogGroup`, {
       retention: isProduction ? logs.RetentionDays.THREE_MONTHS : logs.RetentionDays.ONE_WEEK,
@@ -125,11 +113,8 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       entry: path.join(__dirname, "../..", entry),
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
-      memorySize: 512,
+      memorySize: 256,
       timeout: cdk.Duration.seconds(29),
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [securityGroup],
       environment,
       logGroup,
       bundling: { minify: false, sourceMap: true, target: "es2022" }

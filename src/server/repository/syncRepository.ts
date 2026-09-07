@@ -1,4 +1,4 @@
-import type { PullResponse, PushResponse, ResolveConflictRequest, SyncChange, SyncConflict } from "../../platform/sync/types";
+import type { PullResponse, PushResponse, ResolveConflictRequest, SyncChange, SyncConflict } from "../contracts/sync";
 
 export interface SyncRepository {
   push(ownerSubject: string, datasetId: string, changes: readonly SyncChange[]): Promise<PushResponse>;
@@ -8,4 +8,3 @@ export interface SyncRepository {
 
 export type StoredSyncChange = SyncChange & { revision: number; sequence: string };
 export type StoredConflict = SyncConflict;
-

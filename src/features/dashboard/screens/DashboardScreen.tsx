@@ -6,14 +6,14 @@ import { aggregateCategorySpending, aggregateMonthByCurrency, convertMonthAggreg
 import { formatMoneyForDisplay, subtractMoney } from "../../../domain/money";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
-import { useDatasetStore } from "../../sync/store/useDatasetStore";
+import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function DashboardScreen() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
-  const dataset = useDatasetStore((state) => state.dataset);
+  const dataset = useLocalDatasetStore((state) => state.dataset);
   const analytics = useAnalytics();
   const month = currentCalendarMonth();
   const currencyAggregates = useMemo(() => aggregateMonthByCurrency(dataset?.transactions ?? [], month), [dataset?.transactions, month]);

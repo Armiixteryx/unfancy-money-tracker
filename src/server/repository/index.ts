@@ -1,3 +1,2 @@
-export * from "./postgresSyncRepository";
+export * from "./dynamoDbSyncRepository";
 export * from "./syncRepository";
-

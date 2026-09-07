@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PostHogAnalyticsClient, type AnalyticsIdentityStore } from "./index";
+import { ANALYTICS_EVENTS, PostHogAnalyticsClient, type AnalyticsIdentityStore, type AnalyticsProperties } from "./index";
 
 class TestIdentityStore implements AnalyticsIdentityStore {
   value: string | null = "anonymous-test-id";
@@ -9,6 +9,10 @@ class TestIdentityStore implements AnalyticsIdentityStore {
 }
 
 describe("privacy analytics", () => {
+  it("has no authentication or sync events or properties", () => {
+    expect(ANALYTICS_EVENTS.some((event) => event.startsWith("auth_") || event.startsWith("sync_"))).toBe(false);
+  });
+
   it("does not capture before consent and only sends allowlisted properties", async () => {
     const requests: RequestInit[] = [];
     const client = new PostHogAnalyticsClient({ apiKey: "test-key", platform: "web", appVersion: "test", identityStore: new TestIdentityStore(), fetcher: async (_input, init) => { requests.push(init ?? {}); return new Response(null, { status: 200 }); } });
@@ -16,12 +20,13 @@ describe("privacy analytics", () => {
     await client.capture("dashboard_viewed", { surface: "dashboard" });
     expect(requests).toHaveLength(0);
     await client.setConsent(true);
-    await client.capture("dashboard_viewed", { surface: "dashboard", actionResult: "success", errorCode: "safe", syncStatus: "synced", appVersion: "override" });
+    await client.capture("dashboard_viewed", { surface: "dashboard", actionResult: "success", errorCode: "safe", appVersion: "override", syncStatus: "synced" } as unknown as AnalyticsProperties);
     expect(requests).toHaveLength(1);
     const body = JSON.parse(String(requests[0]!.body)) as { properties: Record<string, unknown> };
     expect(body.properties.surface).toBe("dashboard");
     expect(body.properties.platform).toBe("web");
     expect(body.properties.appVersion).toBe("override");
+    expect(body.properties.syncStatus).toBeUndefined();
     expect(body.properties.amount).toBeUndefined();
   });
 
@@ -47,7 +52,6 @@ describe("privacy analytics", () => {
         async optIn() { lifecycle.push("opt-in"); },
         async optOut() { lifecycle.push("opt-out"); },
         async flush() { lifecycle.push("flush"); },
-        async identify() { lifecycle.push("identify"); },
         async capture() { lifecycle.push("capture"); }
       }
     });
