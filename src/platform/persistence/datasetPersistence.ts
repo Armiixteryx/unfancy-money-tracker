@@ -26,7 +26,7 @@ export function createEmptyDataset(
     categories: seedDefaultCategories(idFactory, now),
     budgets: [],
     categoryDeletionTombstones: [],
-    preferences: { baseCurrency: "USD", theme: "system", analyticsConsent: false }
+    preferences: { baseCurrency: "USD", theme: "system", analyticsConsent: false, firstRunNoticeDismissed: false }
   };
 }
 

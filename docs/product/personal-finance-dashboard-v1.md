@@ -21,6 +21,7 @@ The app is anonymous and local-only. Financial data stays in the local dataset o
 | Data and identity | Anonymous local use only; no account or cloud data capability in the app |
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
+| First-run safety notice | Show a dismissible warning on first launch that this is not a serious application and must not be used to store real data |
 
 ## Personas
 

@@ -50,6 +50,7 @@ export type Preferences = {
   baseCurrency: CurrencyCode;
   theme: Theme;
   analyticsConsent: boolean;
+  firstRunNoticeDismissed: boolean;
 };
 
 export type Dataset = {

@@ -19,6 +19,7 @@ describe("dataset persistence", () => {
       expect(result.dataset.transactions).toEqual([]);
       expect(result.dataset.categories).toHaveLength(12);
       expect(result.dataset.preferences.analyticsConsent).toBe(false);
+      expect(result.dataset.preferences.firstRunNoticeDismissed).toBe(false);
     }
   });
 
@@ -71,7 +72,7 @@ describe("dataset persistence", () => {
     };
     const migrated = migrateSnapshot(legacy, () => "00000000-0000-4000-8000-000000000098");
 
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.datasetId).toBe(legacy.datasetId);
     expect(migrated.preferences.baseCurrency).toBe("USD");
     expect(migrated).not.toHaveProperty("recordTombstones");
@@ -96,12 +97,12 @@ describe("dataset persistence", () => {
       sync: { status: "stale", inboxCursor: "7", outbox: [{ idempotencyKey: "00000000-0000-4000-8000-000000000005", recordType: "transaction", recordId: transactionId, operation: "upsert", baseRevision: 0, revision: 1, payload: null, tombstone: false }], conflicts: [], revisions: { [`transaction:${transactionId}`]: 1 }, lastSyncedAt: timestamp, reason: "legacy" }
     });
 
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.datasetId).toBe("00000000-0000-4000-8000-000000000099");
     expect(migrated.transactions[0]?.id).toBe(transactionId);
     expect(migrated.categories[0]?.id).toBe(categoryId);
     expect(migrated.budgets[0]?.id).toBe(budgetId);
-    expect(migrated.preferences).toEqual({ baseCurrency: "EUR", theme: "dark", analyticsConsent: true });
+    expect(migrated.preferences).toEqual({ baseCurrency: "EUR", theme: "dark", analyticsConsent: true, firstRunNoticeDismissed: false });
     expect(migrated.categoryDeletionTombstones).toEqual([{ recordType: "category", recordId: deletedCategoryId, deletedAt: timestamp }]);
     expect(migrated).not.toHaveProperty("recordTombstones");
     expect(migrated).not.toHaveProperty("sync");

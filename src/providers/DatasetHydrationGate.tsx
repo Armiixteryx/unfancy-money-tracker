@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 import { useThemedStyles, type ThemeColors } from "../ui/theme";
+import { FirstRunWarning } from "../ui/FirstRunWarning";
 
 function HydrationScreen() {
   const styles = useThemedStyles(createStyles);
@@ -69,7 +70,7 @@ export function DatasetHydrationGate({ children }: PropsWithChildren) {
 
   if (hydration.status === "loading") return <HydrationScreen />;
   if (hydration.status === "recovery") return <RecoveryScreen />;
-  return <>{children}</>;
+  return <View style={{ flex: 1 }}><FirstRunWarning />{children}</View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

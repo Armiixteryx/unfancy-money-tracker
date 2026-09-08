@@ -82,7 +82,8 @@ const categoryDeletionTombstoneSchema = z.object({
 export const preferencesSchema = z.object({
   baseCurrency: currencyCodeSchema,
   theme: z.enum(["system", "light", "dark"]),
-  analyticsConsent: z.boolean()
+  analyticsConsent: z.boolean(),
+  firstRunNoticeDismissed: z.boolean()
 });
 
 export const datasetEnvelopeSchema = z.object({

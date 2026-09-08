@@ -98,6 +98,15 @@ function migrateV2ToV3(input: UnknownRecord): UnknownRecord {
   return migrated;
 }
 
+function migrateV3ToV4(input: UnknownRecord): UnknownRecord {
+  const migrated = cloneRecord(input);
+  migrated.preferences = isRecord(migrated.preferences)
+    ? { ...migrated.preferences, firstRunNoticeDismissed: migrated.preferences.firstRunNoticeDismissed === true }
+    : { baseCurrency: "USD", theme: "system", analyticsConsent: false, firstRunNoticeDismissed: false };
+  migrated.schemaVersion = 4;
+  return migrated;
+}
+
 export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid): Dataset {
   if (!isRecord(raw)) throw new Error("Snapshot is not an object");
   const version = typeof raw.schemaVersion === "number" ? raw.schemaVersion : 0;
@@ -108,6 +117,7 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
   if (version === 0) migrated = migrateV0ToV1(migrated, idFactory);
   if (version <= 1) migrated = migrateV1ToV2(migrated);
   if (version <= 2) migrated = migrateV2ToV3(migrated);
+  if (version <= 3) migrated = migrateV3ToV4(migrated);
 
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }
