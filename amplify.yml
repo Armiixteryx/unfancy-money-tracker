@@ -1,0 +1,39 @@
+version: 1
+
+env:
+  variables:
+    EXPO_PUBLIC_ENV: prod
+
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm use 22
+        - npm install --global pnpm@11.17.0
+        - pnpm install --frozen-lockfile
+    build:
+      commands:
+        - pnpm exec expo export --platform web
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/.cache/**/*
+      - ~/.local/share/pnpm/store/**/*
+
+customHeaders:
+  - pattern: '**/*.js'
+    headers:
+      - key: Cache-Control
+        value: public,max-age=31536000,immutable
+  - pattern: '**/*.css'
+    headers:
+      - key: Cache-Control
+        value: public,max-age=31536000,immutable
+
+customRules:
+  - source: '/<*>'
+    target: /index.html
+    status: '200'
