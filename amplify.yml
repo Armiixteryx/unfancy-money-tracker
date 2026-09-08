@@ -32,8 +32,3 @@ customHeaders:
     headers:
       - key: Cache-Control
         value: public,max-age=31536000,immutable
-
-customRules:
-  - source: '/<*>'
-    target: /index.html
-    status: '200'
