@@ -18,6 +18,7 @@ frontend:
     baseDirectory: dist
     files:
       - '**/*'
+      - 'assets/node_modules/.pnpm/**/*'
   cache:
     paths:
       - node_modules/.cache/**/*
