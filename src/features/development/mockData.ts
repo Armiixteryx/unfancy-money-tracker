@@ -68,6 +68,9 @@ export function createMockDataset(preset: MockDatasetPreset, existingDatasetId: 
     addTransaction({ type: "expense", amount: "76", categoryId: food.id, description: "Sample groceries", date: dateAtMonthOffset(now, offset, 7), currency: "USD" });
     addTransaction({ type: "expense", amount: "1200", categoryId: housing.id, description: "Sample rent", date: dateAtMonthOffset(now, offset, 2), currency: "USD" });
   }
+  addTransaction({ type: "expense", amount: "180000", categoryId: food.id, description: "Sample Colombian groceries", date: dateAtMonthOffset(now, -1, 12), currency: "COP" });
+  addTransaction({ type: "expense", amount: "8500", categoryId: transport.id, description: "Sample Venezuelan transport", date: dateAtMonthOffset(now, -1, 20), currency: "VES" });
+
 
   const categoryDeletionTombstones: CategoryDeletionTombstone[] = [];
   if (preset === "edge-cases") {

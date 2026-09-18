@@ -40,6 +40,18 @@ describe("local mock datasets", () => {
     expect(dataset.datasetId).toBe(datasetId);
     expect(dataset.transactions.some((transaction) => transaction.date.startsWith("2026-07"))).toBe(true);
     expect(dataset.transactions.some((transaction) => transaction.date.startsWith("2026-04"))).toBe(true);
+    expect(dataset.transactions.find((transaction) => transaction.currency === "COP")).toMatchObject({
+      type: "expense",
+      amount: "180000",
+      description: "Sample Colombian groceries",
+      date: "2026-06-12"
+    });
+    expect(dataset.transactions.find((transaction) => transaction.currency === "VES")).toMatchObject({
+      type: "expense",
+      amount: "8500",
+      description: "Sample Venezuelan transport",
+      date: "2026-06-20"
+    });
     expect(dataset.budgets).toHaveLength(2);
     expect(monthlyReport(dataset.transactions, "2026-07", 4).every((point) => point.aggregates.length > 0)).toBe(true);
   });
