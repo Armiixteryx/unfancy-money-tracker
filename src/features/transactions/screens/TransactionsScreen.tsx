@@ -12,6 +12,7 @@ import {
 
 import { filterTransactions } from "../../../domain/transactions";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
+import { Snackbar } from "../../../ui/Snackbar";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { DateFilterPicker } from "../components/DateFilterPicker";
 import { TransactionForm, type TransactionFormResult } from "../components/TransactionForm";
@@ -37,6 +38,7 @@ export function TransactionsScreen() {
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [deleteSnackbarMessage, setDeleteSnackbarMessage] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const isBrowserWorkspace = width >= 900;
   const transactions = useMemo(() => dataset?.transactions ?? [], [dataset]);
@@ -60,19 +62,31 @@ export function TransactionsScreen() {
 
   const openNew = () => {
     setActionMessage(null);
+    setDeleteSnackbarMessage(null);
     setFormState({ mode: "new" });
   };
 
   const openEdit = (id: string) => {
     setActionMessage(null);
+    setDeleteSnackbarMessage(null);
     setFormState({ mode: "edit", id });
   };
 
-  const confirmDelete = async () => {
-    if (!pendingDeleteId) return;
-    const result = await deleteTransaction(pendingDeleteId);
-    setPendingDeleteId(null);
-    setActionMessage(result.ok ? "Transaction deleted locally." : result.message);
+  const beginDelete = (transactionId: string) => {
+    setDeleteSnackbarMessage(null);
+    setPendingDeleteId(transactionId);
+  };
+
+  const confirmDelete = async (transactionId: string) => {
+    if (pendingDeleteId !== transactionId) return;
+    const result = await deleteTransaction(transactionId);
+    setPendingDeleteId((currentId) => currentId === transactionId ? null : currentId);
+    if (result.ok) {
+      setActionMessage(null);
+      setDeleteSnackbarMessage("Transaction deleted.");
+    } else {
+      setActionMessage(result.message);
+    }
   };
 
   if (!dataset) return null;
@@ -91,7 +105,11 @@ export function TransactionsScreen() {
   ) : null;
 
   return (
-    <AppScreen eyebrow="Your local records" title="Transactions">
+    <AppScreen
+      eyebrow="Your local records"
+      overlay={deleteSnackbarMessage ? <Snackbar message={deleteSnackbarMessage} onDismiss={() => setDeleteSnackbarMessage(null)} /> : null}
+      title="Transactions"
+    >
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -126,18 +144,6 @@ export function TransactionsScreen() {
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
       {actionMessage ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{actionMessage}</Text> : null}
 
-      {pendingDeleteId ? (
-        <View style={styles.confirmation}>
-          <View style={styles.confirmationCopy}>
-            <Text style={styles.confirmationTitle}>Delete this transaction?</Text>
-            <Text style={styles.confirmationText}>This removes it from the local list. You can’t undo this action here.</Text>
-          </View>
-          <View style={styles.confirmationActions}>
-            <Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.cancelSmallButton}><Text style={styles.cancelSmallText}>Cancel</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => void confirmDelete()} style={styles.deleteConfirmButton}><Text style={styles.deleteConfirmText}>Delete</Text></Pressable>
-          </View>
-        </View>
-      ) : null}
 
       <View style={[styles.workspace, isBrowserWorkspace && styles.browserWorkspace]}>
         <View style={styles.listCard}>
@@ -156,8 +162,11 @@ export function TransactionsScreen() {
             filteredTransactions.map((transaction) => (
               <TransactionRow
                 category={dataset.categories.find((category) => category.id === transaction.categoryId)}
+                isDeletePending={pendingDeleteId === transaction.id}
                 key={transaction.id}
-                onDelete={() => setPendingDeleteId(transaction.id)}
+                onCancelDelete={() => setPendingDeleteId(null)}
+                onConfirmDelete={() => void confirmDelete(transaction.id)}
+                onDelete={() => beginDelete(transaction.id)}
                 onPress={() => openEdit(transaction.id)}
                 transaction={transaction}
               />
@@ -201,15 +210,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   activeFilterText: { color: colors.text },
   errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
   successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 10, color: colors.positive, fontSize: 14, padding: 12 },
-  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between", padding: 16 },
-  confirmationCopy: { flex: 1, gap: 4, minWidth: 220 },
-  confirmationTitle: { color: colors.text, fontSize: 15, fontWeight: "800" },
-  confirmationText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  confirmationActions: { flexDirection: "row", gap: 8 },
-  cancelSmallButton: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
-  cancelSmallText: { color: colors.text, fontSize: 13, fontWeight: "700" },
-  deleteConfirmButton: { backgroundColor: colors.negative, borderRadius: 10, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
-  deleteConfirmText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
   workspace: { gap: 18 },
   browserWorkspace: { flexDirection: "row", alignItems: "flex-start" },
   listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },

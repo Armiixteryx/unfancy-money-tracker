@@ -8,41 +8,59 @@ type AppScreenProps = {
   title: string;
   eyebrow?: string;
   children: React.ReactNode;
+  overlay?: React.ReactNode;
 };
 
-export function AppScreen({ title, eyebrow, children }: AppScreenProps) {
+export function AppScreen({ title, eyebrow, children, overlay }: AppScreenProps) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === "web" && width >= 768;
 
   return (
-    <ScrollView
-      className="ph-no-capture"
-      {...{"ph-no-capture": true}}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: Math.max(insets.top, 24),
-          paddingBottom: Math.max(insets.bottom, 32),
-          paddingLeft: isDesktopWeb ? 260 : 24,
-          paddingRight: 24
-        }
-      ]}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <View>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text accessibilityRole="header" style={styles.title}>
-            {title}
-          </Text>
+    <View style={styles.root}>
+      <ScrollView
+        className="ph-no-capture"
+        {...{"ph-no-capture": true}}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top, 24),
+            paddingBottom: Math.max(insets.bottom, 32),
+            paddingLeft: isDesktopWeb ? 260 : 24,
+            paddingRight: 24
+          }
+        ]}
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <View>
+            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+            <Text accessibilityRole="header" style={styles.title}>
+              {title}
+            </Text>
+          </View>
         </View>
-      </View>
-      {children}
-    </ScrollView>
+        {children}
+      </ScrollView>
+      {overlay ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.overlay,
+            {
+              bottom: Math.max(insets.bottom, 16),
+              left: isDesktopWeb ? 260 : 0
+            }
+          ]}
+        >
+          {overlay}
+        </View>
+      ) : null}
+    </View>
   );
 }
+
 
 export function EmptyState({ title, description, children }: { title: string; description: string; children?: React.ReactNode }) {
   const styles = useThemedStyles(createStyles);
@@ -59,6 +77,8 @@ export function EmptyState({ title, description, children }: { title: string; de
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  root: { flex: 1 },
+  overlay: { alignItems: "center", paddingHorizontal: 16, position: "absolute", right: 0 },
   container: { flex: 1, backgroundColor: colors.canvas },
   content: { minHeight: "100%", maxWidth: 1240, width: "100%", alignSelf: "center", gap: 24 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
