@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A clear overview of the capabilities, privacy model, and boundaries of Unfancy Money Tracker.">
+  <title>What you can do | Unfancy Money Tracker</title>
+  <style>
+    :root {
+      --canvas: #f7f5f0;
+      --surface: #ffffff;
+      --surface-raised: #f8fafc;
+      --ink: #102a43;
+      --muted: #526d82;
+      --border: #d9e2ec;
+      --divider: #eef2f5;
+      --primary: #102a43;
+      --positive: #0f7a3a;
+      --positive-soft: #e9f7ef;
+      --negative: #c93636;
+      --negative-soft: #fff2f0;
+      --accent: #2f80ed;
+      --accent-soft: #eaf0f8;
+      --warning: #9a6700;
+      --warning-soft: #fff7e6;
+      --pro: #6d4aff;
+      --pro-soft: #f1edff;
+      --shadow: 0 20px 50px rgba(16, 42, 67, .08);
+      --shadow-small: 0 8px 24px rgba(16, 42, 67, .06);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+      --max-width: 1160px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -48px;
+      z-index: 10;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .skip-link:focus { top: 16px; }
+    .page-shell { overflow: hidden; }
+    .container { width: min(calc(100% - 40px), var(--max-width)); margin: 0 auto; }
+
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid rgba(217, 226, 236, .7);
+      background: rgba(247, 245, 240, .9);
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      font-weight: 850;
+      letter-spacing: -.02em;
+      text-decoration: none;
+    }
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 11px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 17px;
+      box-shadow: 0 6px 14px rgba(16, 42, 67, .18);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .nav-links a { text-decoration: none; }
+    .nav-links a:hover, .nav-links a:focus-visible { color: var(--ink); }
+
+    .hero { padding: 82px 0 72px; }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+      align-items: center;
+      gap: 72px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 18px;
+      color: var(--positive);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      width: 22px;
+      height: 2px;
+      background: var(--positive);
+      content: "";
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 680px;
+      margin-bottom: 22px;
+      font-size: clamp(42px, 6vw, 72px);
+      line-height: 1.02;
+      letter-spacing: -.065em;
+    }
+    .hero-copy {
+      max-width: 600px;
+      margin-bottom: 30px;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.65;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button {
+      display: inline-flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .button:hover { transform: translateY(-2px); }
+    .button-primary { background: var(--primary); color: #fff; box-shadow: 0 10px 20px rgba(16, 42, 67, .16); }
+    .button-secondary { border-color: var(--border); background: var(--surface); color: var(--ink); }
+
+    .summary-card {
+      position: relative;
+      padding: 26px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .summary-card::before {
+      position: absolute;
+      top: -12px;
+      right: 30px;
+      width: 58px;
+      height: 24px;
+      border-radius: 0 0 12px 12px;
+      background: var(--positive);
+      content: "";
+    }
+    .summary-label { margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 750; }
+    .summary-value { margin-bottom: 20px; font-size: 40px; font-weight: 850; letter-spacing: -.06em; }
+    .summary-value span { color: var(--positive); }
+    .mini-bars { display: grid; gap: 14px; }
+    .mini-bar-row { display: grid; grid-template-columns: 82px 1fr auto; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; font-weight: 750; }
+    .mini-bar-row strong { color: var(--ink); font-size: 12px; }
+    .bar-track { height: 8px; overflow: hidden; border-radius: 999px; background: var(--divider); }
+    .bar-fill { height: 100%; border-radius: inherit; background: var(--accent); }
+    .bar-fill.positive { background: var(--positive); }
+    .bar-fill.negative { background: var(--negative); }
+    .summary-foot { display: flex; align-items: center; gap: 8px; margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--divider); color: var(--muted); font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--positive); }
+
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin-bottom: 96px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--border);
+      box-shadow: var(--shadow-small);
+    }
+    .stat { padding: 22px 24px; background: var(--surface); }
+    .stat strong { display: block; margin-bottom: 5px; font-size: 25px; letter-spacing: -.04em; }
+    .stat span { color: var(--muted); font-size: 12px; font-weight: 700; }
+
+    section { padding: 0 0 104px; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 32px; margin-bottom: 30px; }
+    .section-heading h2 { max-width: 650px; margin-bottom: 0; font-size: clamp(30px, 4vw, 45px); line-height: 1.08; letter-spacing: -.05em; }
+    .section-heading p { max-width: 420px; margin-bottom: 3px; color: var(--muted); font-size: 15px; }
+    .capability-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .capability-card {
+      min-height: 255px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-small);
+    }
+    .card-icon {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      margin-bottom: 22px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .capability-card:nth-child(2) .card-icon, .capability-card:nth-child(5) .card-icon { background: var(--positive-soft); color: var(--positive); }
+    .capability-card:nth-child(3) .card-icon { background: var(--warning-soft); color: var(--warning); }
+    .capability-card:nth-child(4) .card-icon { background: var(--pro-soft); color: var(--pro); }
+    .capability-card h3 { margin-bottom: 9px; font-size: 19px; letter-spacing: -.025em; }
+    .capability-card p { margin-bottom: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+
+    .workflow-section { padding-top: 6px; }
+    .workflow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .workflow-card { padding: 28px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    .workflow-card h3 { margin-bottom: 7px; font-size: 20px; }
+    .workflow-card > p { margin-bottom: 20px; color: var(--muted); font-size: 14px; }
+    .feature-list { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+    .feature-list li { display: flex; gap: 11px; align-items: flex-start; color: var(--muted); font-size: 13px; }
+    .feature-list li::before { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: var(--positive-soft); color: var(--positive); content: "✓"; font-size: 11px; font-weight: 900; line-height: 18px; text-align: center; }
+
+    .privacy-panel {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 42px;
+      padding: 42px;
+      border-radius: var(--radius-lg);
+      background: var(--primary);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+    .privacy-panel .eyebrow { color: #7dd89c; }
+    .privacy-panel .eyebrow::before { background: #7dd89c; }
+    .privacy-panel h2 { margin-bottom: 14px; font-size: clamp(30px, 4vw, 44px); line-height: 1.08; letter-spacing: -.05em; }
+    .privacy-panel > div > p { margin-bottom: 0; color: #b8c7d5; font-size: 15px; }
+    .privacy-points { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .privacy-point { padding-top: 3px; }
+    .privacy-point strong { display: block; margin-bottom: 5px; font-size: 14px; }
+    .privacy-point span { color: #b8c7d5; font-size: 13px; line-height: 1.55; }
+
+    .boundary-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .boundary-card { padding: 28px; border-radius: var(--radius-md); }
+    .boundary-card h3 { margin-bottom: 15px; font-size: 19px; }
+    .boundary-card ul { padding: 0; margin: 0; list-style: none; }
+    .boundary-card li { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(217, 226, 236, .7); color: var(--muted); font-size: 13px; }
+    .boundary-card li:first-child { border-top: 0; padding-top: 0; }
+    .boundary-card li:last-child { padding-bottom: 0; }
+    .boundary-card.included { border: 1px solid #bfe8cd; background: var(--positive-soft); }
+    .boundary-card.included li::before { color: var(--positive); content: "+"; font-weight: 900; }
+    .boundary-card.excluded { border: 1px solid #f0c7c3; background: var(--negative-soft); }
+    .boundary-card.excluded li::before { color: var(--negative); content: "–"; font-weight: 900; }
+
+    .cta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      padding: 28px 30px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-small);
+    }
+    .cta h2 { margin-bottom: 6px; font-size: 25px; letter-spacing: -.04em; }
+    .cta p { margin-bottom: 0; color: var(--muted); font-size: 14px; }
+    .cta .button { flex: 0 0 auto; }
+
+    footer { padding: 30px 0 44px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+    .footer-content { display: flex; justify-content: space-between; gap: 20px; }
+    .footer-content p { margin: 0; }
+
+    @media (max-width: 860px) {
+      .hero-grid, .privacy-panel { grid-template-columns: 1fr; gap: 42px; }
+      .hero { padding-top: 60px; }
+      .capability-grid { grid-template-columns: repeat(2, 1fr); }
+      .privacy-points { gap: 18px; }
+    }
+    @media (max-width: 620px) {
+      .container { width: min(calc(100% - 32px), var(--max-width)); }
+      header { padding: 17px 0; }
+      .nav-links { display: none; }
+      .hero { padding: 54px 0 56px; }
+      h1 { font-size: 47px; }
+      .hero-copy { font-size: 17px; }
+      .summary-card { padding: 22px; }
+      .stat-strip { grid-template-columns: repeat(2, 1fr); margin-bottom: 68px; }
+      .stat { padding: 18px; }
+      section { padding-bottom: 76px; }
+      .section-heading { display: block; margin-bottom: 22px; }
+      .section-heading h2 { margin-bottom: 12px; }
+      .capability-grid, .workflow-grid, .boundary-panel { grid-template-columns: 1fr; }
+      .capability-card { min-height: auto; }
+      .privacy-panel { padding: 28px 24px; }
+      .privacy-points { grid-template-columns: 1fr; }
+      .cta { display: block; padding: 24px; }
+      .cta .button { margin-top: 20px; }
+      .footer-content { display: block; }
+      .footer-content p + p { margin-top: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .button { transition: none; }
+      .button:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="page-shell">
+    <header>
+      <div class="container nav">
+        <a class="brand" href="#top" aria-label="Unfancy Money Tracker home">
+          <span class="brand-mark" aria-hidden="true">U</span>
+          <span>Unfancy Money Tracker</span>
+        </a>
+        <nav class="nav-links" aria-label="Page navigation">
+          <a href="#capabilities">Capabilities</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#boundaries">Scope</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero" id="top">
+        <div class="container hero-grid">
+          <div>
+            <p class="eyebrow">A clearer view of your month</p>
+            <h1>Money tracking without the noise.</h1>
+            <p class="hero-copy">Unfancy Money Tracker brings income, expenses, budgets, and spending history into one calm, understandable workspace. Enter transactions yourself, keep your data local, and see what is happening this month.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#capabilities">Explore capabilities</a>
+              <a class="button button-secondary" href="#boundaries">See what is out of scope</a>
+            </div>
+          </div>
+
+          <aside class="summary-card" aria-label="Example monthly summary">
+            <p class="summary-label">Current month</p>
+            <p class="summary-value"><span>●</span> On track</p>
+            <div class="mini-bars" aria-hidden="true">
+              <div class="mini-bar-row"><span>Income</span><div class="bar-track"><div class="bar-fill positive" style="width: 82%"></div></div><strong>82%</strong></div>
+              <div class="mini-bar-row"><span>Expenses</span><div class="bar-track"><div class="bar-fill negative" style="width: 56%"></div></div><strong>56%</strong></div>
+              <div class="mini-bar-row"><span>Budget</span><div class="bar-track"><div class="bar-fill" style="width: 68%"></div></div><strong>68%</strong></div>
+            </div>
+            <div class="summary-foot"><span class="status-dot" aria-hidden="true"></span> Descriptive, not advisory</div>
+          </aside>
+        </div>
+      </section>
+
+      <div class="container">
+        <div class="stat-strip" aria-label="Product characteristics">
+          <div class="stat"><strong>5</strong><span>focused workspaces</span></div>
+          <div class="stat"><strong>3</strong><span>supported platforms</span></div>
+          <div class="stat"><strong>0</strong><span>bank connections</span></div>
+          <div class="stat"><strong>100%</strong><span>local-first dataset</span></div>
+        </div>
+      </div>
+
+      <section id="capabilities">
+        <div class="container">
+          <div class="section-heading">
+            <h2>Everything needed for a useful monthly picture.</h2>
+            <p>Five focused areas keep the product useful without turning it into an account-reconciliation system.</p>
+          </div>
+          <div class="capability-grid">
+            <article class="capability-card">
+              <div class="card-icon" aria-hidden="true">01</div>
+              <h3>Dashboard</h3>
+              <p>See current-month income, expenses, budget remaining, recent activity, category spending, and the budget states that need attention.</p>
+            </article>
+            <article class="capability-card">
+              <div class="card-icon" aria-hidden="true">02</div>
+              <h3>Transactions</h3>
+              <p>Add, edit, delete, search, and filter income and expense records by type, category, currency, and date range.</p>
+            </article>
+            <article class="capability-card">
+              <div class="card-icon" aria-hidden="true">03</div>
+              <h3>Budgets</h3>
+              <p>Create one expense-category limit per calendar month, then monitor spent, remaining, progress, near-limit, and over-budget states.</p>
+            </article>
+            <article class="capability-card">
+              <div class="card-icon" aria-hidden="true">04</div>
+              <h3>Reports</h3>
+              <p>Review 3-, 6-, or 12-month spending trends, category breakdowns, and factual observations based only on available data.</p>
+            </article>
+            <article class="capability-card">
+              <div class="card-icon" aria-hidden="true">05</div>
+              <h3>Categories</h3>
+              <p>Create, rename, archive, and delete income or expense categories. Deletions safely reassign related records to protected Uncategorized categories.</p>
+            </article>
+            <article class="capability-card">
+              <div class="card-icon" aria-hidden="true">06</div>
+              <h3>Settings</h3>
+              <p>Change base currency and theme, inspect rate freshness, manage local data, control optional analytics, and view the CSV Pro preview.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="workflow-section">
+        <div class="container">
+          <div class="section-heading">
+            <h2>Thoughtful details where they matter.</h2>
+            <p>Core records stay precise while the interface explains what the numbers mean.</p>
+          </div>
+          <div class="workflow-grid">
+            <article class="workflow-card">
+              <h3>Currency-aware by design</h3>
+              <p>Original transaction amounts are never overwritten. Aggregates use the selected base currency only when a trustworthy rate is available.</p>
+              <ul class="feature-list">
+                <li>Current summaries use the latest available exchange rates.</li>
+                <li>Historical reports use rates published on the transaction date.</li>
+                <li>Cached rates are clearly marked stale.</li>
+                <li>Unavailable rates do not produce misleading combined totals.</li>
+              </ul>
+            </article>
+            <article class="workflow-card">
+              <h3>Safe local data lifecycle</h3>
+              <p>The anonymous dataset is designed to remain understandable and recoverable as the app evolves.</p>
+              <ul class="feature-list">
+                <li>Encrypted local persistence on device and supported browser paths.</li>
+                <li>Schema validation and migrations between storage versions.</li>
+                <li>Recovery UI for unreadable persisted snapshots.</li>
+                <li>Explicit confirmation before destructive local-data actions.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="privacy">
+        <div class="container">
+          <div class="privacy-panel">
+            <div>
+              <p class="eyebrow">Private by default</p>
+              <h2>Your money stays close to you.</h2>
+              <p>Unfancy Money Tracker is anonymous and local-only. The Expo app does not create accounts or upload your local dataset to the retained backend.</p>
+            </div>
+            <div class="privacy-points">
+              <div class="privacy-point"><strong>Offline-ready</strong><span>Work with the local dataset on your device or browser without a required account.</span></div>
+              <div class="privacy-point"><strong>Opt-in analytics</strong><span>Analytics starts disabled and can be controlled from Settings.</span></div>
+              <div class="privacy-point"><strong>Strict redaction</strong><span>Financial values and user-entered content are excluded from analytics and replay.</span></div>
+              <div class="privacy-point"><strong>No cloud reset</strong><span>Local destructive actions state their impact and require explicit confirmation.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="boundaries">
+        <div class="container">
+          <div class="section-heading">
+            <h2>Focused by choice.</h2>
+            <p>The product is intentionally a manual tracker, not a complete financial-account platform.</p>
+          </div>
+          <div class="boundary-panel">
+            <article class="boundary-card included">
+              <h3>Included in V1</h3>
+              <ul>
+                <li>Manual income and expense tracking</li>
+                <li>Monthly category budgets</li>
+                <li>Spending trends and descriptive reports</li>
+                <li>Multiple currencies with rate freshness states</li>
+                <li>Local persistence, migration, and recovery</li>
+              </ul>
+            </article>
+            <article class="boundary-card excluded">
+              <h3>Not included</h3>
+              <ul>
+                <li>Bank connections or transaction imports</li>
+                <li>Account balances, transfers, or source/destination fields</li>
+                <li>Investments, loans, debt, or shared finances</li>
+                <li>Financial advice</li>
+                <li>CSV downloads, payments, or subscription enforcement</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="cta">
+            <div>
+              <h2>Make the month legible.</h2>
+              <p>One consolidated view for the decisions you already make yourself.</p>
+            </div>
+            <a class="button button-primary" href="#top">Back to top</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container footer-content">
+        <p>Unfancy Money Tracker</p>
+        <p>Manual tracking. Local data. Clear reporting.</p>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
