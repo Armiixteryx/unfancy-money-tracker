@@ -142,4 +142,106 @@ describe("local dataset store", () => {
     expect(store.getState().hydration.status).toBe("ready");
     expect(attempts).toBe(2);
   });
+  it("copies a populated source month with fresh records and persists the target budgets", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const category = store.getState().dataset?.categories.find((candidate) => candidate.kind === "expense" && !candidate.isArchived);
+    if (!category) return;
+
+    const added = await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "125.00", currency: "USD" });
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+    const source = added.value;
+
+    const result = await store.getState().copyBudgets("2026-07", "2026-08");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.created).toHaveLength(1);
+    expect(result.value.skipped).toBe(0);
+    expect(result.value.created[0]).toMatchObject({ categoryId: source.categoryId, month: "2026-08", amount: source.amount, currency: source.currency });
+    expect(result.value.created[0]?.id).not.toBe(source.id);
+    expect(result.value.created[0]?.createdAt).toEqual(expect.any(String));
+    expect(result.value.created[0]?.updatedAt).toEqual(expect.any(String));
+    expect(store.getState().dataset?.budgets.find((budget) => budget.id === source.id)).toEqual(source);
+
+    const rehydrated = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await rehydrated.getState().initialize();
+    expect(rehydrated.getState().dataset?.budgets.some((budget) => budget.month === "2026-08" && budget.categoryId === source.categoryId)).toBe(true);
+  });
+
+  it("merges copies without overwriting existing target limits", async () => {
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
+    await store.getState().initialize();
+    const categories = store.getState().dataset?.categories.filter((candidate) => candidate.kind === "expense" && !candidate.isArchived).slice(0, 2);
+    if (!categories || categories.length < 2) return;
+    const categoryOne = categories[0];
+    const categoryTwo = categories[1];
+    if (!categoryOne || !categoryTwo) return;
+    const sourceOne = await store.getState().addBudget({ categoryId: categoryOne.id, month: "2026-07", amount: "100", currency: "USD" });
+    const sourceTwo = await store.getState().addBudget({ categoryId: categoryTwo.id, month: "2026-07", amount: "200", currency: "USD" });
+    const existing = await store.getState().addBudget({ categoryId: categoryOne.id, month: "2026-08", amount: "75", currency: "USD" });
+    expect(sourceOne.ok && sourceTwo.ok && existing.ok).toBe(true);
+    if (!existing.ok) return;
+
+    const result = await store.getState().copyBudgets("2026-07", "2026-08");
+    expect(result).toEqual(expect.objectContaining({ ok: true }));
+    if (!result.ok) return;
+    expect(result.value.created).toHaveLength(1);
+    expect(result.value.skipped).toBe(1);
+    expect(store.getState().dataset?.budgets.filter((budget) => budget.month === "2026-08")).toHaveLength(2);
+    expect(store.getState().dataset?.budgets.find((budget) => budget.id === existing.value.id)?.amount).toBe("75");
+  });
+
+  it("rejects invalid, same-month, empty, and unavailable source requests", async () => {
+    const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
+    await store.getState().initialize();
+    const categories = store.getState().dataset?.categories ?? [];
+    const expenseCategories = categories.filter((candidate) => candidate.kind === "expense" && !candidate.isArchived).slice(0, 2);
+    const incomeCategory = categories.find((candidate) => candidate.kind === "income");
+    if (expenseCategories.length < 2 || !incomeCategory) return;
+    const firstCategory = expenseCategories[0];
+    const secondCategory = expenseCategories[1];
+    if (!firstCategory || !secondCategory) return;
+    const first = await store.getState().addBudget({ categoryId: firstCategory.id, month: "2026-07", amount: "100", currency: "USD" });
+    const second = await store.getState().addBudget({ categoryId: secondCategory.id, month: "2026-07", amount: "200", currency: "USD" });
+    expect(first.ok && second.ok).toBe(true);
+    const dataset = store.getState().dataset;
+    if (!dataset || !first.ok || !second.ok) return;
+    store.setState({
+      dataset: {
+        ...dataset,
+        categories: dataset.categories.map((category) => expenseCategories.some((candidate) => candidate.id === category.id) ? { ...category, isArchived: true } : category),
+        budgets: [...dataset.budgets, { ...first.value, id: "00000000-0000-4000-8000-000000000091", categoryId: incomeCategory.id }, { ...first.value, id: "00000000-0000-4000-8000-000000000092", categoryId: "00000000-0000-4000-8000-000000000093" }]
+      }
+    });
+
+    await expect(store.getState().copyBudgets("2026-07", "2026-07")).resolves.toEqual({ ok: false, message: "Source and target months must be different." });
+    await expect(store.getState().copyBudgets("2026-08", "2026-09")).resolves.toEqual({ ok: false, message: "No budgets found in the source month." });
+    await expect(store.getState().copyBudgets("invalid", "2026-09")).resolves.toEqual({ ok: false, message: "Choose valid calendar months to copy budgets." });
+    await expect(store.getState().copyBudgets("2026-07", "2026-09")).resolves.toEqual({ ok: false, message: "No budgets are available to copy." });
+    expect(store.getState().dataset?.budgets.filter((budget) => budget.month === "2026-09")).toHaveLength(0);
+  });
+
+  it("reports one local persistence failure for an atomic copy", async () => {
+    class FailingAdapter extends MemoryPersistenceAdapter {
+      writes = 0;
+      override async writeSnapshot(_snapshot: string): Promise<void> {
+        this.writes += 1;
+        throw new Error("synthetic persistence failure");
+      }
+    }
+    const adapter = new FailingAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const category = store.getState().dataset?.categories.find((candidate) => candidate.kind === "expense" && !candidate.isArchived);
+    if (!category) return;
+    await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "100", currency: "USD" });
+    const writesBeforeCopy = adapter.writes;
+
+    const result = await store.getState().copyBudgets("2026-07", "2026-08");
+    expect(result).toEqual({ ok: false, message: "Budgets could not be saved locally. Retry to save your changes." });
+    expect(adapter.writes).toBe(writesBeforeCopy + 1);
+    expect(store.getState().saveError).toBe("Local save failed. Your change is still visible; retry to save it.");
+  });
 });

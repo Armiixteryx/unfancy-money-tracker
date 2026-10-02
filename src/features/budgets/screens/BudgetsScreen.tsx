@@ -6,11 +6,12 @@ import type { BudgetInput } from "../../../domain/validation";
 import { currentCalendarMonth } from "../../../domain/aggregates";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
-import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
+import { useLocalDatasetStore, type CopyBudgetsResult, type MutationResult } from "../../local-data/store/useLocalDatasetStore";
 import { BudgetForm, type BudgetFormResult } from "../components/BudgetForm";
+import { CopyBudgetsForm } from "../components/CopyBudgetsForm";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
-type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
+type FormState = { mode: "new" } | { mode: "edit"; id: string } | { mode: "copy" } | null;
 
 export function BudgetsScreen() {
   const styles = useThemedStyles(createStyles);
@@ -18,6 +19,7 @@ export function BudgetsScreen() {
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const addBudget = useLocalDatasetStore((state) => state.addBudget);
   const editBudget = useLocalDatasetStore((state) => state.editBudget);
+  const copyBudgets = useLocalDatasetStore((state) => state.copyBudgets);
   const deleteBudget = useLocalDatasetStore((state) => state.deleteBudget);
   const saveError = useLocalDatasetStore((state) => state.saveError);
   const analytics = useAnalytics();
@@ -45,13 +47,22 @@ export function BudgetsScreen() {
     setMessage(selectedBudget ? "Budget updated locally." : "Budget created locally.");
     return { ok: true };
   };
+  const onCopy = async (sourceMonth: `${number}-${number}`, targetMonth: `${number}-${number}`): Promise<MutationResult<CopyBudgetsResult>> => {
+    const result = await copyBudgets(sourceMonth, targetMonth);
+    if (!result.ok) return result;
+    setFormState(null);
+    setMessage(`Copied ${result.value.created.length} ${result.value.created.length === 1 ? "budget" : "budgets"} from ${formatMonthLabel(sourceMonth)}; skipped ${result.value.skipped} existing or unavailable categories.`);
+    void analytics.capture("budget_created", { surface: "budgets", actionResult: "success" });
+    return result;
+  };
   const confirmDelete = async () => {
     if (!pendingDeleteId) return;
     const result = await deleteBudget(pendingDeleteId);
     setPendingDeleteId(null);
     setMessage(result.ok ? "Budget deleted locally." : result.message);
   };
-  const form = formState ? <BudgetForm budget={selectedBudget} budgets={dataset.budgets} categories={dataset.categories} defaultCurrency={dataset.preferences.baseCurrency} defaultMonth={month} onCancel={() => setFormState(null)} onSave={onSave} selectedCurrencies={dataset.preferences.selectedCurrencies} /> : null;
+  const form = formState && formState.mode !== "copy" ? <BudgetForm budget={selectedBudget} budgets={dataset.budgets} categories={dataset.categories} defaultCurrency={dataset.preferences.baseCurrency} defaultMonth={month} onCancel={() => setFormState(null)} onSave={onSave} selectedCurrencies={dataset.preferences.selectedCurrencies} /> : null;
+  const copyForm = formState?.mode === "copy" ? <CopyBudgetsForm budgets={dataset.budgets} categories={dataset.categories} targetMonth={month} initialSourceMonth={shiftCalendarMonth(month, -1)} onCancel={() => setFormState(null)} onCopy={onCopy} /> : null;
 
   return (
     <AppScreen eyebrow="Monthly planning" title="Budgets">
@@ -61,7 +72,10 @@ export function BudgetsScreen() {
           <Text accessibilityRole="header" style={styles.monthLabel}>{formatMonthLabel(month)}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="Next budget month" onPress={() => setMonth((value) => shiftCalendarMonth(value, 1))} style={styles.monthButton}><Text style={styles.monthButtonText}>›</Text></Pressable>
         </View>
-        <Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "new" }); }} style={styles.addButton}><Text style={styles.addButtonText}>＋ Create budget</Text></Pressable>
+        <View style={styles.toolbarActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Copy budgets from another month" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Copy from another month</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "new" }); }} style={styles.addButton}><Text style={styles.addButtonText}>＋ Create budget</Text></Pressable>
+        </View>
       </View>
 
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
@@ -70,12 +84,11 @@ export function BudgetsScreen() {
 
       <View style={[styles.workspace, isBrowserWorkspace && styles.browserWorkspace]}>
         <View style={styles.listCard}>
-          <View style={styles.listHeader}><View><Text style={styles.cardTitle}>Budget attention</Text><Text style={styles.cardHint}>Expense categories · {formatMonthLabel(month)}</Text></View><Text style={styles.count}>{progress.length} {progress.length === 1 ? "budget" : "budgets"}</Text></View>
-          {progress.length === 0 ? <View style={styles.emptyWrap}><EmptyState title="No budgets for this month" description="Create a category limit to compare local expense activity with a monthly plan." /><Pressable accessibilityRole="button" onPress={() => setFormState({ mode: "new" })} style={styles.emptyAction}><Text style={styles.addButtonText}>＋ Create budget</Text></Pressable></View> : <View style={styles.cards}>{progress.map((item) => <BudgetCard key={item.budget.id} progress={item} onEdit={() => setFormState({ mode: "edit", id: item.budget.id })} onDelete={() => setPendingDeleteId(item.budget.id)} />)}</View>}
+          {progress.length === 0 ? <View style={styles.emptyWrap}><EmptyState title="No budgets for this month" description="Create a category limit to compare local expense activity with a monthly plan." /><View style={styles.emptyActions}><Pressable accessibilityRole="button" onPress={() => setFormState({ mode: "new" })} style={styles.emptyAction}><Text style={styles.addButtonText}>＋ Create budget</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.emptyCopyAction}><Text style={styles.secondaryButtonText}>Copy from another month</Text></Pressable></View></View> : <View style={styles.cards}>{progress.map((item) => <BudgetCard key={item.budget.id} progress={item} onEdit={() => setFormState({ mode: "edit", id: item.budget.id })} onDelete={() => setPendingDeleteId(item.budget.id)} />)}</View>}
         </View>
-        {isBrowserWorkspace ? form : null}
+        {isBrowserWorkspace ? form ?? copyForm : null}
       </View>
-      {!isBrowserWorkspace ? <Modal animationType="slide" onRequestClose={() => setFormState(null)} visible={Boolean(formState)}><View style={styles.mobileModal}>{form}</View></Modal> : null}
+      {!isBrowserWorkspace ? <Modal animationType="slide" onRequestClose={() => setFormState(null)} visible={Boolean(formState)}><View style={styles.mobileModal}>{form ?? copyForm}</View></Modal> : null}
     </AppScreen>
   );
 }
@@ -96,6 +109,9 @@ function BudgetCard({ progress, onEdit, onDelete }: { progress: BudgetProgress; 
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
+  toolbarActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
+  secondaryButtonText: { color: colors.text, fontSize: 13, fontWeight: "800" },
   monthControl: { alignItems: "center", flexDirection: "row", gap: 10 },
   monthButton: { alignItems: "center", borderColor: colors.border, borderRadius: 10, borderWidth: 1, height: 42, justifyContent: "center", width: 42 },
   monthButtonText: { color: colors.text, fontSize: 28, fontWeight: "300", lineHeight: 30 },
@@ -119,7 +135,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cardHint: { color: colors.muted, fontSize: 12, marginTop: 4 },
   count: { color: colors.muted, fontSize: 13 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
+  emptyActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
   emptyAction: { backgroundColor: colors.positive, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  emptyCopyAction: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
   cards: { gap: 12, paddingTop: 14 },
   budgetCard: { borderColor: colors.divider, borderRadius: 16, borderWidth: 1, gap: 12, padding: 16 },
   cardTop: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },

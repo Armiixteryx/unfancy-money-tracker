@@ -6,7 +6,7 @@ import { archiveCategory, createCategory, findUncategorizedCategory, renameCateg
 import { budgetKey, createBudget, updateBudget } from "../../../domain/budgets";
 import { createTransaction, filterTransactions, updateTransaction, type TransactionFilters } from "../../../domain/transactions";
 import type { Budget, Category, Dataset, Preferences, Transaction } from "../../../domain/types";
-import type { BudgetInput, CategoryInput, TransactionInput } from "../../../domain/validation";
+import { calendarMonthSchema, type BudgetInput, type CategoryInput, type TransactionInput } from "../../../domain/validation";
 import { createPersistenceAdapter, DatasetPersistence, runLegacyAccountCacheCleanup } from "../../../platform/persistence";
 import type { HydrationState } from "../../../platform/persistence";
 import { createUuid } from "../../../platform/identifiers/createUuid";
@@ -31,6 +31,7 @@ export type DatasetStoreState = {
   deleteTransaction: (id: string) => Promise<MutationResult<null>>;
   addBudget: (input: BudgetInput) => Promise<MutationResult<Budget>>;
   editBudget: (id: string, input: BudgetInput) => Promise<MutationResult<Budget>>;
+  copyBudgets: (sourceMonth: string, targetMonth: string) => Promise<MutationResult<CopyBudgetsResult>>;
   deleteBudget: (id: string) => Promise<MutationResult<null>>;
   setPreferences: (preferences: Partial<Preferences>) => Promise<MutationResult<Preferences>>;
   addCategory: (input: CategoryInput) => Promise<MutationResult<Category>>;
@@ -41,6 +42,10 @@ export type DatasetStoreState = {
   clearTransactionFilters: () => void;
 };
 
+export type CopyBudgetsResult = {
+  created: readonly Budget[];
+  skipped: number;
+};
 export type MutationResult<T> = { ok: true; value: T } | { ok: false; message: string };
 
 function safeErrorMessage(error: unknown): string {
@@ -185,6 +190,49 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
         }
+      },
+      copyBudgets: async (sourceMonth, targetMonth) => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "Local data is still loading." };
+        if (!calendarMonthSchema.safeParse(sourceMonth).success || !calendarMonthSchema.safeParse(targetMonth).success) {
+          return { ok: false, message: "Choose valid calendar months to copy budgets." };
+        }
+        if (sourceMonth === targetMonth) return { ok: false, message: "Source and target months must be different." };
+
+        const sourceBudgets = dataset.budgets.filter((budget) => budget.month === sourceMonth);
+        if (sourceBudgets.length === 0) return { ok: false, message: "No budgets found in the source month." };
+
+        const targetKeys = new Set(dataset.budgets.filter((budget) => budget.month === targetMonth).map(budgetKey));
+        const created: Budget[] = [];
+        let skipped = 0;
+        for (const sourceBudget of sourceBudgets) {
+          if (targetKeys.has(`${targetMonth}:${sourceBudget.categoryId}`)) {
+            skipped += 1;
+            continue;
+          }
+          const category = dataset.categories.find((candidate) => candidate.id === sourceBudget.categoryId);
+          if (!category || category.kind !== "expense" || category.isArchived) {
+            skipped += 1;
+            continue;
+          }
+          try {
+            const budget = createBudget(
+              { categoryId: sourceBudget.categoryId, month: targetMonth as `${number}-${number}`, amount: sourceBudget.amount, currency: sourceBudget.currency },
+              { categories: dataset.categories, idFactory: createUuid, now }
+            );
+            created.push(budget);
+            targetKeys.add(budgetKey(budget));
+          } catch (error) {
+            return { ok: false, message: safeErrorMessage(error) };
+          }
+        }
+        if (created.length === 0) return { ok: false, message: "No budgets are available to copy." };
+
+        const next = { ...dataset, budgets: [...dataset.budgets, ...created] };
+        const saved = await commit(next);
+        return saved
+          ? { ok: true, value: { created, skipped } }
+          : { ok: false, message: "Budgets could not be saved locally. Retry to save your changes." };
       },
       deleteBudget: async (id) => {
         const dataset = get().dataset;
