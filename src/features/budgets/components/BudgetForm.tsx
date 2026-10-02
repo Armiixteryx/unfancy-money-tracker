@@ -3,7 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { SUPPORTED_CURRENCIES, type CurrencyCode } from "../../../domain/currency";
+import { normalizeSelectedCurrencies, type CurrencyCode } from "../../../domain/currency";
 import type { Budget, Category } from "../../../domain/types";
 import { budgetInputSchema, type BudgetInput } from "../../../domain/validation";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
@@ -12,6 +12,7 @@ export type BudgetFormResult = { ok: true } | { ok: false; message: string };
 
 type BudgetFormProps = {
   categories: readonly Category[];
+  selectedCurrencies: readonly CurrencyCode[];
   budget?: Budget;
   defaultMonth: string;
   defaultCurrency: CurrencyCode;
@@ -19,9 +20,10 @@ type BudgetFormProps = {
   onCancel: () => void;
 };
 
-export function BudgetForm({ categories, budget, defaultMonth, defaultCurrency, onSave, onCancel }: BudgetFormProps) {
+export function BudgetForm({ categories, selectedCurrencies, budget, defaultMonth, defaultCurrency, onSave, onCancel }: BudgetFormProps) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const currencies = useMemo(() => normalizeSelectedCurrencies(budget ? [...selectedCurrencies, budget.currency] : selectedCurrencies), [budget, selectedCurrencies]);
   const [formError, setFormError] = useState<string | null>(null);
   const expenseCategories = useMemo(() => categories.filter((category) => category.kind === "expense" && !category.isArchived), [categories]);
   const { control, handleSubmit, setValue, watch, formState } = useForm<BudgetInput>({
@@ -83,8 +85,8 @@ export function BudgetForm({ categories, budget, defaultMonth, defaultCurrency, 
         <FieldLabel label="Currency" error={formState.errors.currency?.message}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.currencyRow}>
-              {SUPPORTED_CURRENCIES.map((currency) => (
-                <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCurrency === currency }} key={currency} onPress={() => setValue("currency", currency as CurrencyCode, { shouldValidate: true })} style={[styles.chip, selectedCurrency === currency && styles.selectedChip]}>
+              {currencies.map((currency) => (
+                <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCurrency === currency }} key={currency} onPress={() => setValue("currency", currency, { shouldValidate: true })} style={[styles.chip, selectedCurrency === currency && styles.selectedChip]}>
                   <Text style={[styles.chipText, selectedCurrency === currency && styles.selectedChipText]}>{currency}</Text>
                 </Pressable>
               ))}

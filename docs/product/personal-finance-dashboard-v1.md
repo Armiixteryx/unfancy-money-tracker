@@ -82,6 +82,7 @@ The same five labels are used on mobile bottom navigation and the browser left r
 ### Settings
 
 - Base currency and theme.
+- Choose a non-empty set of desired currencies for new transaction and budget forms; the base currency is always included.
 - Category management.
 - Exchange-rate status.
 - Local-data and privacy controls.

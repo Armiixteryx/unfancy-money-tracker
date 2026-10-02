@@ -18,7 +18,7 @@ Persist one JSON snapshot per dataset under an app-owned, dataset-scoped key. Th
 
 - schema version and dataset UUID;
 - transactions, categories, budgets, and category deletion tombstones;
-- base-currency, theme, and account-wide analytics-consent preferences;
+- base currency, a non-empty duplicate-free selected-currencies preference that always includes the base, theme, and account-wide analytics-consent preferences;
 - sync metadata and record-level tombstones required by ADR 0001.
 
 Do not persist derived aggregates, TanStack Query cache data, navigation state, or transient form state. Canonical decimal strings and UUIDs are stored exactly as defined by ADR 0003; money is never converted to a JavaScript number for persistence.
@@ -46,6 +46,8 @@ If a write fails, keep the in-memory mutation visible, expose a recoverable loca
 ### Schema migrations
 
 Persist an integer schema version and apply ordered, pure, idempotent migrations from the stored version to the current version before validating the final envelope with Zod. Migrations must preserve UUIDs, canonical decimal strings, preferences, and tombstones unless a documented migration explicitly changes them.
+
+The v4-to-v5 migration initializes selected currencies to the union of the existing base currency and every currency referenced by transactions and budgets, ordered by the supported-currency list. New and reset datasets seed USD only. This preference controls form choices only; historical records retain their original currencies and remain visible.
 
 Retain one bounded pre-migration snapshot before writing the migrated result. A failed migration never replaces the original data; the app remains in recovery until retry, cloud recovery, or explicit local reset succeeds.
 

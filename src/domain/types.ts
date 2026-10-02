@@ -48,6 +48,7 @@ export type CategoryDeletionTombstone = {
 
 export type Preferences = {
   baseCurrency: CurrencyCode;
+  selectedCurrencies: CurrencyCode[];
   theme: Theme;
   analyticsConsent: boolean;
   firstRunNoticeDismissed: boolean;

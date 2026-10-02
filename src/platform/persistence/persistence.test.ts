@@ -20,6 +20,7 @@ describe("dataset persistence", () => {
       expect(result.dataset.categories).toHaveLength(12);
       expect(result.dataset.preferences.analyticsConsent).toBe(false);
       expect(result.dataset.preferences.firstRunNoticeDismissed).toBe(false);
+      expect(result.dataset.preferences.selectedCurrencies).toEqual(["USD"]);
     }
   });
 
@@ -72,14 +73,14 @@ describe("dataset persistence", () => {
     };
     const migrated = migrateSnapshot(legacy, () => "00000000-0000-4000-8000-000000000098");
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.datasetId).toBe(legacy.datasetId);
     expect(migrated.preferences.baseCurrency).toBe("USD");
     expect(migrated).not.toHaveProperty("recordTombstones");
     expect(migrated).not.toHaveProperty("sync");
   });
 
-  it("migrates a v2 envelope to v3 while preserving active data and category tombstones", () => {
+  it("migrates a v2 envelope to v5 while preserving active data, category tombstones, and selected currencies", () => {
     const categoryId = "00000000-0000-4000-8000-000000000001";
     const transactionId = "00000000-0000-4000-8000-000000000002";
     const budgetId = "00000000-0000-4000-8000-000000000003";
@@ -88,21 +89,24 @@ describe("dataset persistence", () => {
     const migrated = migrateSnapshot({
       schemaVersion: 2,
       datasetId: "00000000-0000-4000-8000-000000000099",
-      transactions: [{ id: transactionId, amount: "10", currency: "USD", type: "expense", categoryId, description: "Legacy record", date: "2026-07-11", createdAt: timestamp, updatedAt: timestamp }],
+      transactions: [
+        { id: transactionId, amount: "10", currency: "USD", type: "expense", categoryId, description: "Legacy record", date: "2026-07-11", createdAt: timestamp, updatedAt: timestamp },
+        { id: "00000000-0000-4000-8000-000000000006", amount: "12", currency: "GBP", type: "income", categoryId, description: "Legacy income", date: "2026-07-11", createdAt: timestamp, updatedAt: timestamp }
+      ],
       categories: [{ id: categoryId, kind: "expense", name: "Food", isSystem: false, isArchived: false, createdAt: timestamp, updatedAt: timestamp }],
-      budgets: [{ id: budgetId, categoryId, month: "2026-07", amount: "25", currency: "USD", createdAt: timestamp, updatedAt: timestamp }],
+      budgets: [{ id: budgetId, categoryId, month: "2026-07", amount: "25", currency: "EUR", createdAt: timestamp, updatedAt: timestamp }],
       categoryDeletionTombstones: [{ recordType: "category", recordId: deletedCategoryId, deletedAt: timestamp }],
       recordTombstones: [{ recordType: "budget", recordId: budgetId, deletedAt: timestamp }, { recordType: "category", recordId: deletedCategoryId, deletedAt: timestamp }],
       preferences: { baseCurrency: "EUR", theme: "dark", analyticsConsent: true },
       sync: { status: "stale", inboxCursor: "7", outbox: [{ idempotencyKey: "00000000-0000-4000-8000-000000000005", recordType: "transaction", recordId: transactionId, operation: "upsert", baseRevision: 0, revision: 1, payload: null, tombstone: false }], conflicts: [], revisions: { [`transaction:${transactionId}`]: 1 }, lastSyncedAt: timestamp, reason: "legacy" }
     });
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.datasetId).toBe("00000000-0000-4000-8000-000000000099");
+    expect(migrated.preferences).toEqual({ baseCurrency: "EUR", selectedCurrencies: ["USD", "EUR", "GBP"], theme: "dark", analyticsConsent: true, firstRunNoticeDismissed: false });
     expect(migrated.transactions[0]?.id).toBe(transactionId);
     expect(migrated.categories[0]?.id).toBe(categoryId);
     expect(migrated.budgets[0]?.id).toBe(budgetId);
-    expect(migrated.preferences).toEqual({ baseCurrency: "EUR", theme: "dark", analyticsConsent: true, firstRunNoticeDismissed: false });
     expect(migrated.categoryDeletionTombstones).toEqual([{ recordType: "category", recordId: deletedCategoryId, deletedAt: timestamp }]);
     expect(migrated).not.toHaveProperty("recordTombstones");
     expect(migrated).not.toHaveProperty("sync");

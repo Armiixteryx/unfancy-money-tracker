@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { ZodError } from "zod";
 
+import { isCurrencyCode, normalizeSelectedCurrencies } from "../../../domain/currency";
 import { archiveCategory, createCategory, findUncategorizedCategory, renameCategory } from "../../../domain/categories";
 import { budgetKey, createBudget, updateBudget } from "../../../domain/budgets";
 import { createTransaction, filterTransactions, updateTransaction, type TransactionFilters } from "../../../domain/transactions";
@@ -195,7 +196,19 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
       setPreferences: async (preferences) => {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "Local data is still loading." };
-        const nextPreferences = { ...dataset.preferences, ...preferences };
+        const requestedBase = preferences.baseCurrency ?? dataset.preferences.baseCurrency;
+        if (!isCurrencyCode(requestedBase)) return { ok: false, message: "Choose a supported base currency." };
+        const requestedCurrencies = preferences.selectedCurrencies ?? dataset.preferences.selectedCurrencies;
+        if (preferences.selectedCurrencies?.some((currency) => !isCurrencyCode(currency))) {
+          return { ok: false, message: "Choose supported currencies." };
+        }
+        const normalizedCurrencies = normalizeSelectedCurrencies(requestedCurrencies.filter(isCurrencyCode));
+        if (normalizedCurrencies.length === 0) return { ok: false, message: "Select at least one desired currency." };
+        if (preferences.selectedCurrencies && !normalizedCurrencies.includes(dataset.preferences.baseCurrency) && requestedBase === dataset.preferences.baseCurrency) {
+          return { ok: false, message: "The current base currency must remain selected." };
+        }
+        const nextCurrencies = normalizeSelectedCurrencies([...normalizedCurrencies, requestedBase]);
+        const nextPreferences = { ...dataset.preferences, ...preferences, baseCurrency: requestedBase, selectedCurrencies: nextCurrencies };
         await commit({ ...dataset, preferences: nextPreferences });
         return { ok: true, value: nextPreferences };
       },

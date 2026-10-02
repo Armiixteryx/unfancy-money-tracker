@@ -10,7 +10,7 @@ import {
   View
 } from "react-native";
 
-import { SUPPORTED_CURRENCIES, type CurrencyCode } from "../../../domain/currency";
+import { normalizeSelectedCurrencies, type CurrencyCode } from "../../../domain/currency";
 import type { Category, Transaction } from "../../../domain/types";
 import { transactionInputSchema, type TransactionInput } from "../../../domain/validation";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
@@ -19,6 +19,8 @@ export type TransactionFormResult = { ok: true } | { ok: false; message: string 
 
 type TransactionFormProps = {
   categories: readonly Category[];
+  selectedCurrencies: readonly CurrencyCode[];
+  baseCurrency: CurrencyCode;
   transaction?: Transaction;
   onSave: (input: TransactionInput) => Promise<TransactionFormResult>;
   onCancel: () => void;
@@ -28,10 +30,14 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function TransactionForm({ categories, transaction, onSave, onCancel }: TransactionFormProps) {
+export function TransactionForm({ categories, selectedCurrencies, baseCurrency, transaction, onSave, onCancel }: TransactionFormProps) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const [formError, setFormError] = useState<string | null>(null);
+  const currencies = useMemo(
+    () => normalizeSelectedCurrencies(transaction ? [...selectedCurrencies, transaction.currency] : selectedCurrencies),
+    [selectedCurrencies, transaction]
+  );
   const { control, handleSubmit, setValue, watch, formState } = useForm<TransactionInput>({
     resolver: zodResolver(transactionInputSchema),
     defaultValues: transaction
@@ -49,7 +55,7 @@ export function TransactionForm({ categories, transaction, onSave, onCancel }: T
           categoryId: "",
           description: "",
           date: today(),
-          currency: "USD"
+          currency: baseCurrency
         }
   });
 
@@ -190,12 +196,12 @@ export function TransactionForm({ categories, transaction, onSave, onCancel }: T
             render={({ field: { value } }) => (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.currencyRow}>
-                  {SUPPORTED_CURRENCIES.map((currency) => (
+                  {currencies.map((currency) => (
                     <Pressable
                       accessibilityRole="button"
                       accessibilityState={{ selected: value === currency }}
                       key={currency}
-                      onPress={() => setValue("currency", currency as CurrencyCode, { shouldValidate: true })}
+                      onPress={() => setValue("currency", currency, { shouldValidate: true })}
                       style={[styles.currencyChip, value === currency && styles.selectedChip]}
                     >
                       <Text style={[styles.categoryChipText, value === currency && styles.selectedChipText]}>{currency}</Text>

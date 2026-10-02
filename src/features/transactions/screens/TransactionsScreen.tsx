@@ -80,9 +80,11 @@ export function TransactionsScreen() {
 
   const form = formState ? (
     <TransactionForm
+      baseCurrency={dataset.preferences.baseCurrency}
       categories={dataset.categories}
       onCancel={() => setFormState(null)}
       onSave={onSave}
+      selectedCurrencies={dataset.preferences.selectedCurrencies}
       transaction={selectedTransaction}
     />
   ) : null;

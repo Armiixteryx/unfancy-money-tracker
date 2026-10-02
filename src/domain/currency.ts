@@ -23,6 +23,14 @@ export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number];
 
 export const currencyCodeSchema = z.enum(SUPPORTED_CURRENCIES);
 
+export const selectedCurrenciesSchema = z.array(currencyCodeSchema).min(1).superRefine((currencies, context) => {
+  if (new Set(currencies).size !== currencies.length) context.addIssue({ code: "custom", message: "Selected currencies must be unique" });
+});
+
+export function normalizeSelectedCurrencies(currencies: readonly CurrencyCode[]): CurrencyCode[] {
+  return SUPPORTED_CURRENCIES.filter((currency) => currencies.includes(currency));
+}
+
 const CURRENCY_PRECISION: Record<CurrencyCode, number> = {
   USD: 2,
   EUR: 2,

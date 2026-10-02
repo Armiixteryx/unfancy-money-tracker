@@ -1,4 +1,5 @@
 import type { Dataset } from "../../domain/types";
+import { isCurrencyCode, normalizeSelectedCurrencies, type CurrencyCode } from "../../domain/currency";
 import { createUuid } from "../identifiers/createUuid";
 import { datasetEnvelopeSchema } from "./schema";
 import { CURRENT_SCHEMA_VERSION } from "./version";
@@ -106,6 +107,29 @@ function migrateV3ToV4(input: UnknownRecord): UnknownRecord {
   migrated.schemaVersion = 4;
   return migrated;
 }
+function migrateV4ToV5(input: UnknownRecord): UnknownRecord {
+  const migrated = cloneRecord(input);
+  const preferences = isRecord(migrated.preferences) ? migrated.preferences : {};
+  const baseValue = preferences.baseCurrency;
+  const baseCurrency = baseValue === undefined
+    ? "USD"
+    : isCurrencyCode(baseValue as string) ? baseValue as CurrencyCode : baseValue;
+  const currencies: CurrencyCode[] = isCurrencyCode(baseCurrency as string) ? [baseCurrency as CurrencyCode] : [];
+  for (const records of [migrated.transactions, migrated.budgets]) {
+    if (!Array.isArray(records)) continue;
+    for (const record of records) {
+      if (isRecord(record) && isCurrencyCode(record.currency as string)) currencies.push(record.currency as CurrencyCode);
+    }
+  }
+  migrated.preferences = {
+    ...preferences,
+    baseCurrency,
+    selectedCurrencies: normalizeSelectedCurrencies(currencies),
+    firstRunNoticeDismissed: preferences.firstRunNoticeDismissed === true
+  };
+  migrated.schemaVersion = 5;
+  return migrated;
+}
 
 export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid): Dataset {
   if (!isRecord(raw)) throw new Error("Snapshot is not an object");
@@ -118,6 +142,7 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
   if (version <= 1) migrated = migrateV1ToV2(migrated);
   if (version <= 2) migrated = migrateV2ToV3(migrated);
   if (version <= 3) migrated = migrateV3ToV4(migrated);
+  if (version <= 4) migrated = migrateV4ToV5(migrated);
 
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }

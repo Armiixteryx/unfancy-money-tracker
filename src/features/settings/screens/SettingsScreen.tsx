@@ -61,11 +61,21 @@ export function SettingsScreen() {
         {activeSection === "preferences" ?
         <View style={styles.card}>
           <SectionHeader title="Preferences" description="These choices are saved with your local dataset." />
+          <Text style={styles.label}>Currencies</Text>
+          <Text style={styles.helper}>Choose the currencies you want available in new records. Your base currency must remain selected.</Text>
+          <View style={styles.chips}>{SUPPORTED_CURRENCIES.map((currency) => {
+            const selected = dataset.preferences.selectedCurrencies.includes(currency);
+            const isBase = dataset.preferences.baseCurrency === currency;
+            return <ChoiceChip active={selected} disabled={isBase} key={currency} label={currency} onPress={() => {
+              const next = selected
+                ? dataset.preferences.selectedCurrencies.filter((candidate) => candidate !== currency)
+                : [...dataset.preferences.selectedCurrencies, currency];
+              void updatePreference({ selectedCurrencies: next }, "Currency choices saved locally.");
+            }} />;
+          })}</View>
           <Text style={styles.label}>Base currency</Text>
           <Text style={styles.helper}>Used for future aggregate conversion and new budgets. Original transaction currencies stay unchanged.</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chips}>{SUPPORTED_CURRENCIES.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, `Base currency set to ${currency}.`)} />)}</View>
-          </ScrollView>
+          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, `Base currency set to ${currency}.`)} />)}</View>
           <Text style={styles.label}>Theme</Text>
           <View style={styles.chips}>{(["system", "light", "dark"] as const).map((theme) => <ChoiceChip active={dataset.preferences.theme === theme} key={theme} label={theme.replace(/^./, (letter) => letter.toUpperCase())} onPress={() => void updatePreference({ theme }, "Theme preference saved locally.")} />)}</View>
         </View> : null}
@@ -144,9 +154,9 @@ function SectionHeader({ title, description }: { title: string; description: str
   return <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionDescription}>{description}</Text></View>;
 }
 
-function ChoiceChip({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+function ChoiceChip({ active, disabled = false, label, onPress }: { active: boolean; disabled?: boolean; label: string; onPress: () => void }) {
   const styles = useThemedStyles(createStyles);
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.choiceChip, active && styles.choiceChipActive]}><Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ checked: active, selected: active, disabled }} disabled={disabled} onPress={onPress} style={[styles.choiceChip, active && styles.choiceChipActive, disabled && styles.choiceChipDisabled]}><Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text></Pressable>;
 }
 
 function CategoryManager({ onMessage }: { onMessage: (message: string) => void }) {
@@ -196,6 +206,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   choiceChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, justifyContent: "center", minHeight: 40, paddingHorizontal: 13 },
   choiceChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  choiceChipDisabled: { opacity: 0.55 },
   choiceText: { color: colors.muted, fontSize: 13, fontWeight: "800" },
   choiceTextActive: { color: colors.onPrimary },
   statusRow: { alignItems: "flex-start", flexDirection: "row", gap: 10 },

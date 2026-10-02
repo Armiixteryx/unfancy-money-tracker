@@ -74,14 +74,19 @@ describe("local dataset store", () => {
     expect(budget.ok).toBe(true);
     const preference = await store.getState().setPreferences({ baseCurrency: "EUR" });
     expect(preference.ok).toBe(true);
+    expect(store.getState().dataset?.preferences.selectedCurrencies).toEqual(["USD", "EUR"]);
+    const removedBase = await store.getState().setPreferences({ selectedCurrencies: ["USD"] });
+    expect(removedBase).toEqual({ ok: false, message: "The current base currency must remain selected." });
+    const removedLast = await store.getState().setPreferences({ selectedCurrencies: [] });
+    expect(removedLast).toEqual({ ok: false, message: "Select at least one desired currency." });
     const deleted = await store.getState().deleteCategory(expenseCategory.id);
     expect(deleted.ok).toBe(true);
     expect(store.getState().dataset?.categories.some((category) => category.id === expenseCategory.id)).toBe(false);
     expect(store.getState().dataset?.budgets[0]?.categoryId).toBe(deleted.ok ? deleted.value.id : "");
     expect(store.getState().dataset?.preferences.baseCurrency).toBe("EUR");
     expect(store.getState().dataset?.categoryDeletionTombstones).toHaveLength(1);
-  });
 
+  });
   it("persists the theme preference without replacing system with a resolved value", async () => {
     const adapter = new MemoryPersistenceAdapter();
     const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);

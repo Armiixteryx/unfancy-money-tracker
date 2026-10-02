@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { currencyCodeSchema } from "../../domain/currency";
+import { currencyCodeSchema, selectedCurrenciesSchema } from "../../domain/currency";
 import { normalizeMoneyAmount } from "../../domain/money";
 import { calendarDateSchema, calendarMonthSchema, uuidSchema } from "../../domain/validation";
 import { CURRENT_SCHEMA_VERSION } from "./version";
@@ -81,9 +81,14 @@ const categoryDeletionTombstoneSchema = z.object({
 
 export const preferencesSchema = z.object({
   baseCurrency: currencyCodeSchema,
+  selectedCurrencies: selectedCurrenciesSchema,
   theme: z.enum(["system", "light", "dark"]),
   analyticsConsent: z.boolean(),
   firstRunNoticeDismissed: z.boolean()
+}).superRefine((preferences, context) => {
+  if (!preferences.selectedCurrencies.includes(preferences.baseCurrency)) {
+    context.addIssue({ code: "custom", path: ["selectedCurrencies"], message: "Base currency must be selected" });
+  }
 });
 
 export const datasetEnvelopeSchema = z.object({
