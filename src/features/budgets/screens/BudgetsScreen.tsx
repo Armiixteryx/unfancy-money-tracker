@@ -51,7 +51,7 @@ export function BudgetsScreen() {
     setPendingDeleteId(null);
     setMessage(result.ok ? "Budget deleted locally." : result.message);
   };
-  const form = formState ? <BudgetForm budget={selectedBudget} categories={dataset.categories} defaultCurrency={dataset.preferences.baseCurrency} defaultMonth={month} onCancel={() => setFormState(null)} onSave={onSave} selectedCurrencies={dataset.preferences.selectedCurrencies} /> : null;
+  const form = formState ? <BudgetForm budget={selectedBudget} budgets={dataset.budgets} categories={dataset.categories} defaultCurrency={dataset.preferences.baseCurrency} defaultMonth={month} onCancel={() => setFormState(null)} onSave={onSave} selectedCurrencies={dataset.preferences.selectedCurrencies} /> : null;
 
   return (
     <AppScreen eyebrow="Monthly planning" title="Budgets">

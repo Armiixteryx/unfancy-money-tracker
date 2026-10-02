@@ -12,6 +12,7 @@ export type BudgetFormResult = { ok: true } | { ok: false; message: string };
 
 type BudgetFormProps = {
   categories: readonly Category[];
+  budgets: readonly Budget[];
   selectedCurrencies: readonly CurrencyCode[];
   budget?: Budget;
   defaultMonth: string;
@@ -20,24 +21,48 @@ type BudgetFormProps = {
   onCancel: () => void;
 };
 
-export function BudgetForm({ categories, selectedCurrencies, budget, defaultMonth, defaultCurrency, onSave, onCancel }: BudgetFormProps) {
+function eligibleExpenseCategories(categories: readonly Category[], budgets: readonly Budget[], month: string, editingBudgetId?: string): Category[] {
+  const occupiedCategoryIds = new Set(
+    budgets
+      .filter((candidate) => candidate.id !== editingBudgetId && candidate.month === month)
+      .map((candidate) => candidate.categoryId)
+  );
+  return categories.filter(
+    (category) => category.kind === "expense" && !category.isArchived && !occupiedCategoryIds.has(category.id)
+  );
+}
+
+export function BudgetForm({ categories, budgets, selectedCurrencies, budget, defaultMonth, defaultCurrency, onSave, onCancel }: BudgetFormProps) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
-  const currencies = useMemo(() => normalizeSelectedCurrencies(budget ? [...selectedCurrencies, budget.currency] : selectedCurrencies), [budget, selectedCurrencies]);
   const [formError, setFormError] = useState<string | null>(null);
-  const expenseCategories = useMemo(() => categories.filter((category) => category.kind === "expense" && !category.isArchived), [categories]);
+  const currencies = useMemo(
+    () => normalizeSelectedCurrencies(budget ? [...selectedCurrencies, budget.currency] : selectedCurrencies),
+    [budget, selectedCurrencies]
+  );
+  const initialExpenseCategories = useMemo(
+    () => eligibleExpenseCategories(categories, budgets, defaultMonth, budget?.id),
+    [budget?.id, budgets, categories, defaultMonth]
+  );
   const { control, handleSubmit, setValue, watch, formState } = useForm<BudgetInput>({
     resolver: zodResolver(budgetInputSchema),
     defaultValues: budget
       ? { categoryId: budget.categoryId, month: budget.month, amount: budget.amount, currency: budget.currency }
-      : { categoryId: expenseCategories[0]?.id ?? "", month: defaultMonth, amount: "", currency: defaultCurrency }
+      : { categoryId: initialExpenseCategories[0]?.id ?? "", month: defaultMonth, amount: "", currency: defaultCurrency }
   });
+  const selectedMonth = watch("month");
   const selectedCategoryId = watch("categoryId");
   const selectedCurrency = watch("currency");
+  const expenseCategories = useMemo(
+    () => eligibleExpenseCategories(categories, budgets, selectedMonth, budget?.id),
+    [budget?.id, budgets, categories, selectedMonth]
+  );
 
   useEffect(() => {
-    if (!expenseCategories.some((category) => category.id === selectedCategoryId)) {
-      setValue("categoryId", expenseCategories[0]?.id ?? "", { shouldValidate: true });
+    if (expenseCategories.some((category) => category.id === selectedCategoryId)) return;
+    const nextCategoryId = expenseCategories[0]?.id ?? "";
+    if (selectedCategoryId !== nextCategoryId) {
+      setValue("categoryId", nextCategoryId, { shouldValidate: true });
     }
   }, [expenseCategories, selectedCategoryId, setValue]);
 
@@ -72,6 +97,7 @@ export function BudgetForm({ categories, selectedCurrencies, budget, defaultMont
               </Pressable>
             ))}
           </View>
+          {expenseCategories.length === 0 ? <Text style={styles.helper}>Every active expense category already has a budget for this month.</Text> : null}
         </FieldLabel>
 
         <FieldLabel label="Monthly limit" error={formState.errors.amount?.message}>
@@ -95,7 +121,7 @@ export function BudgetForm({ categories, selectedCurrencies, budget, defaultMont
         </FieldLabel>
 
         {formError ? <Text accessibilityRole="alert" style={styles.error}>{formError}</Text> : null}
-        <Pressable accessibilityRole="button" disabled={formState.isSubmitting} onPress={() => void submit()} style={styles.saveButton}>
+        <Pressable accessibilityRole="button" disabled={formState.isSubmitting || expenseCategories.length === 0} onPress={() => void submit()} style={[styles.saveButton, (formState.isSubmitting || expenseCategories.length === 0) && styles.disabledSaveButton]}>
           <Text style={styles.saveText}>{formState.isSubmitting ? "Saving…" : "Save budget"}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable>
@@ -126,9 +152,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chipText: { color: colors.text, fontSize: 13, fontWeight: "700" },
   selectedChipText: { color: colors.onPrimary },
   currencyRow: { flexDirection: "row", gap: 8 },
+  helper: { color: colors.muted, fontSize: 13 },
   fieldError: { color: colors.negative, fontSize: 13 },
   error: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
   saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, justifyContent: "center", minHeight: 50 },
+  disabledSaveButton: { opacity: 0.5 },
   saveText: { color: colors.onPrimary, fontSize: 15, fontWeight: "800" },
   cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 42 },
   cancelText: { color: colors.muted, fontSize: 14, fontWeight: "700" }
