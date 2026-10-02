@@ -1,17 +1,18 @@
 import { useEffect, useState, type PropsWithChildren } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
-import { useThemedStyles, type ThemeColors } from "../ui/theme";
+import { useAppTheme, useThemedStyles, type ThemeColors } from "../ui/theme";
+import { AppBrand } from "../ui/AppBrand";
 import { FirstRunWarning } from "../ui/FirstRunWarning";
 
 function HydrationScreen() {
   const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
   return (
-    <View accessible accessibilityLabel="Loading your local data" style={styles.centered}>
-      <View style={styles.spinner} />
-      <Text style={styles.title}>Loading your local data</Text>
-      <Text style={styles.description}>Your financial records stay on this device until you choose otherwise.</Text>
+    <View style={styles.centered}>
+      <AppBrand accessibilityElementsHidden />
+      <ActivityIndicator accessibilityLabel="Loading Unfancy Money Tracker" accessibilityRole="progressbar" color={colors.positive} size="large" style={styles.activityIndicator} />
     </View>
   );
 }
@@ -26,7 +27,7 @@ function RecoveryScreen() {
 
   return (
     <View style={styles.centered}>
-      <View style={[styles.spinner, styles.recoveryIcon]} />
+      <View style={styles.recoveryIcon} />
       <Text accessibilityRole="header" style={styles.title}>Local data needs attention</Text>
       <Text style={styles.description}>
         We preserved the unreadable snapshot and blocked the app from opening partial data. Retry, recover the preserved copy, or reset this local copy.
@@ -75,8 +76,8 @@ export function DatasetHydrationGate({ children }: PropsWithChildren) {
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   centered: { alignItems: "center", backgroundColor: colors.canvas, flex: 1, justifyContent: "center", padding: 32 },
-  spinner: { backgroundColor: colors.positive, borderRadius: 999, height: 48, marginBottom: 24, opacity: 0.85, width: 48 },
-  recoveryIcon: { backgroundColor: colors.negative },
+  activityIndicator: { marginTop: 24 },
+  recoveryIcon: { backgroundColor: colors.negative, borderRadius: 999, height: 48, opacity: 0.85, width: 48 },
   title: { color: colors.text, fontSize: 22, fontWeight: "800", textAlign: "center" },
   description: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 10, maxWidth: 520, textAlign: "center" },
   actions: { alignItems: "center", gap: 12, marginTop: 24, width: "100%" },

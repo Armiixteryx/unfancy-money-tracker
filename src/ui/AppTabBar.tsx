@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { useAppTheme, useThemedStyles, type ThemeColors } from "./theme";
+import { AppBrand } from "./AppBrand";
 
 type TabBarRoute = BottomTabBarProps["state"]["routes"][number];
 
@@ -36,13 +37,7 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors } = useAppTheme();
   return (
     <View accessibilityRole="tablist" style={styles.webContainer}>
-      <View style={styles.brandBlock}>
-        <Text style={styles.brandMark}>U</Text>
-        <View>
-          <Text style={styles.brandName}>Unfancy</Text>
-          <Text style={styles.brandSubtitle}>Money tracker</Text>
-        </View>
-      </View>
+      <AppBrand style={styles.brandBlock} />
       <View style={styles.webItems}>
         {state.routes.map((route, index) => {
           const isFocused = state.index === index;
@@ -113,10 +108,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     top: 0,
     width: 232
   },
-  brandBlock: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 36, paddingHorizontal: 10 },
-  brandMark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 10, color: colors.onPrimary, fontSize: 18, fontWeight: "900", height: 34, lineHeight: 34, textAlign: "center", width: 34 },
-  brandName: { color: colors.text, fontSize: 16, fontWeight: "900" },
-  brandSubtitle: { color: colors.muted, fontSize: 11, fontWeight: "700", marginTop: 2 },
+  brandBlock: { marginBottom: 36, paddingHorizontal: 10 },
   webItems: { gap: 6 },
   webItem: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 12, minHeight: 48, paddingHorizontal: 14 },
   webItemActive: { backgroundColor: colors.positiveSubtle },
