@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -13,6 +13,14 @@ function presetLabel(preset: MockDatasetPreset): string {
 }
 
 export default function DeveloperSeedScreen() {
+  if (!isLocalDevelopmentRuntime()) {
+    return <Redirect href="/" />;
+  }
+
+  return <LocalDeveloperSeedScreen />;
+}
+
+function LocalDeveloperSeedScreen() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { preset: requestedPreset } = useLocalSearchParams<{ preset?: string | string[] }>();
@@ -21,11 +29,9 @@ export default function DeveloperSeedScreen() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const unavailable = !isLocalDevelopmentRuntime()
-    ? "Mock data is available only in the local development environment."
-      : !preset
-        ? "The requested mock-data preset is not available."
-        : null;
+  const unavailable = !preset
+    ? "The requested mock-data preset is not available."
+    : null;
 
   const confirm = async () => {
     if (!preset || unavailable) return;
