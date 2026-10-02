@@ -13,6 +13,7 @@ import {
 import { filterTransactions } from "../../../domain/transactions";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
+import { DateFilterPicker } from "../components/DateFilterPicker";
 import { TransactionForm, type TransactionFormResult } from "../components/TransactionForm";
 import { TransactionRow } from "../components/TransactionRow";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
@@ -119,7 +120,7 @@ export function TransactionsScreen() {
       {showMoreFilters ? <View style={styles.advancedFilters}>
         <View style={styles.filterGroup}><Text style={styles.filterLabel}>Category</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>{<FilterChip label="All categories" active={!transactionFilters.categoryId} onPress={() => setTransactionFilters({ categoryId: "all" })} />}{categories.map((category) => <FilterChip key={category.id} label={category.name} active={transactionFilters.categoryId === category.id} onPress={() => setTransactionFilters({ categoryId: category.id })} />)}</ScrollView></View>
         <View style={styles.filterGroup}><Text style={styles.filterLabel}>Currency</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}><FilterChip label="All currencies" active={!transactionFilters.currency} onPress={() => setTransactionFilters({ currency: "all" })} />{currencies.map((currency) => <FilterChip key={currency} label={currency} active={transactionFilters.currency === currency} onPress={() => setTransactionFilters({ currency })} />)}</ScrollView></View>
-        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>From date</Text><TextInput accessibilityLabel="Filter from date" autoCapitalize="none" onChangeText={(fromDate) => setTransactionFilters({ fromDate })} placeholder="YYYY-MM-DD" placeholderTextColor={colors.placeholder} style={styles.dateInput} value={transactionFilters.fromDate ?? ""} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>To date</Text><TextInput accessibilityLabel="Filter to date" autoCapitalize="none" onChangeText={(toDate) => setTransactionFilters({ toDate })} placeholder="YYYY-MM-DD" placeholderTextColor={colors.placeholder} style={styles.dateInput} value={transactionFilters.toDate ?? ""} /></View></View>
+        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>From date</Text><DateFilterPicker accessibilityLabel="Filter from date" maximumDate={transactionFilters.toDate} onChange={(fromDate) => { setTransactionFilters({ fromDate }); if (fromDate) void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} value={transactionFilters.fromDate} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>To date</Text><DateFilterPicker accessibilityLabel="Filter to date" minimumDate={transactionFilters.fromDate} onChange={(toDate) => { setTransactionFilters({ toDate }); if (toDate) void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} value={transactionFilters.toDate} /></View></View>
       </View> : null}
 
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
@@ -194,7 +195,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   filterScroll: { gap: 8, paddingRight: 8 },
   dateFilters: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   dateField: { flex: 1, gap: 8, minWidth: 180 },
-  dateInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.text, minHeight: 42, paddingHorizontal: 12 },
   filterChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 },
   activeFilterChip: { backgroundColor: colors.infoSubtle, borderColor: colors.border },
   filterText: { color: colors.muted, fontSize: 13, fontWeight: "700" },
