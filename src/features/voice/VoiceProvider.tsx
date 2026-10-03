@@ -1,5 +1,6 @@
 import { formatMoneyForDisplay } from "../../domain/money";
 import { categoryLabel } from "../../localization/i18n";
+import { voiceCategoryChoices } from "./categoryChoices";
 import { i18n } from "../../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
@@ -183,9 +184,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         mimeType: recording.mimeType,
         durationMs: recording.durationMs,
         localDate: value.date,
-        categories: dataset.categories
-          .filter((c) => c.kind === "expense" && !c.isArchived)
-          .map(category => ({ id: category.id, name: categoryLabel(category), isFallback: category.isSystem && category.defaultCategoryKey === "uncategorized" })),
+        categories: voiceCategoryChoices(dataset.categories, categoryLabel),
       };
       const response = await mutateRef.current({
         request,

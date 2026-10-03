@@ -39,6 +39,10 @@ export const voiceRequestSchema = z
           .object({
             id: uuidSchema,
             name: z.string().trim().min(1).max(80),
+            localizedNames: z.object({
+              en: z.string().trim().min(1).max(80),
+              es: z.string().trim().min(1).max(80),
+            }).strict().optional(),
             // Identifies expense Uncategorized, independent of local category protection.
             isFallback: z.boolean(),
           })

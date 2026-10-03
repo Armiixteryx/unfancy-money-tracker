@@ -56,6 +56,7 @@ describe("voice handler", () => {
     { ...request, categories: categories.map(category => ({ ...category, isFallback: false })) },
     { ...request, categories: categories.map(category => ({ ...category, isFallback: true })) },
     { ...request, categories: categories.map(({ isFallback, ...category }) => ({ ...category, isSystem: isFallback })) },
+    { ...request, categories: categories.map((category, index) => index === 0 ? { ...category, localizedNames: { en: "A".repeat(81), es: "Nombre" } } : category) },
     { ...request, mimeType: "text/plain" },
   ])("validates boundaries before providers", async (body) => {
     const transcribe = vi.fn();

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { classifyExpense, validateChoice } from "./providers";
 import { createEmptyDataset } from "../../platform/persistence/datasetPersistence";
+import { voiceCategoryChoices } from "../../features/voice/categoryChoices";
+import { categoryLabel, i18n } from "../../localization/i18n";
+import { createCategory } from "../../domain/categories";
 const dataset = createEmptyDataset();
-const categories = dataset.categories
-  .filter((c) => c.kind === "expense")
-  .map(({ id, name, defaultCategoryKey }) => ({ id, name, isFallback: defaultCategoryKey === "uncategorized" }));
+const categories = voiceCategoryChoices(dataset.categories, category => category.name);
 const fallback = categories.find((c) => c.isFallback)!;
 const food = categories.find((c) => c.name === "Food")!;
 const request = {
@@ -89,13 +90,29 @@ describe("Clef boundaries", () => {
       ),
     ).rejects.toMatchObject({ code: "unsupported_currency" });
   });
+  it("keeps the category confidence boundary at 0.70", async () => {
+    mockAnswers(0.7);
+    await expect(classifyExpense("Almuerzo cuarenta mil pesos", request, new AbortController().signal)).resolves.toMatchObject({ categoryId: food.id });
+    mockAnswers(0.699);
+    await expect(classifyExpense("Almuerzo cuarenta mil pesos", request, new AbortController().signal)).resolves.toMatchObject({ categoryId: fallback.id });
+  });
   it("uses ordinary built-in labels as choices and marks only Uncategorized as the fallback", async () => {
     mockAnswers();
     await classifyExpense("Almuerzo cuarenta mil pesos", request, new AbortController().signal);
     const criteria = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body)).questions.category.criteria;
-    expect(criteria[food.id]).toBe("Food");
-    expect(criteria[fallback.id]).toBe("Uncategorized: only if no other category matches");
-    expect(Object.values(criteria).filter(value => value === "Uncategorized: only if no other category matches")).toHaveLength(1);
+    expect(criteria[food.id]).toContain("Food / Comida");
+    expect(criteria[fallback.id]).toBe("Uncategorized / Sin categoría: only if no other category matches");
+    expect(Object.values(criteria).filter(value => String(value).includes("only if no other category matches"))).toHaveLength(1);
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+    expect(body.questions.category.instructions).toContain("English, Spanish, or mixed speech");
+    expect(body.questions.category.instructions).toContain("Choose the closest reasonable category");
+    expect(body.questions.category.instructions).toContain("dinner/cena");
+    expect(body.questions.category.instructions).toContain("Food/Comida covers meals (including breakfast/desayuno");
+  });
+  it("classifies the parsed description without amount or currency wording", async () => {
+    mockAnswers();
+    await classifyExpense("Almuerzo cuarenta mil pesos", request, new AbortController().signal);
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body)).state).toEqual({ expense: "Almuerzo", explicitCurrency: "COP" });
   });
   it("uses only Uncategorized without sending an invalid single-choice category question", async () => {
     mockAnswers();
@@ -126,6 +143,28 @@ describe("Clef boundaries", () => {
   ])("rejects invalid decisions", (value) =>
     expect(() => validateChoice(value, ["a", "b"])).toThrow(),
   );
+});
+
+describe("bilingual request choices", () => {
+  it.each(["en", "es"] as const)("sends built-in aliases under UI language %s", async (language) => {
+    await i18n.changeLanguage(language);
+    const choices = voiceCategoryChoices(dataset.categories, categoryLabel);
+    expect(choices.find(choice => choice.id === food.id)).toMatchObject({ id: food.id, name: language === "en" ? "Food" : "Comida", localizedNames: { en: "Food", es: "Comida" }, isFallback: false });
+    expect(choices.find(choice => choice.id === fallback.id)).toMatchObject({ id: fallback.id, name: language === "en" ? "Uncategorized" : "Sin categoría", localizedNames: { en: "Uncategorized", es: "Sin categoría" }, isFallback: true });
+    mockAnswers();
+    const localizedRequest = { ...request, categories: choices };
+    await classifyExpense("Lunch forty thousand pesos", localizedRequest, new AbortController().signal);
+    const criteria = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body)).questions.category.criteria;
+    expect(criteria[food.id]).toContain("Food / Comida");
+    expect(criteria[fallback.id]).toContain("Uncategorized / Sin categoría");
+  });
+  it("does not infer aliases for custom or unidentifiable legacy categories", () => {
+    const custom = createCategory({ kind: "expense", name: "Veterinary care" });
+    const legacy = { ...custom, id: "00000000-0000-4000-8000-000000000099", name: "Legacy rides", defaultCategoryKey: undefined };
+    expect(voiceCategoryChoices([...dataset.categories, custom, legacy], category => category.name).find(choice => choice.id === custom.id)).toMatchObject({ name: "Veterinary care", isFallback: false });
+    expect(voiceCategoryChoices([...dataset.categories, custom, legacy], category => category.name).find(choice => choice.id === custom.id)).not.toHaveProperty("localizedNames");
+    expect(voiceCategoryChoices([...dataset.categories, custom, legacy], category => category.name).find(choice => choice.id === legacy.id)).not.toHaveProperty("localizedNames");
+  });
 });
 
 describe("transcription metadata and gateway errors", () => {

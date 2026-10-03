@@ -42,6 +42,7 @@ Do not introduce an alternative framework, state library, styling system, or per
 - Never silently discard data during migrations, recovery, fixture replacement, or reset operations.
 - Analytics is anonymous, consent-gated, and may record product actions but must never include transaction amounts, descriptions, categories, or other sensitive financial content.
 - Treat all financial data as sensitive in logs, errors, test fixtures, and analytics payloads.
+- When changing voice category matching, send built-in English/Spanish labels together under the existing category UUID; keep custom and unidentifiable legacy names unchanged. Update the backend contract before the client starts sending optional `localizedNames`, rebuild local SAM before endpoint checks, and make the synthetic voice smoke check require the exact expected category UUID. Synthetic voice diagnostics may report only case index, outcome, and selected-option probability.
 
 ## Documentation
 

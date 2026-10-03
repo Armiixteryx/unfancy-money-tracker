@@ -148,7 +148,7 @@ describe("global voice lifecycle", () => {
     await act(async () => { void controls.stop(); });
     const request = voiceRequestSchema.parse(mocks.request.mock.calls[0]![0]);
     expect(request.categories.find(category => category.id === food.id)?.name).toBe("Comida");
-    expect(request.categories.filter(category => category.isFallback)).toEqual([{ id: fallback.id, name: "Sin categoría", isFallback: true }]);
+    expect(request.categories.filter(category => category.isFallback)).toEqual([{ id: fallback.id, name: "Sin categoría", localizedNames: { en: "Uncategorized", es: "Sin categoría" }, isFallback: true }]);
     expect(request.categories.find(category => category.id === custom.id)?.name).toBe(custom.name);
     expect(request.categories.map(category => category.id)).toEqual(dataset.categories.filter(category => category.kind === "expense").map(category => category.id));
     await act(async () => { await i18n.changeLanguage("en"); });
