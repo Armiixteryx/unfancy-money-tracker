@@ -29,7 +29,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       output: "static"
     },
     plugins: [
-      "expo-router"
+      "expo-router",
+      ["expo-audio", { microphonePermission: "Allow Unfancy Money Tracker to record an expense for remote voice processing.", enableAndroidRecording: true }]
     ]
   };
 };

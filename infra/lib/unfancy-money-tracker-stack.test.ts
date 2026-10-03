@@ -11,6 +11,9 @@ describe("UnfancyMoneyTrackerStack", () => {
     const template = Template.fromStack(stack);
 
     template.resourceCountIs("AWS::DynamoDB::Table", 1);
+    template.resourceCountIs("AWS::SecretsManager::Secret", 1);
+    template.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /voice/expense", AuthorizationType: "NONE" });
+    template.hasResourceProperties("AWS::ApiGatewayV2::Stage", { RouteSettings: { "POST /voice/expense": { ThrottlingRateLimit: 0.25, ThrottlingBurstLimit: 2 } } });
     template.hasResourceProperties("AWS::DynamoDB::Table", {
       ProvisionedThroughput: {
         ReadCapacityUnits: 5,
@@ -30,7 +33,6 @@ describe("UnfancyMoneyTrackerStack", () => {
       "AWS::RDS::DBProxy",
       "AWS::EC2::VPC",
       "AWS::EC2::NatGateway",
-      "AWS::SecretsManager::Secret",
       "AWS::KMS::Key"
     ]) {
       template.resourceCountIs(resourceType, 0);
@@ -55,4 +57,15 @@ describe("UnfancyMoneyTrackerStack", () => {
     });
     expect(template.findResources("AWS::DynamoDB::Table")).toBeTruthy();
   });
+});
+
+it("grants voice secret read access only to the dedicated voice role", () => {
+  const app=new cdk.App({context:{stage:"dev"}});
+  const template=Template.fromStack(new UnfancyMoneyTrackerStack(app,"VoiceIAM-dev",{deploymentStage:"dev"}));
+  const policies=template.findResources("AWS::IAM::Policy");
+  const readers=Object.values(policies).filter(resource=>JSON.stringify(resource.Properties.PolicyDocument).includes("secretsmanager:GetSecretValue"));
+  expect(readers).toHaveLength(1);
+  expect(JSON.stringify(readers[0]?.Properties.Roles)).toContain("VoiceExpenseFunctionServiceRole");
+  expect(JSON.stringify(readers[0]?.Properties.PolicyDocument)).toContain("VoiceSecret");
+  template.hasResource("AWS::SecretsManager::Secret",{DeletionPolicy:"Retain",UpdateReplacePolicy:"Retain"});
 });

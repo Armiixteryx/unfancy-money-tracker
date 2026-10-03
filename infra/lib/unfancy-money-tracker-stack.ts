@@ -8,6 +8,7 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as logs from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 
@@ -69,6 +70,16 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     });
     const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", { APP_ENV: props.deploymentStage });
     syncTable.grantReadWriteData(syncFunction);
+    const voiceSecret = new secretsmanager.Secret(this, "VoiceSecret", {
+      secretName: `UnfancyMoneyTracker-${props.deploymentStage}/voice`,
+      description: "Backend-only voice provider credentials; populated by the development deployment script",
+      removalPolicy: cdk.RemovalPolicy.RETAIN
+    });
+    const voiceFunction = this.createLambda("VoiceExpenseFunction", "src/server/handlers/voiceExpense.ts", {
+      APP_ENV: props.deploymentStage, VOICE_SECRET_ARN: voiceSecret.secretArn,
+      VOICE_CATEGORY_CONFIDENCE: "0.70", VOICE_CURRENCY_CONFIDENCE: "0.80"
+    });
+    voiceSecret.grantRead(voiceFunction);
 
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
     const jwtAuthorizer = new authorizers.HttpJwtAuthorizer("CognitoJwtAuthorizer", issuer, { jwtAudience: [userPoolClient.userPoolClientId] });
@@ -88,13 +99,22 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       integration: new integrations.HttpLambdaIntegration("ExchangeRateIntegration", exchangeRateFunction),
       authorizer: new apigwv2.HttpNoneAuthorizer()
     });
-    new apigwv2.HttpStage(this, "DefaultStage", {
+    api.addRoutes({
+      path: "/voice/expense", methods: [apigwv2.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration("VoiceExpenseIntegration", voiceFunction),
+      authorizer: new apigwv2.HttpNoneAuthorizer()
+    });
+    const stage = new apigwv2.HttpStage(this, "DefaultStage", {
       httpApi: api,
       stageName: "$default",
       autoDeploy: true,
       throttle: { rateLimit: 5, burstLimit: 10 }
     });
 
+    (stage.node.defaultChild as apigwv2.CfnStage).addPropertyOverride("RouteSettings", {
+      "POST /voice/expense": { ThrottlingRateLimit: 0.25, ThrottlingBurstLimit: 2 }
+    });
+    new cdk.CfnOutput(this, "VoiceSecretArn", { value: voiceSecret.secretArn });
     new cdk.CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new cdk.CfnOutput(this, "CognitoUserPoolId", { value: userPool.userPoolId });
     new cdk.CfnOutput(this, "CognitoClientId", { value: userPoolClient.userPoolClientId });

@@ -112,3 +112,16 @@ describe("dataset persistence", () => {
     expect(migrated).not.toHaveProperty("sync");
   });
 });
+
+it("orders reset after in-flight writes so stale records cannot reappear", async () => {
+  const adapter = new MemoryPersistenceAdapter();
+  const persistence = new DatasetPersistence(adapter);
+  let finish: () => void = () => undefined;
+  const originalWrite=adapter.writeSnapshot.bind(adapter);
+  adapter.writeSnapshot=async(snapshot)=>{await new Promise<void>(resolve=>{finish=resolve;});await originalWrite(snapshot);};
+  const save=persistence.save(createEmptyDataset());
+  await Promise.resolve();await Promise.resolve();
+  const reset=persistence.reset();
+  finish();await save;await reset;
+  expect(await adapter.readSnapshot()).toBeNull();
+});

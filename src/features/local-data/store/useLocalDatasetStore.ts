@@ -16,6 +16,8 @@ import { isLocalDevelopmentRuntime } from "../../../platform/runtime/localDevelo
 type SaveStatus = "idle" | "saving" | "error";
 
 export type DatasetStoreState = {
+  datasetEpoch: number;
+  retryLocalSave: () => Promise<MutationResult<null>>;
   hydration: HydrationState;
   dataset: Dataset | null;
   saveStatus: SaveStatus;
@@ -26,7 +28,7 @@ export type DatasetStoreState = {
   recoverLocalData: () => Promise<void>;
   resetLocalData: () => Promise<void>;
   replaceWithMockData: (preset: MockDatasetPreset) => Promise<MutationResult<Dataset>>;
-  addTransaction: (input: TransactionInput) => Promise<MutationResult<Transaction>>;
+  addTransaction: (input: TransactionInput, id?: string) => Promise<MutationResult<Transaction>>;
   editTransaction: (id: string, input: TransactionInput) => Promise<MutationResult<Transaction>>;
   deleteTransaction: (id: string) => Promise<MutationResult<null>>;
   addBudget: (input: BudgetInput) => Promise<MutationResult<Budget>>;
@@ -46,7 +48,7 @@ export type CopyBudgetsResult = {
   created: readonly Budget[];
   skipped: number;
 };
-export type MutationResult<T> = { ok: true; value: T } | { ok: false; message: string };
+export type MutationResult<T> = { ok: true; value: T } | { ok: false; message: string; recordId?: string };
 
 function safeErrorMessage(error: unknown): string {
   if (error instanceof ZodError) return "Check the highlighted fields and try again.";
@@ -73,15 +75,21 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
       set({ dataset, saveStatus: "saving", saveError: null });
       try {
         await persistence.save(dataset);
-        set({ saveStatus: "idle" });
+        if (get().dataset === dataset) set({ saveStatus: "idle" });
         return true;
       } catch {
-        set({ saveStatus: "error", saveError: "Local save failed. Your change is still visible; retry to save it." });
+        if (get().dataset === dataset) set({ saveStatus: "error", saveError: "Local save failed. Your change is still visible; retry to save it." });
         return false;
       }
     };
 
     return {
+      datasetEpoch: 0,
+      retryLocalSave: async () => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "Local data is still loading." };
+        return await commit(dataset) ? { ok: true, value: null } : { ok: false, message: "Local save failed. Retry to save your change." };
+      },
       hydration: { status: "loading" },
       dataset: null,
       saveStatus: "idle",
@@ -117,12 +125,18 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         await get().initialize();
       },
       recoverLocalData: async () => {
+        set({ datasetEpoch: get().datasetEpoch + 1 });
         await persistence.restoreRecoverySnapshot();
         set({ hydration: { status: "loading" }, dataset: null, saveStatus: "idle", saveError: null });
         await get().initialize();
       },
       resetLocalData: async () => {
-        await persistence.reset();
+        const previous = get().dataset;
+        set({ datasetEpoch: get().datasetEpoch + 1, dataset: null, hydration: { status: "loading" } });
+        try { await persistence.reset(); } catch {
+          set({ dataset: previous, hydration: previous ? { status: "ready", dataset: previous } : { status: "recovery", errorCode: "storage_unavailable", backupAvailable: true }, saveStatus: "error", saveError: "Local reset failed. Your records remain available." });
+          throw new Error("Local reset failed. Try again.");
+        }
         set({ hydration: { status: "loading" }, dataset: null, saveStatus: "idle", saveError: null });
         await get().initialize();
       },
@@ -130,17 +144,19 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         if (!isLocalDevelopmentRuntime()) return { ok: false, message: "Mock data is available only in the local development environment." };
+        set({ datasetEpoch: get().datasetEpoch + 1 });
         const next = createMockDataset(preset, dataset.datasetId);
         const saved = await commit(next);
         return saved ? { ok: true, value: next } : { ok: false, message: "Mock data could not be saved locally." };
       },
-      addTransaction: async (input) => {
+      addTransaction: async (input, id) => {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "Local data is still loading." };
         try {
-          const transaction = createTransaction(input, { categories: dataset.categories, now });
-          await commit({ ...dataset, transactions: [...dataset.transactions, transaction] });
-          return { ok: true, value: transaction };
+          const existing = id ? dataset.transactions.find((record) => record.id === id) : undefined;
+          const transaction = existing ?? createTransaction(input, { categories: dataset.categories, now, idFactory: id ? () => id : undefined });
+          const saved = await commit(existing ? dataset : { ...dataset, transactions: [...dataset.transactions, transaction] });
+          return saved ? { ok: true, value: transaction } : { ok: false, message: "Local save failed. Retry to save this record.", recordId: transaction.id };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
         }
@@ -152,8 +168,8 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         if (!existing) return { ok: false, message: "This transaction is no longer available." };
         try {
           const transaction = updateTransaction(existing, input, { categories: dataset.categories, now });
-          await commit({ ...dataset, transactions: dataset.transactions.map((candidate) => candidate.id === id ? transaction : candidate) });
-          return { ok: true, value: transaction };
+          const saved = await commit({ ...dataset, transactions: dataset.transactions.map((candidate) => candidate.id === id ? transaction : candidate) });
+          return saved ? { ok: true, value: transaction } : { ok: false, message: "Local save failed. Retry to save this record.", recordId: transaction.id };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
         }

@@ -81,6 +81,10 @@ pnpm exec cdk deploy "$stack_name" \
   --outputs-file "$outputs_file" \
   --require-approval broadening
 
+if [[ "$stage" == "dev" ]]; then
+  pnpm exec tsx scripts/voice-environment.ts dev
+fi
+
 stack_status="$(
   aws cloudformation describe-stacks \
     --stack-name "$stack_name" \

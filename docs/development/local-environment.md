@@ -110,3 +110,15 @@ in the background and applies the same port reversal automatically when the
 emulator or connected device becomes available.
 
 Press `a` in the Expo terminal to open the installed development client. If the Android SDK is not configured, set `ANDROID_HOME` or create `android/local.properties` with the machine-specific `sdk.dir` path. The generated `android/` directory and local SDK path are not committed.
+
+## Optional voice expense service
+
+Voice uses the existing SAM API on port 3001; Android's existing reversal scripts apply. Add `EXPO_PUBLIC_VOICE_API_URL=http://localhost:3001` to `.env.local` (the service root, without `/voice/expense`). Put `AI_GATEWAY_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_AUTH_TOKEN` in `.env.local` as backend-only variables. Never give these keys an `EXPO_PUBLIC_` prefix.
+
+`pnpm run voice:env` reads only the three provider credential values and generates `sam/env.voice.local.json` with mode 0600, merging the tracked local SAM configuration. It preserves `.env.local` and the tracked SAM file. `pnpm run local:sam` generates this environment before starting the API. A native rebuild is needed for the new Expo Audio/File System modules: use `pnpm run android` or `pnpm run ios`, then `pnpm run start:all` for a shared server. Web recording requires microphone access in a secure context (localhost or HTTPS) and WebM/Opus support.
+
+`pnpm run voice:smoke` is a separate opt-in live-provider check using only generated synthetic Spanish and English audio. It requires macOS `say` with Paulina/Samantha voices, `ffmpeg`, and `ffprobe`. It tests M4A/AAC and WebM/Opus for five amounts/currencies, checks category match or the confidence fallback, prints pass/fail only, and removes temporary files. Probes are spaced 15 seconds apart; rejected requests are never automatically retried. Provider throttling is reported as a sanitized failure. Routine tests use mocked providers.
+
+`pnpm run infra:deploy:dev` creates a retained `UnfancyMoneyTracker-dev/voice` Secrets Manager secret, grants only the voice Lambda read access, and then uploads the provider credential values via `scripts/voice-environment.ts dev`. The script deliberately does not load local DynamoDB AWS credentials into the deployment SDK environment. AWS credentials come from the existing authenticated shell/configuration. Set the app's voice URL to the deployed `ApiUrl` output after deployment. Production deployment stays deferred; production synthesis is still checked.
+
+The anonymous voice route has rate 0.25 requests/second and burst 2. This is shared route throttling, not an identity or subscription system. See ADR 0017 for privacy, deadlines, category confidence semantics, and the remote processing boundary. Platform microphone gestures, OS interruption behavior, assistive technology, and notification focus still require device/browser release checks.

@@ -1,3 +1,4 @@
+import { VoiceEntryButton } from "../../voice/VoiceEntryButton";
 import { useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -38,6 +39,7 @@ export function DashboardScreen() {
             <Pressable accessibilityRole="button" onPress={() => router.push("/transactions")} style={styles.primaryButton}>
               <Text style={styles.primaryButtonText}>＋ Add transaction</Text>
             </Pressable>
+            <VoiceEntryButton />
           </EmptyState>
         </View>
       ) : (
@@ -60,6 +62,8 @@ export function DashboardScreen() {
               </View>
             ))}
           </View>
+
+          <VoiceEntryButton />
 
           <View style={styles.contentGrid}>
             <View style={styles.card}>

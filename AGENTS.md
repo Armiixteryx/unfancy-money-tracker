@@ -20,10 +20,10 @@ Do not introduce an alternative framework, state library, styling system, or per
 
 ## Product boundaries
 
-- V1 tracks manual income and expenses only.
+- V1 tracks manual income and expenses, with optional remote voice expense entry through Vercel/SpaceXAI and Cloudflare. Saved records remain local; follow ADR 0017 for voice boundaries.
 - There are no financial accounts, source/destination details, transfers, bank connections, investments, debt tracking, or shared finances.
 - A transaction requires a positive amount, type, category, description, date, and currency.
-- Users are anonymous and local-only. The retained AWS/SAM/DynamoDB sync backend is dormant and is not called by the Expo app.
+- Users are anonymous with locally persisted records. Optional voice processing sends audio/transcript and active category choices remotely. The retained AWS/SAM/DynamoDB sync backend is dormant and is not called by the Expo app.
 - CSV export is a non-functional Pro-feature preview in V1. Do not implement export, payments, or subscription enforcement unless the product definition changes.
 - Insights must be factual and descriptive; do not present financial advice.
 

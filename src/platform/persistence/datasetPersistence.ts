@@ -85,7 +85,8 @@ export class DatasetPersistence {
   }
 
   async restoreRecoverySnapshot(): Promise<void> {
-    await this.adapter.restoreRecoverySnapshot();
+    this.writeQueue = this.writeQueue.catch(() => undefined).then(() => this.adapter.restoreRecoverySnapshot());
+    await this.writeQueue;
   }
 
   save(dataset: Dataset): Promise<void> {
@@ -102,6 +103,7 @@ export class DatasetPersistence {
   }
 
   reset(): Promise<void> {
-    return this.adapter.reset();
+    this.writeQueue = this.writeQueue.catch(() => undefined).then(() => this.adapter.reset());
+    return this.writeQueue;
   }
 }

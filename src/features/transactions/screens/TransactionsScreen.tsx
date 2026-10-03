@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -10,6 +10,8 @@ import {
   View
 } from "react-native";
 
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { VoiceEntryButton } from "../../voice/VoiceEntryButton";
 import { filterTransactions } from "../../../domain/transactions";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { Snackbar } from "../../../ui/Snackbar";
@@ -23,6 +25,8 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 export function TransactionsScreen() {
+  const router = useRouter();
+  const { edit, new: newParam } = useLocalSearchParams<{ edit?: string; new?: string }>();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -36,6 +40,7 @@ export function TransactionsScreen() {
   const saveError = useLocalDatasetStore((state) => state.saveError);
   const analytics = useAnalytics();
   const [formState, setFormState] = useState<FormState>(null);
+  const [pendingSaveId, setPendingSaveId] = useState<string | undefined>();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [deleteSnackbarMessage, setDeleteSnackbarMessage] = useState<string | null>(null);
@@ -50,23 +55,43 @@ export function TransactionsScreen() {
   );
   const selectedTransaction = formState?.mode === "edit" ? transactions.find((transaction) => transaction.id === formState.id) : undefined;
 
+  useEffect(() => {
+    if (!dataset || (!edit && !newParam)) return;
+    setPendingSaveId(undefined);
+    if (edit) {
+      if (dataset.transactions.some((record) => record.id === edit)) setFormState({ mode: "edit", id: edit });
+      else setActionMessage("This transaction is no longer available.");
+    } else setFormState({ mode: "new" });
+    router.setParams({ edit: undefined, new: undefined });
+  }, [dataset, edit, newParam, router]);
+
+  useEffect(() => {
+    if (dataset && formState?.mode === "edit" && !selectedTransaction) {
+      setFormState(null);
+      setActionMessage("This transaction is no longer available.");
+    }
+  }, [dataset, formState, selectedTransaction]);
+
   const onSave = async (input: Parameters<typeof addTransaction>[0]): Promise<TransactionFormResult> => {
     const result = formState?.mode === "edit" && selectedTransaction
       ? await editTransaction(selectedTransaction.id, input)
-      : await addTransaction(input);
-    if (!result.ok) return result;
+      : pendingSaveId ? await editTransaction(pendingSaveId, input) : await addTransaction(input);
+    if (!result.ok) { setPendingSaveId(result.recordId); return result; }
+    setPendingSaveId(undefined);
     if (formState?.mode !== "edit") void analytics.capture("transaction_created", { surface: "transactions", actionResult: "success" });
     setActionMessage(formState?.mode === "edit" ? "Transaction updated locally." : "Transaction saved locally.");
     return { ok: true };
   };
 
   const openNew = () => {
+    setPendingSaveId(undefined);
     setActionMessage(null);
     setDeleteSnackbarMessage(null);
     setFormState({ mode: "new" });
   };
 
   const openEdit = (id: string) => {
+    setPendingSaveId(undefined);
     setActionMessage(null);
     setDeleteSnackbarMessage(null);
     setFormState({ mode: "edit", id });
@@ -93,11 +118,12 @@ export function TransactionsScreen() {
 
   const hasActiveFilters = Boolean(transactionFilters.query?.trim() || transactionFilters.type || transactionFilters.categoryId || transactionFilters.currency || transactionFilters.fromDate || transactionFilters.toDate);
 
-  const form = formState ? (
+  const form = formState && (formState.mode === "new" || selectedTransaction) ? (
     <TransactionForm
+      key={selectedTransaction?.id ?? "new"}
       baseCurrency={dataset.preferences.baseCurrency}
       categories={dataset.categories}
-      onCancel={() => setFormState(null)}
+      onCancel={() => { setPendingSaveId(undefined); setFormState(null); }}
       onSave={onSave}
       selectedCurrencies={dataset.preferences.selectedCurrencies}
       transaction={selectedTransaction}
@@ -126,6 +152,8 @@ export function TransactionsScreen() {
           <Text style={styles.addButtonText}>＋ Add transaction</Text>
         </Pressable>
       </View>
+
+      <VoiceEntryButton />
 
       <View style={styles.filterRow}>
         <FilterChip label="All" active={!transactionFilters.type || transactionFilters.type === "all"} onPress={() => setTransactionFilters({ type: "all" })} />
@@ -177,7 +205,7 @@ export function TransactionsScreen() {
       </View>
 
       {!isBrowserWorkspace ? (
-        <Modal animationType="slide" onRequestClose={() => setFormState(null)} visible={Boolean(formState)}>
+        <Modal animationType="slide" onRequestClose={() => setFormState(null)} visible={Boolean(form)}>
           <View style={styles.mobileModal}>{form}</View>
         </Modal>
       ) : null}

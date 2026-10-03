@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
 
+import { VoiceProvider } from "../features/voice/VoiceProvider";
 import { DatasetHydrationGate } from "./DatasetHydrationGate";
 import { AnalyticsProvider } from "./AnalyticsProvider";
 import { AppThemeProvider } from "../ui/theme";
@@ -19,7 +20,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <AnalyticsProvider>
         <AppThemeProvider>
-          <DatasetHydrationGate>{children}</DatasetHydrationGate>
+          <DatasetHydrationGate><VoiceProvider>{children}</VoiceProvider></DatasetHydrationGate>
         </AppThemeProvider>
       </AnalyticsProvider>
     </QueryClientProvider>

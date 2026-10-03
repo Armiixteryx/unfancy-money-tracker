@@ -76,3 +76,35 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/server/handlers/exchangeRates.ts
+
+  VoiceExpenseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ..
+      Handler: src/server/handlers/voiceExpense.handler
+      Timeout: 29
+      Environment:
+        Variables:
+          APP_ENV: local
+          AI_GATEWAY_API_KEY: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          CLOUDFLARE_AUTH_TOKEN: ''
+          VOICE_CATEGORY_CONFIDENCE: '0.70'
+          VOICE_CURRENCY_CONFIDENCE: '0.80'
+      Events:
+        Expense:
+          Type: HttpApi
+          Properties:
+            Path: /voice/expense
+            Method: post
+            RouteSettings:
+              ThrottlingRateLimit: 0.25
+              ThrottlingBurstLimit: 2
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/server/handlers/voiceExpense.ts

@@ -4,9 +4,9 @@
 
 Build a polished, cross-platform finance tracker for individuals who want one clear view of their income, expenses, budgets, and spending.
 
-Users enter transactions manually. V1 does **not** model bank, cash, credit, or savings accounts; transactions have no source/destination fields and transfers are out of scope.
+Users enter transactions manually or optionally record a single expense by voice. Voice audio is processed remotely by Vercel/SpaceXAI, and its transcript plus active expense-category names are classified by Cloudflare; completed transactions persist locally. V1 does **not** model bank, cash, credit, or savings accounts; transactions have no source/destination fields and transfers are out of scope.
 
-The app is anonymous and local-only. Financial data stays in the local dataset on the device or browser; account creation and cloud synchronization are not part of the current app scope.
+The app is anonymous and local-only. Saved financial records stay in the local dataset on the device or browser; optional voice processing sends the recording and derived text/category choices to remote providers; account creation and cloud synchronization are not part of the current app scope.
 
 ## Product decisions
 
@@ -37,6 +37,7 @@ The product should demonstrate thoughtful product, design, and engineering pract
 
 - View current-month income, expenses, remaining budget, recent transactions, and category spending.
 - Add, edit, delete, search, and filter income and expense transactions.
+- Hold to record one expense in Spanish or English, or use accessible start/stop controls; review the saved result and edit it immediately.
 - Use UUID-backed income and expense categories; create, rename, archive, or delete categories.
 - Create monthly category budgets and monitor progress or overspending.
 - Review monthly trends and category breakdowns.
@@ -156,3 +157,11 @@ Allowed event properties are limited to platform, app version, surface, action r
 - Investments, loans, debt tracking, or financial advice.
 - CSV download, payments, and subscription enforcement.
 - Pre-populated end-user demo data and demo-data reset. Development-only local fixture tooling is documented separately and is not product UI.
+
+## Voice expense entry
+
+Dashboard and Transactions offer optional remote voice entry with a clear processing notice. Manual entry and navigation remain usable during processing. The microphone is permission-gated, interrupted recordings are canceled, release submits, and a 15-second limit stops and submits automatically. Only one voice operation runs at a time. Submission has a 30-second deadline including upload and no automatic retry.
+
+Say a description, positive amount, and currency for one expense. Initially supported currencies are COP (pesos), USD (dollars/dólares), and VES (bolívares). Unsupported or ambiguous phrases ask the user to record again or enter manually. Categories include current active default/custom expense categories and protected Uncategorized; uncertain classification uses Uncategorized. Category changes during processing are revalidated locally. TODO: extend voice currency support and resolve general currency ambiguity.
+
+After persistence succeeds, show category, description, original amount/currency, and Edit in an eight-second snackbar, paused on hover or keyboard focus. Edit opens the existing mobile form or browser pane. Failed writes retain the record identity and offer local save retry without repeating transcription or creating duplicates. Reset/replacement invalidates pending responses. Temporary recordings are deleted; application logs, analytics and replay exclude voice and financial contents. Provider retention is subject to Vercel/upstream and Cloudflare policies; Zero Data Retention is not promised. See ADR 0017 for details. Production deployment remains deferred.

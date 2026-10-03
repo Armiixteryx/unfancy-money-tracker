@@ -75,7 +75,8 @@ case "${1:-help}" in
     fi
     sam validate --template sam/template.yaml --lint
     sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
-    sam local start-api --template .aws-sam/build/template.yaml --env-vars sam/env.local.json --skip-pull-image --host 127.0.0.1 --port "${SAM_PORT:-3001}"
+    pnpm exec tsx scripts/voice-environment.ts
+    sam local start-api --template .aws-sam/build/template.yaml --env-vars sam/env.voice.local.json --skip-pull-image --host 127.0.0.1 --port "${SAM_PORT:-3001}"
     ;;
   sam-lambda)
     require_docker

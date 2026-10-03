@@ -1,0 +1,36 @@
+# ADR 0017: Remote voice processing with locally persisted expenses
+
+## Status
+
+Accepted. Development deployment is prepared; production remains deferred.
+
+## Context
+
+Optional voice entry needs multilingual transcription and category selection without reinstating account creation, synchronization, or remote dataset storage. Audio and transcripts are sensitive. The existing anonymous dataset and manual entry remain usable during remote processing and provider failures.
+
+## Decision
+
+- Dashboard and Transactions offer hold-to-record plus accessible start/stop controls. Permission is requested on first use and requires a fresh start afterward. Recording is canceled when the app backgrounds. A 15-second limit stops and submits one expense; only one recording/request is active globally.
+- Native recording uses Expo Audio M4A/AAC. Browser recording uses verified WebM/Opus; unsupported browsers offer manual entry. Temporary recordings are removed after success, failure, or cancellation.
+- An anonymous HTTP API `POST /voice/expense` invokes a dedicated Lambda. Shared Zod contracts validate request UUID, base64 audio, MIME type, duration, real local recording-start calendar date, and active expense-category choices. Decoded audio is capped at 1 MiB; request JSON at 2 MiB. Container signatures are checked before remote calls.
+- The backend uses pinned `ai@7.0.127` and `@ai-sdk/gateway@4.0.103`, `spacexai/grok-stt`, automatic language detection, and no retries or SDK telemetry. A shared 27-second deadline aborts transcription and classification inside the 29-second Lambda timeout. The client aborts at 30 seconds from submission, including file preparation and upload, and ignores late results.
+- TypeScript parses the description, positive canonical decimal amount, and currency deterministically. Spanish/English number words and unambiguous numeric formats are supported. Missing fields, multiple expenses, unsupported qualifiers, or uncertain amount boundaries require manual entry. Pesos map to COP, dollars/dólares to USD, bolívares to VES. TODO: extend voice currency support and resolve general currency ambiguity.
+- Cloudflare Clef Flash answers typed `choice` questions for expense category and currency. Category names are untrusted data. Validate selected choices, probability maps, sum, and metadata. Thresholds use **selected-option probability**, not Clef's separate model-provided `confidence` metadata: category defaults to 0.70 and currency to 0.80, configurable via backend variables. An uncertain category uses protected expense Uncategorized; an uncertain/mismatching currency fails. One category bypasses the category question; more than 255 choices requires manual entry.
+- Only validated expense input is returned. Current category lifecycle is revalidated before saving; missing or archived categories fall back to expense Uncategorized. Request UUID doubles as local record identity to avoid duplicate creation. Reset, recovery, and fixture replacement invalidate pending callbacks through a transient dataset epoch, including replacements retaining the dataset UUID.
+- A successful persistent write precedes the eight-second snackbar showing category, description, original amount/currency and Edit. Hover/focus pauses its timer. Edit consumes `/transactions?edit=<id>` once and opens the existing native form/browser pane; deleted records are handled gracefully. A failed write retains identity and permits local retry without retranscription.
+- Backend-only credentials come from `.env.local` for SAM and a stage-specific retained Secrets Manager secret in AWS. Only the voice Lambda receives secret read permission. Credentials never enter the Expo app or synthesized templates. `EXPO_PUBLIC_VOICE_API_URL` is a service root URL, and the existing local URL normalization and Android reversal apply.
+- The route is throttled at 0.25 requests/second, burst 2. No provider/client automatic resubmission. Error responses contain fixed public codes/messages, never provider payloads. Application logs, analytics, replay, and error reporting exclude recordings, transcripts, category names and financial contents. The global voice overlay is explicitly masked/no-capture.
+
+## Consequences
+
+Voice sends audio to Vercel/SpaceXAI and transcript plus active category names to Cloudflare. Only completed transaction records are persisted locally; the app does not upload its dataset or call dormant sync routes. Manual entry remains available during processing, offline use, and provider failures.
+
+This feature does **not** promise Zero Data Retention. Vercel documents provider/model-specific ZDR, with team/request enforcement depending on account support; this implementation does not enable or verify that enforcement. Gateway observability and upstream provider terms must be considered before real data use. Cloudflare documents its own Workers AI data usage commitments; these are separate from Vercel/upstream policies. Review provider policies and account configuration before production.
+
+Sources checked October 2, 2026: [Grok STT](https://vercel.com/ai-gateway/models/grok-stt), [Vercel ZDR](https://vercel.com/docs/ai-gateway/security-and-compliance/zdr), [Clef Flash](https://developers.cloudflare.com/workers-ai/models/clef-flash/), [Workers AI data usage](https://developers.cloudflare.com/workers-ai/platform/data-usage/).
+
+## Validation
+
+Live synthetic Spanish/English checks passed all five target amounts/currencies in both M4A/AAC and WebM/Opus. Food/Transport matched in the checked examples; other low-probability category decisions correctly used Uncategorized. Gateway rate limiting was observed during unpaced probes and mapped to a sanitized throttling error.
+
+Routine tests are synthetic and mocked, including parsing, invalid audio/payloads, provider response validation, uncertain choices, deadline enforcement, persistence retry identity, and dataset replacement. The separate live smoke command synthesizes Spanish/English recordings and checks formats plus five target amount/currency results. Device/browser permission, interruption, focus, and recording gestures require platform validation before production release.

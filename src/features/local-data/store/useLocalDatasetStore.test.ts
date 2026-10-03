@@ -245,3 +245,36 @@ describe("local dataset store", () => {
     expect(store.getState().saveError).toBe("Local save failed. Your change is still visible; retry to save it.");
   });
 });
+
+
+describe("voice persistence lifecycle", () => {
+  it("reports failed writes and retries the same identity without duplicates", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const dataset = store.getState().dataset!;
+    const category = dataset.categories.find(c => c.kind === "expense")!;
+    const write = vi.spyOn(adapter, "writeSnapshot").mockRejectedValueOnce(new Error("synthetic failure"));
+    const input = {amount:"10",type:"expense" as const,categoryId:category.id,description:"Synthetic voice expense",date:"2026-10-02",currency:"USD" as const};
+    const failed = await store.getState().addTransaction(input);
+    expect(failed.ok).toBe(false);
+    if(failed.ok || !failed.recordId) throw new Error("Expected retained identity");
+    expect(store.getState().dataset?.transactions).toHaveLength(1);
+    const retry = await store.getState().addTransaction(input, failed.recordId);
+    expect(retry).toMatchObject({ok:true,value:{id:failed.recordId}});
+    expect(store.getState().dataset?.transactions).toHaveLength(1);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(store.getState().saveStatus).toBe("idle");
+  });
+  it("invalidates callbacks when fixtures replace the dataset even with the same ID", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV","local");
+    const store=createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()),async()=>undefined);
+    await store.getState().initialize();
+    const id=store.getState().dataset?.datasetId;
+    const epoch=store.getState().datasetEpoch;
+    await store.getState().replaceWithMockData("dashboard");
+    expect(store.getState().dataset?.datasetId).toBe(id);
+    expect(store.getState().datasetEpoch).toBeGreaterThan(epoch);
+    vi.unstubAllEnvs();
+  });
+});
