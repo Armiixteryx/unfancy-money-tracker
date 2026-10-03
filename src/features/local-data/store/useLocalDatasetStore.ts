@@ -322,7 +322,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
         const existing = dataset.categories.find((category) => category.id === id);
         if (!existing) return { ok: false, message: "this_category_is_no_longer_available" };
-        if (existing.isSystem) return { ok: false, message: "protected_uncategorized_categories_cannot_be_deleted" };
+        if (existing.isSystem) return { ok: false, message: "protected_categories_cannot_be_deleted" };
         try {
           const fallback = findUncategorizedCategory(dataset.categories, existing.kind);
           const deletedAt = now();

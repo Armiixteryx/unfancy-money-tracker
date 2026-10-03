@@ -57,7 +57,7 @@ async function main() {
     const dataset = createEmptyDataset();
     const categories = dataset.categories
       .filter((c) => c.kind === "expense")
-      .map(({ id, name, isSystem }) => ({ id, name, isSystem }));
+      .map(({ id, name, defaultCategoryKey }) => ({ id, name, isFallback: defaultCategoryKey === "uncategorized" }));
     for (const [index, example] of examples.entries()) {
       const raw = join(directory, `${index}.aiff`);
       const speech = spawnSync(
@@ -131,9 +131,9 @@ async function main() {
           const passed =
             transaction.amount === example.amount &&
             transaction.currency === example.currency &&
-            (category?.name === example.category || category?.isSystem);
+            (category?.name === example.category || category?.isFallback);
           console.log(
-            `Synthetic example ${index + 1}, ${format}: ${passed ? "PASS" : "FAIL"}; category ${category?.isSystem ? "fallback" : "matched"}.`,
+            `Synthetic example ${index + 1}, ${format}: ${passed ? "PASS" : "FAIL"}; category ${category?.isFallback ? "fallback" : "matched"}.`,
           );
           if (!passed) process.exitCode = 1;
         } catch (error) {

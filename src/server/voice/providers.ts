@@ -126,12 +126,12 @@ export async function classifyExpense(
   signal: AbortSignal,
 ) {
   const expense = parseExpense(text);
-  const fallback = request.categories.find((category) => category.isSystem);
+  const fallback = request.categories.find((category) => category.isFallback);
   if (!fallback) throw new VoiceError("unavailable");
   const categoryCriteria = Object.fromEntries(
     request.categories.map((category) => [
       category.id,
-      category.isSystem
+      category.isFallback
         ? "Uncategorized: only if no other category matches"
         : category.name,
     ]),

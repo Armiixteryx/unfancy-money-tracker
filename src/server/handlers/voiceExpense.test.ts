@@ -7,7 +7,7 @@ import { VoiceError } from "../voice/parser";
 const dataset = createEmptyDataset();
 const categories = dataset.categories
   .filter((c) => c.kind === "expense")
-  .map(({ id, name, isSystem }) => ({ id, name, isSystem }));
+  .map(({ id, name, defaultCategoryKey }) => ({ id, name, isFallback: defaultCategoryKey === "uncategorized" }));
 const audio = Buffer.from([
   0, 0, 0, 12, 102, 116, 121, 112, 77, 52, 65, 32,
 ]).toString("base64");
@@ -53,6 +53,9 @@ describe("voice handler", () => {
     { ...request, durationMs: 16001 },
     { ...request, localDate: "2026-02-30" },
     { ...request, categories: [categories[0], categories[0]] },
+    { ...request, categories: categories.map(category => ({ ...category, isFallback: false })) },
+    { ...request, categories: categories.map(category => ({ ...category, isFallback: true })) },
+    { ...request, categories: categories.map(({ isFallback, ...category }) => ({ ...category, isSystem: isFallback })) },
     { ...request, mimeType: "text/plain" },
   ])("validates boundaries before providers", async (body) => {
     const transcribe = vi.fn();

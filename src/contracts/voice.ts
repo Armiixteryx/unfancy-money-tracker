@@ -39,7 +39,8 @@ export const voiceRequestSchema = z
           .object({
             id: uuidSchema,
             name: z.string().trim().min(1).max(80),
-            isSystem: z.boolean(),
+            // Identifies expense Uncategorized, independent of local category protection.
+            isFallback: z.boolean(),
           })
           .strict(),
       )
@@ -51,7 +52,7 @@ export const voiceRequestSchema = z
     if (
       new Set(value.categories.map((c) => c.id)).size !==
         value.categories.length ||
-      value.categories.filter((c) => c.isSystem).length !== 1
+      value.categories.filter((c) => c.isFallback).length !== 1
     ) {
       ctx.addIssue({ code: "custom", message: "Invalid category choices" });
     }

@@ -24,9 +24,11 @@ Transaction dates are calendar dates in `YYYY-MM-DD` form with no time or timezo
 
 Transactions, budgets, and categories use UUID identifiers. Default categories are seeded with new UUIDs for each dataset; UUIDs are not stable across datasets and are not replaced with built-in slugs.
 
-Expense defaults are Food, Housing, Transport, Shopping, Utilities, Entertainment, Health, Education, and Subscriptions. Income has one default category, Income. Income and expense categories are separate and cannot be mixed.
+Expense system defaults are Food, Housing, Transport, Shopping, Utilities, Entertainment, Health, Education, and Subscriptions. Income has one system default, Income. Income and expense categories are separate and cannot be mixed. All built-ins are protected: they cannot be renamed, archived, or deleted. Custom categories retain those lifecycle actions.
 
-Every dataset also contains a protected `Uncategorized` system category. It cannot be archived or deleted. Deleting any other category reassigns its transactions and budgets to `Uncategorized`, then records a category deletion tombstone. The tombstone prevents the category from being silently reseeded after reload or sync.
+New datasets also contain separate protected `Uncategorized` system categories for income and expenses, for a total of 12 built-ins. A built-in carries `isSystem: true` and a stable `defaultCategoryKey`; the key identifies its meaning and bundled English/Spanish aliases, while the UUID remains its record identity. Protected categories stay active. Deleting a custom or legacy user-managed category reassigns its transactions and budgets to the matching-kind system category whose key is `uncategorized`, then records a category deletion tombstone. System protection alone does not identify a fallback. Deleted historical defaults are never silently reseeded.
+
+Schema 7 promotes existing keyed defaults to system categories and reactivates archived keyed defaults. This development-stage transition preserves IDs, names, timestamps, record references, preferences, and tombstones. Legacy protected Uncategorized categories receive their key when absent; names are never used to infer default provenance. Renamed and unidentifiable legacy categories remain user-managed. See ADR 0018 for localization and migration details.
 
 Category UUIDs are retained by transactions; transactions do not store a category-name snapshot. Renaming a category therefore updates its displayed name for historical transactions and reports. Archived categories cannot be selected for new transactions but remain visible on historical records and reports.
 
@@ -45,7 +47,7 @@ User preferences for base currency and theme are part of the account-synced stat
 ## Consequences
 
 - Money calculations are deterministic and auditable across platforms.
-- Default categories can be deleted without losing transaction or budget references.
+- Built-in categories remain available; custom and legacy user-managed categories can be deleted without losing transaction or budget references.
 - Per-dataset UUIDs make records safe to merge without assuming that built-in categories have globally stable identities.
 - Sync may temporarily show duplicate category names; preserving both records avoids destructive automatic merges.
 - Category, money, persistence, conversion, and sync behavior require boundary validation and focused tests.
@@ -56,7 +58,7 @@ User preferences for base currency and theme are part of the account-synced stat
 - Validate positive amounts, canonical decimal normalization, rejected exponent notation, rejected over-precision, and ISO currency precision.
 - Verify decimal arithmetic has no floating-point drift and conversion uses half-up rounding.
 - Verify UUID uniqueness within a dataset and independent UUID seeding across datasets.
-- Test category kind filtering, rename and archive behavior, protected `Uncategorized`, deletion reassignment, and persistent deletion tombstones.
+- Test category kind filtering, protection of every built-in, custom rename/archive/delete behavior, matching-kind Uncategorized reassignment, and persistent deletion tombstones.
 - Test duplicate same-name categories remain distinct during sync.
 - Test budget uniqueness, month boundaries, expense-only calculations, base-currency behavior, and overspending.
 - Test latest-rate conversion for dashboard and budget aggregates, transaction-date conversion for historical reports, prior-rate weekend/holiday fallback, stale cached rates, unavailable aggregates, same-currency conversion, and effective-date display.

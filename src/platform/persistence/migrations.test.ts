@@ -1,0 +1,93 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { createCategory } from "../../domain/categories";
+import { createTransaction } from "../../domain/transactions";
+import { createBudget } from "../../domain/budgets";
+import { createEmptyDataset, DatasetPersistence, hydrateDataset } from "./datasetPersistence";
+import { MemoryPersistenceAdapter } from "./memoryPersistenceAdapter";
+import { migrateSnapshot } from "./migrations";
+
+describe("schema 7 system categories", () => {
+  it("promotes keyed defaults and reactivates archived defaults without changing record identity or reseeding", async () => {
+    const original = createEmptyDataset();
+    const food = original.categories.find(category => category.defaultCategoryKey === "food")!;
+    const housing = original.categories.find(category => category.defaultCategoryKey === "housing")!;
+    const renamed = original.categories.find(category => category.defaultCategoryKey === "transport")!;
+    const legacy = createCategory({ kind: "expense", name: "Food" });
+    const custom = createCategory({ kind: "income", name: "Synthetic custom" });
+    const raw = {
+      ...original,
+      schemaVersion: 6,
+      preferences: { ...original.preferences, language: "es" },
+      categories: [
+        ...original.categories.filter(category => category.id !== housing.id).map(category => ({
+          ...category,
+          isSystem: category.defaultCategoryKey === "uncategorized",
+          defaultCategoryKey: category.id === renamed.id ? undefined : category.defaultCategoryKey,
+          name: category.id === renamed.id ? "Synthetic renamed" : category.name,
+          isArchived: category.id === food.id
+        })),
+        legacy,
+        custom
+      ],
+      transactions: [createTransaction({ type: "expense", categoryId: food.id, amount: "12.5", currency: "USD", description: "Synthetic migration record", date: "2026-10-03" }, { categories: original.categories })],
+      budgets: [createBudget({ categoryId: food.id, amount: "100", currency: "USD", month: "2026-10" }, { categories: original.categories })],
+      categoryDeletionTombstones: [{ recordType: "category" as const, recordId: housing.id, deletedAt: "2026-10-03T00:00:00.000Z" }]
+    };
+    const snapshot = JSON.stringify(raw);
+    const idFactory = vi.fn();
+    const migrated = migrateSnapshot(raw, idFactory);
+    expect(idFactory).not.toHaveBeenCalled();
+    expect(JSON.stringify(raw)).toBe(snapshot);
+    expect(migrated).toMatchObject({ schemaVersion: 7, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
+    expect(migrated.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt])).toEqual(raw.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt]));
+    expect(migrated.categories.find(category => category.id === food.id)).toMatchObject({ isSystem: true, isArchived: false, defaultCategoryKey: "food" });
+    expect(migrated.categories.filter(category => category.defaultCategoryKey).every(category => category.isSystem && !category.isArchived)).toBe(true);
+    expect(migrated.categories.find(category => category.id === renamed.id)).toMatchObject({ isSystem: false, name: "Synthetic renamed" });
+    expect(migrated.categories.find(category => category.id === legacy.id)).toEqual(legacy);
+    expect(migrated.categories.find(category => category.id === custom.id)).toEqual(custom);
+    expect(migrated.categories.some(category => category.id === housing.id)).toBe(false);
+    expect(migrateSnapshot(migrated)).toEqual(migrated);
+
+    const adapter = new MemoryPersistenceAdapter(snapshot);
+    const persistence = new DatasetPersistence(adapter);
+    expect(await persistence.hydrate()).toEqual({ status: "ready", dataset: migrated });
+    expect(adapter.migrationBackups).toEqual([snapshot]);
+    await persistence.save(migrated);
+    expect(await persistence.hydrate()).toEqual({ status: "ready", dataset: migrated });
+  });
+
+  it("recognizes schema 6 protected Uncategorized without a key", () => {
+    const original = createEmptyDataset();
+    const raw = { ...original, schemaVersion: 6, categories: original.categories.map(category => ({ ...category, isSystem: category.defaultCategoryKey === "uncategorized", defaultCategoryKey: undefined })) };
+    const migrated = migrateSnapshot(raw);
+    expect(migrated.categories.filter(category => category.isSystem)).toHaveLength(2);
+    expect(migrated.categories.filter(category => category.isSystem).every(category => category.defaultCategoryKey === "uncategorized")).toBe(true);
+    expect(migrated.categories.find(category => category.name === "Food")?.defaultCategoryKey).toBeUndefined();
+  });
+
+  it.each([
+    { defaultCategoryKey: undefined },
+    { defaultCategoryKey: "unknown" },
+    { defaultCategoryKey: "income" },
+    { isArchived: true },
+    { isSystem: false }
+  ])("quarantines inconsistent current system metadata: %j", async (changes) => {
+    const original = createEmptyDataset();
+    const raw = { ...original, categories: original.categories.map(category => category.defaultCategoryKey === "food" ? { ...category, ...changes } : category) };
+    const snapshot = JSON.stringify(raw);
+    const adapter = new MemoryPersistenceAdapter(snapshot);
+    expect((await hydrateDataset(adapter)).status).toBe("recovery");
+    expect(await adapter.readRecoverySnapshot()).toBe(snapshot);
+  });
+
+  it.each([{ isSystem: "false" }, { isArchived: "false" }])("retains malformed schema 6 flags for recovery: %j", async (changes) => {
+    const original = createEmptyDataset();
+    const raw = { ...original, schemaVersion: 6, categories: original.categories.map(category => category.defaultCategoryKey === "food" ? { ...category, ...changes } : category) };
+    const snapshot = JSON.stringify(raw);
+    const adapter = new MemoryPersistenceAdapter(snapshot);
+    expect((await hydrateDataset(adapter)).status).toBe("recovery");
+    expect(adapter.migrationBackups).toEqual([snapshot]);
+    expect(await adapter.readRecoverySnapshot()).toBe(snapshot);
+  });
+});

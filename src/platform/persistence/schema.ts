@@ -48,6 +48,17 @@ export const categorySchema = z.object({
   isArchived: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
+}).superRefine((category, context) => {
+  const key = category.defaultCategoryKey;
+  if (category.isSystem && (!key || category.isArchived)) {
+    context.addIssue({ code: "custom", message: "System categories must have a semantic key and remain active" });
+  }
+  if (key && (key === "income" ? category.kind !== "income" : key !== "uncategorized" && category.kind !== "expense")) {
+    context.addIssue({ code: "custom", path: ["defaultCategoryKey"], message: "Category key must match its kind" });
+  }
+  if (key && !category.isSystem) {
+    context.addIssue({ code: "custom", path: ["isSystem"], message: "Built-in categories must be protected" });
+  }
 });
 
 export const budgetSchema = z

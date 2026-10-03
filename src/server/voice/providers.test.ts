@@ -4,8 +4,8 @@ import { createEmptyDataset } from "../../platform/persistence/datasetPersistenc
 const dataset = createEmptyDataset();
 const categories = dataset.categories
   .filter((c) => c.kind === "expense")
-  .map(({ id, name, isSystem }) => ({ id, name, isSystem }));
-const fallback = categories.find((c) => c.isSystem)!;
+  .map(({ id, name, defaultCategoryKey }) => ({ id, name, isFallback: defaultCategoryKey === "uncategorized" }));
+const fallback = categories.find((c) => c.isFallback)!;
 const food = categories.find((c) => c.name === "Food")!;
 const request = {
   requestId: dataset.datasetId,
@@ -88,6 +88,14 @@ describe("Clef boundaries", () => {
         new AbortController().signal,
       ),
     ).rejects.toMatchObject({ code: "unsupported_currency" });
+  });
+  it("uses ordinary built-in labels as choices and marks only Uncategorized as the fallback", async () => {
+    mockAnswers();
+    await classifyExpense("Almuerzo cuarenta mil pesos", request, new AbortController().signal);
+    const criteria = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body)).questions.category.criteria;
+    expect(criteria[food.id]).toBe("Food");
+    expect(criteria[fallback.id]).toBe("Uncategorized: only if no other category matches");
+    expect(Object.values(criteria).filter(value => value === "Uncategorized: only if no other category matches")).toHaveLength(1);
   });
   it("uses only Uncategorized without sending an invalid single-choice category question", async () => {
     mockAnswers();

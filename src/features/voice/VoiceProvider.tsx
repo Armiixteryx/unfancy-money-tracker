@@ -185,7 +185,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         localDate: value.date,
         categories: dataset.categories
           .filter((c) => c.kind === "expense" && !c.isArchived)
-          .map(category => ({ id: category.id, name: categoryLabel(category), isSystem: category.isSystem })),
+          .map(category => ({ id: category.id, name: categoryLabel(category), isFallback: category.isSystem && category.defaultCategoryKey === "uncategorized" })),
       };
       const response = await mutateRef.current({
         request,

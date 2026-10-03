@@ -16,6 +16,7 @@ export type Category = {
   id: UUID;
   kind: CategoryKind;
   name: string;
+  // Stable built-in meaning; translated labels never replace the record UUID or stored name.
   defaultCategoryKey?: DefaultCategoryKey;
   isSystem: boolean;
   isArchived: boolean;

@@ -26,7 +26,7 @@ i18n.services.formatter?.add("number", (value: unknown) => typeof value === "num
 
 export function categoryLabel(category: Category | undefined): string {
   if (!category) return i18n.t($ => $.categories.uncategorized);
-  const key = category.isSystem ? "uncategorized" : category.defaultCategoryKey;
+  const key = category.defaultCategoryKey;
   return key ? i18n.t($ => $.categories[key]) : category.name;
 }
 

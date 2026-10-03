@@ -9,7 +9,8 @@ import { createEmptyDataset } from "../../platform/persistence/datasetPersistenc
 import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
 import { createTransaction } from "../../domain/transactions";
 import type { TransactionInput } from "../../domain/validation";
-import type { VoiceResponse } from "../../contracts/voice";
+import { voiceRequestSchema, type VoiceResponse } from "../../contracts/voice";
+import { createCategory } from "../../domain/categories";
 import { VoiceProvider, useVoice, localRecordingDate } from "./VoiceProvider";
 const mocks = vi.hoisted(() => ({
   permission: vi.fn(),
@@ -59,10 +60,12 @@ function Observer() {
   return null;
 }
 let tree: ReactTestRenderer;
-const dataset = createEmptyDataset();
+const baseDataset = createEmptyDataset();
+const custom = createCategory({ kind: "expense", name: "Synthetic voice custom" });
+const dataset = { ...baseDataset, categories: [...baseDataset.categories, custom] };
 const food = dataset.categories.find((c) => c.name === "Food")!;
 const fallback = dataset.categories.find(
-  (c) => c.kind === "expense" && c.isSystem,
+  (c) => c.kind === "expense" && c.defaultCategoryKey === "uncategorized",
 )!;
 const input: TransactionInput = {
   amount: "10",
@@ -143,8 +146,11 @@ describe("global voice lifecycle", () => {
     expect(controls.phase).toBe("recording");
     expect(mocks.start).toHaveBeenCalledOnce();
     await act(async () => { void controls.stop(); });
-    const request = mocks.request.mock.calls[0]![0] as { categories: { id: string; name: string }[] };
+    const request = voiceRequestSchema.parse(mocks.request.mock.calls[0]![0]);
     expect(request.categories.find(category => category.id === food.id)?.name).toBe("Comida");
+    expect(request.categories.filter(category => category.isFallback)).toEqual([{ id: fallback.id, name: "Sin categoría", isFallback: true }]);
+    expect(request.categories.find(category => category.id === custom.id)?.name).toBe(custom.name);
+    expect(request.categories.map(category => category.id)).toEqual(dataset.categories.filter(category => category.kind === "expense").map(category => category.id));
     await act(async () => { await i18n.changeLanguage("en"); });
     expect(controls.phase).toBe("processing");
     expect(mocks.request).toHaveBeenCalledOnce();
@@ -282,12 +288,12 @@ describe("global voice lifecycle", () => {
         dataset: {
           ...dataset,
           categories: dataset.categories.map((c) =>
-            c.id === food.id ? { ...c, isArchived: true } : c,
+            c.id === custom.id ? { ...c, isArchived: true } : c,
           ),
         },
       });
     });
-    await finishResponse();
+    await finishResponse({ ...input, categoryId: custom.id });
     expect(add.mock.calls[0]?.[0].categoryId).toBe(fallback.id);
     expect(controls.phase).toBe("save_failed");
     const retry = tree.root

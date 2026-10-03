@@ -15,7 +15,7 @@ describe("local dataset store", () => {
     const dataset = store.getState().dataset;
     expect(dataset).not.toBeNull();
 
-    const expenseCategory = dataset?.categories.find((category) => category.kind === "expense" && !category.isSystem);
+    const expenseCategory = dataset?.categories.find((category) => category.defaultCategoryKey === "food");
     expect(expenseCategory).toBeDefined();
     if (!expenseCategory) return;
 
@@ -68,8 +68,10 @@ describe("local dataset store", () => {
   it("persists budgets, preferences, and category reassignment locally", async () => {
     const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
     await store.getState().initialize();
-    const expenseCategory = store.getState().dataset?.categories.find((category) => category.kind === "expense" && !category.isSystem);
-    if (!expenseCategory) return;
+    const addedCategory = await store.getState().addCategory({ kind: "expense", name: "Synthetic custom" });
+    expect(addedCategory.ok).toBe(true);
+    if (!addedCategory.ok) throw new Error("Expected a custom category");
+    const expenseCategory = addedCategory.value;
 
     const budget = await store.getState().addBudget({ categoryId: expenseCategory.id, month: "2026-07", amount: "100", currency: "USD" });
     expect(budget.ok).toBe(true);
@@ -88,6 +90,52 @@ describe("local dataset store", () => {
     expect(store.getState().dataset?.categoryDeletionTombstones).toHaveLength(1);
 
   });
+  it("rejects every system category mutation without changing records or writing a snapshot", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const write = vi.spyOn(adapter, "writeSnapshot");
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const categories = store.getState().dataset!.categories;
+    for (const category of categories) {
+      expect((await store.getState().addTransaction({ amount: "10", type: category.kind, categoryId: category.id, description: "Synthetic protected record", date: "2026-07-11", currency: "USD" })).ok).toBe(true);
+      if (category.kind === "expense") expect((await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "100", currency: "USD" })).ok).toBe(true);
+    }
+    const before = store.getState().dataset;
+    const writeCount = write.mock.calls.length;
+    for (const category of categories) {
+      await expect(store.getState().renameCategory(category.id, "Synthetic rename")).resolves.toEqual({ ok: false, message: "protected_categories_cannot_be_renamed" });
+      await expect(store.getState().archiveCategory(category.id)).resolves.toEqual({ ok: false, message: "protected_categories_cannot_be_archived" });
+      await expect(store.getState().deleteCategory(category.id)).resolves.toEqual({ ok: false, message: "protected_categories_cannot_be_deleted" });
+      expect(store.getState().dataset).toBe(before);
+    }
+    expect(write).toHaveBeenCalledTimes(writeCount);
+    const rehydrated = await new DatasetPersistence(adapter).hydrate();
+    expect(rehydrated).toMatchObject({ status: "ready", dataset: before });
+  });
+
+  it.each(["income", "expense"] as const)("persists custom %s lifecycle and reassigns references to the matching fallback", async (kind) => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const added = await store.getState().addCategory({ kind, name: "Synthetic lifecycle" });
+    if (!added.ok) throw new Error("Expected custom category");
+    const id = added.value.id;
+    expect((await store.getState().addTransaction({ categoryId: id, type: kind, amount: "10", description: "Synthetic custom record", date: "2026-07-11", currency: "USD" })).ok).toBe(true);
+    if (kind === "expense") expect((await store.getState().addBudget({ categoryId: id, month: "2026-07", amount: "100", currency: "USD" })).ok).toBe(true);
+    expect((await store.getState().renameCategory(id, "Synthetic renamed")).ok).toBe(true);
+    expect((await store.getState().archiveCategory(id)).ok).toBe(true);
+    const removed = await store.getState().deleteCategory(id);
+    if (!removed.ok) throw new Error("Expected custom deletion");
+    expect(removed.value).toMatchObject({ kind, defaultCategoryKey: "uncategorized", isSystem: true });
+    const restarted = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await restarted.getState().initialize();
+    const dataset = restarted.getState().dataset!;
+    expect(dataset.categories.some(category => category.id === id)).toBe(false);
+    expect(dataset.transactions[0]?.categoryId).toBe(removed.value.id);
+    if (kind === "expense") expect(dataset.budgets[0]?.categoryId).toBe(removed.value.id);
+    expect(dataset.categoryDeletionTombstones).toEqual([{ recordType: "category", recordId: id, deletedAt: expect.any(String) }]);
+  });
+
   it("persists the theme preference without replacing system with a resolved value", async () => {
     const adapter = new MemoryPersistenceAdapter();
     const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);

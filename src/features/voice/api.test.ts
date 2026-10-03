@@ -10,7 +10,7 @@ const request = {
   localDate: "2026-10-02",
   categories: dataset.categories
     .filter((c) => c.kind === "expense")
-    .map(({ id, name, isSystem }) => ({ id, name, isSystem })),
+    .map(({ id, name, defaultCategoryKey }) => ({ id, name, isFallback: defaultCategoryKey === "uncategorized" })),
 };
 describe("voice request boundary", () => {
   afterEach(() => {

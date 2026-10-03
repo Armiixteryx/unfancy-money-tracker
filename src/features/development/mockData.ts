@@ -1,7 +1,7 @@
 import { archiveCategory, createCategory, findUncategorizedCategory } from "../../domain/categories";
 import { createBudget } from "../../domain/budgets";
 import { createTransaction } from "../../domain/transactions";
-import type { Budget, Category, CategoryDeletionTombstone, Dataset, Transaction, UUID } from "../../domain/types";
+import type { Budget, Category, CategoryDeletionTombstone, Dataset, DefaultCategoryKey, Transaction, UUID } from "../../domain/types";
 import { createEmptyDataset } from "../../platform/persistence";
 import { createUuid } from "../../platform/identifiers/createUuid";
 
@@ -25,9 +25,9 @@ function monthAtOffset(now: Date, offset: number): `${number}-${number}` {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}` as `${number}-${number}`;
 }
 
-function category(categories: readonly Category[], name: string): Category {
-  const found = categories.find((candidate) => candidate.name === name && !candidate.isSystem);
-  if (!found) throw new Error(`Mock fixture category is missing: ${name}`);
+function category(categories: readonly Category[], key: DefaultCategoryKey): Category {
+  const found = categories.find((candidate) => candidate.defaultCategoryKey === key);
+  if (!found) throw new Error(`Mock fixture category is missing: ${key}`);
   return found;
 }
 
@@ -47,12 +47,12 @@ export function createMockDataset(preset: MockDatasetPreset, existingDatasetId: 
     budgets.push(createBudget(input, { categories, idFactory, now: () => timestamp }));
   };
 
-  const income = category(categories, "Income");
-  const food = category(categories, "Food");
-  const housing = category(categories, "Housing");
-  const transport = category(categories, "Transport");
-  const utilities = category(categories, "Utilities");
-  const entertainment = category(categories, "Entertainment");
+  const income = category(categories, "income");
+  const food = category(categories, "food");
+  const housing = category(categories, "housing");
+  const transport = category(categories, "transport");
+  const utilities = category(categories, "utilities");
+  const entertainment = category(categories, "entertainment");
 
   addTransaction({ type: "income", amount: "4800", categoryId: income.id, description: "Sample monthly income", date: dateAtMonthOffset(now, 0, 1), currency: "USD" });
   addTransaction({ type: "expense", amount: "1200", categoryId: housing.id, description: "Sample rent", date: dateAtMonthOffset(now, 0, 2), currency: "USD" });

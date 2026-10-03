@@ -5,7 +5,7 @@ import i18next from "i18next";
 import { en, es } from "./catalogs";
 import { categoryLabel, i18n, resolveLanguage, translateMessage } from "./i18n";
 import { amountDraft, formatCalendarDate, formatMoney, formatMonth, regionForLocale, setRegion } from "./region";
-import { archiveCategory, renameCategory, seedDefaultCategories } from "../domain/categories";
+import { archiveCategory, createCategory, renameCategory, seedDefaultCategories } from "../domain/categories";
 import { createEmptyDataset, DatasetPersistence, hydrateDataset } from "../platform/persistence/datasetPersistence";
 import { MemoryPersistenceAdapter } from "../platform/persistence/memoryPersistenceAdapter";
 import { migrateSnapshot } from "../platform/persistence/migrations";
@@ -107,27 +107,33 @@ describe("regional amounts", () => {
   });
 });
 
-describe("category provenance and schema 6", () => {
+describe("category provenance and schema 7", () => {
   it("translates new defaults and protected categories while preserving names and IDs", async () => {
     const categories = seedDefaultCategories();
     const food = categories.find(c => c.defaultCategoryKey === "food")!;
     const before = JSON.stringify(categories);
+    for (const category of categories) expect(categoryLabel(category)).toBe(en.categories[category.defaultCategoryKey!]);
     await i18n.changeLanguage("es");
+    for (const category of categories) expect(categoryLabel(category)).toBe(es.categories[category.defaultCategoryKey!]);
     expect(categoryLabel(food)).toBe("Comida");
-    expect(categoryLabel({ ...food, defaultCategoryKey: undefined })).toBe("Food");
-    expect(categoryLabel(renameCategory(food, "Synthetic name"))).toBe("Synthetic name");
-    expect(categoryLabel(archiveCategory(food))).toBe("Comida");
+    expect(categoryLabel({ ...food, isSystem: false, defaultCategoryKey: undefined })).toBe("Food");
+    const custom = createCategory({ kind: "expense", name: "Comida" });
+    expect(categoryLabel(custom)).toBe("Comida");
+    expect(categoryLabel(renameCategory(custom, "Synthetic name"))).toBe("Synthetic name");
+    expect(categoryLabel(archiveCategory(custom))).toBe("Comida");
     expect(JSON.stringify(categories)).toBe(before);
-    const choices = categories.filter(c => c.kind === "expense" && !c.isArchived).map(c => ({ id: c.id, name: categoryLabel(c), isSystem: c.isSystem }));
+    const choices = categories.filter(c => c.kind === "expense" && !c.isArchived).map(c => ({ id: c.id, name: categoryLabel(c), isFallback: c.defaultCategoryKey === "uncategorized" }));
     expect(choices.find(c => c.id === food.id)?.name).toBe("Comida");
+    expect(choices.filter(c => c.isFallback)).toHaveLength(1);
+    expect(translateMessage("protected_categories_cannot_be_deleted")).toBe(es.failures.protected_categories_cannot_be_deleted);
   });
   it.each([0, 1, 2, 3, 4, 5])("migrates historical schema %s without inferring names or reseeding deleted defaults", async schemaVersion => {
     const original = createEmptyDataset();
     const category = original.categories.find(c => c.defaultCategoryKey === "food")!;
     const transaction = createTransaction({ amount: "12.5", currency: "USD", type: "expense", categoryId: category.id, description: "Synthetic", date: "2026-01-01" }, { categories: original.categories });
-    const raw = { ...original, schemaVersion, transactions: [transaction], categories: original.categories.filter(c => c.defaultCategoryKey !== "housing").map(({ defaultCategoryKey: _key, ...rest }) => rest), categoryDeletionTombstones: [{ recordType: "category", recordId: original.categories.find(c => c.defaultCategoryKey === "housing")!.id, deletedAt: new Date().toISOString() }] };
+    const raw = { ...original, schemaVersion, transactions: [transaction], categories: original.categories.filter(c => c.defaultCategoryKey !== "housing").map(({ defaultCategoryKey: key, ...rest }) => ({ ...rest, isSystem: key === "uncategorized" })), categoryDeletionTombstones: [{ recordType: "category", recordId: original.categories.find(c => c.defaultCategoryKey === "housing")!.id, deletedAt: new Date().toISOString() }] };
     const migrated = migrateSnapshot(raw);
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.preferences.language).toBe("system");
     expect(migrated.transactions).toEqual([transaction]);
     expect(migrated.categoryDeletionTombstones).toEqual(raw.categoryDeletionTombstones);
@@ -172,5 +178,7 @@ describe("category provenance and schema 6", () => {
     expect(restarted.getState().dataset?.preferences.language).toBe("es");
     await restarted.getState().resetLocalData();
     expect(restarted.getState().dataset?.preferences.language).toBe("system");
+    expect(restarted.getState().dataset?.categories).toHaveLength(12);
+    expect(restarted.getState().dataset?.categories.every(category => category.isSystem && !category.isArchived && category.defaultCategoryKey)).toBe(true);
   });
 });

@@ -15,7 +15,7 @@ The app is anonymous and local-only. Saved financial records stay in the local d
 | Target user | General individual tracking income, expenses, and monthly budgets |
 | Financial model | One consolidated view; no financial accounts or transfers |
 | Transaction fields | Positive amount, income/expense type, category, description, date, currency |
-| Categories | UUID-backed income and expense categories; defaults plus custom create, rename, archive, and delete |
+| Categories | UUID-backed income and expense categories; protected system defaults plus custom create, rename, archive, and delete |
 | Budgets | One expense-category budget per calendar month; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
 | Localization | Bundled English and neutral Latin American Spanish; System / English / Español selection, default System; device region independently controls money and date formatting |
@@ -39,7 +39,7 @@ The product should demonstrate thoughtful product, design, and engineering pract
 - View current-month income, expenses, remaining budget, recent transactions, and category spending.
 - Add, edit, delete, search, and filter income and expense transactions.
 - Hold to record one expense in Spanish or English, or use accessible start/stop controls; review the saved result and edit it immediately.
-- Use UUID-backed income and expense categories; create, rename, archive, or delete categories.
+- Use protected system income and expense categories; create, rename, archive, or delete custom categories.
 - Create monthly category budgets and monitor progress or overspending.
 - Review monthly trends and category breakdowns.
 - Change base currency, theme, and UI language, and inspect exchange-rate freshness.
@@ -118,8 +118,8 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 
 - Transaction amount must be positive. Required fields are type, amount, category, description, date, and currency.
 - Archived categories cannot be selected for new transactions, but remain visible on historic transactions and reports.
-- Default categories are seeded with new UUIDs per dataset. Income has one default Income category; expense defaults are Food, Housing, Transport, Shopping, Utilities, Entertainment, Health, Education, and Subscriptions.
-- Uncategorized is a protected system category. Deleting another category moves its transactions and budgets to Uncategorized and records a deletion tombstone; deleted defaults are not silently reseeded.
+- System categories are seeded with new UUIDs per dataset and cannot be renamed, archived, or deleted. Income has Income and Uncategorized; expenses have Food, Housing, Transport, Shopping, Utilities, Entertainment, Health, Education, Subscriptions, and Uncategorized.
+- Deleting a custom or legacy user-managed category moves its transactions and budgets to the matching income/expense Uncategorized category and records a deletion tombstone. Deleted defaults from older datasets are not silently reseeded.
 - Transactions retain the category UUID rather than a category-name snapshot, so renames update historical labels and reports.
 - Transaction amounts are canonical decimal strings, dates use `YYYY-MM-DD`, and converted aggregates use half-up rounding at the target currency’s ISO precision.
 - Income never consumes a category budget.
@@ -135,11 +135,11 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 
 English and neutral Latin American Spanish ship with the app and work offline. System selects the first supported preferred device language, with English fallback. Language switches immediately without restarting navigation, clearing form drafts, or restarting voice operations; the browser document language follows the UI. Device regional conventions control number, money, calendar-date, month, and timestamp display independently of UI language. Money displays explicit currency codes and preserves exact decimal precision.
 
-New default categories and protected Uncategorized labels translate at presentation boundaries. Existing non-system, custom, and renamed category names remain unchanged. Renaming a translated default clears its default-label metadata; archive retains it; deleted defaults remain deleted. Voice sends resolved active category names with the existing category IDs and remote-processing boundaries.
+System categories use stable semantic keys and the bundled English/Spanish labels as language aliases at presentation boundaries, while retaining their UUIDs and stored English names. Custom, renamed, and unidentifiable legacy names remain unchanged. Voice sends resolved active category names with the existing category IDs and marks only expense Uncategorized as the fallback, independently of system protection. No additional synonym lists or category-name search are included.
 
 Amount entry accepts ASCII and device-localized digits with the device decimal separator, without grouping separators. Grouped/mixed/wrong separators, exponent notation, nonpositive amounts, and excess currency precision produce translated errors with regional examples. A mounted form keeps its amount-entry region until it closes; UI language changes update labels and feedback immediately. Transaction dates and budget months retain ISO text entry with translated labels and instructions. Displayed date-only records cannot shift across timezones; timestamps follow device timezone. Gregorian financial periods and all calculations remain unchanged.
 
-Only the chosen language preference persists. Schema 6 migrates older datasets to System, keeps migration/recovery backups, and marks protected categories through `isSystem` without inferring category origin from names. A successful local reset returns language to System; unreadable-preference recovery uses device language. Language choice introduces no analytics events or properties. App-owned iOS microphone permission text is localized; OS-owned dialogs retain system language behavior. See ADR 0018 for implementation and translation maintenance.
+Only the chosen language preference persists. Schema 6 introduced System for older datasets. Schema 7 promotes existing defaults identified by semantic keys to protected, active system categories, including archived keyed defaults. Existing protected Uncategorized categories receive their semantic key if absent. Renamed and unidentifiable legacy categories remain user-managed; migration never infers provenance from names, reseeds deleted defaults, or discards records. UUIDs, references, preferences, tombstones, and migration/recovery backups are preserved. A successful local reset returns language to System; unreadable-preference recovery uses device language. Language choice introduces no analytics events or properties. App-owned iOS microphone permission text is localized; OS-owned dialogs retain system language behavior. See ADR 0018 for implementation and translation maintenance.
 
 ## Analytics and privacy
 

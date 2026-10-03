@@ -24,7 +24,7 @@ export const errorCodes = {
   "Select at least one desired currency.": "select_at_least_one_desired_currency",
   "The current base currency must remain selected.": "the_current_base_currency_must_remain_selected",
   "This category is no longer available.": "this_category_is_no_longer_available",
-  "Protected Uncategorized categories cannot be deleted.": "protected_uncategorized_categories_cannot_be_deleted",
+  "Protected categories cannot be deleted.": "protected_categories_cannot_be_deleted",
   "Use YYYY-MM-DD": "use_yyyy_mm_dd",
   "Use YYYY-MM": "use_yyyy_mm",
   "Description is required": "description_is_required",

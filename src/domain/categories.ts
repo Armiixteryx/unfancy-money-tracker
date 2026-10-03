@@ -3,17 +3,20 @@ import { categoryInputSchema, type CategoryInput } from "./validation";
 import type { Category, CategoryKind, DefaultCategoryKey, UUID } from "./types";
 import { createUuid } from "../platform/identifiers/createUuid";
 
-const DEFAULT_EXPENSE_NAMES = [
-  "Food",
-  "Housing",
-  "Transport",
-  "Shopping",
-  "Utilities",
-  "Entertainment",
-  "Health",
-  "Education",
-  "Subscriptions"
-] as const;
+const SYSTEM_CATEGORY_DEFINITIONS: readonly { name: string; kind: CategoryKind; key: DefaultCategoryKey }[] = [
+  { name: "Uncategorized", kind: "income", key: "uncategorized" },
+  { name: "Uncategorized", kind: "expense", key: "uncategorized" },
+  { name: "Income", kind: "income", key: "income" },
+  { name: "Food", kind: "expense", key: "food" },
+  { name: "Housing", kind: "expense", key: "housing" },
+  { name: "Transport", kind: "expense", key: "transport" },
+  { name: "Shopping", kind: "expense", key: "shopping" },
+  { name: "Utilities", kind: "expense", key: "utilities" },
+  { name: "Entertainment", kind: "expense", key: "entertainment" },
+  { name: "Health", kind: "expense", key: "health" },
+  { name: "Education", kind: "expense", key: "education" },
+  { name: "Subscriptions", kind: "expense", key: "subscriptions" }
+];
 
 type CategoryIdFactory = () => UUID;
 
@@ -21,19 +24,12 @@ export function seedDefaultCategories(
   idFactory: CategoryIdFactory = createUuid,
   now: string = new Date().toISOString()
 ): Category[] {
-  const definitions: readonly { name: string; kind: CategoryKind; isSystem: boolean }[] = [
-    { name: "Uncategorized", kind: "income", isSystem: true },
-    { name: "Uncategorized", kind: "expense", isSystem: true },
-    { name: "Income", kind: "income", isSystem: false },
-    ...DEFAULT_EXPENSE_NAMES.map((name) => ({ name, kind: "expense" as const, isSystem: false }))
-  ];
-
-  return definitions.map(({ name, kind, isSystem }) => ({
+  return SYSTEM_CATEGORY_DEFINITIONS.map(({ name, kind, key }) => ({
     id: idFactory(),
     kind,
     name,
-    isSystem,
-    defaultCategoryKey: name.toLowerCase() as DefaultCategoryKey,
+    isSystem: true,
+    defaultCategoryKey: key,
     isArchived: false,
     createdAt: now,
     updatedAt: now
@@ -41,7 +37,7 @@ export function seedDefaultCategories(
 }
 
 export function findUncategorizedCategory(categories: readonly Category[], kind: CategoryKind): Category {
-  const category = categories.find((candidate) => candidate.kind === kind && candidate.isSystem);
+  const category = categories.find((candidate) => candidate.kind === kind && candidate.isSystem && candidate.defaultCategoryKey === "uncategorized" && !candidate.isArchived);
   if (!category) {
     throw new DomainError(`Missing protected Uncategorized category for ${kind}`);
   }
@@ -67,8 +63,8 @@ export function createCategory(
 }
 
 export function renameCategory(category: Category, name: string, now = new Date().toISOString()): Category {
-  const parsed = categoryInputSchema.shape.name.parse(name);
   if (category.isSystem) throw new DomainError("Protected categories cannot be renamed");
+  const parsed = categoryInputSchema.shape.name.parse(name);
   return { ...category, defaultCategoryKey: undefined, name: parsed, updatedAt: now };
 }
 

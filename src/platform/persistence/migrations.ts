@@ -131,6 +131,22 @@ function migrateV4ToV5(input: UnknownRecord): UnknownRecord {
   return migrated;
 }
 
+function migrateV6ToV7(input: UnknownRecord): UnknownRecord {
+  const migrated = cloneRecord(input);
+  migrated.schemaVersion = 7;
+  if (Array.isArray(migrated.categories)) {
+    migrated.categories = migrated.categories.map((category) => {
+      if (!isRecord(category) || typeof category.isSystem !== "boolean" || typeof category.isArchived !== "boolean") return category;
+      // Schema 6 only protected Uncategorized; never infer other defaults from names.
+      const key = category.defaultCategoryKey === undefined && category.isSystem === true
+        ? "uncategorized"
+        : category.defaultCategoryKey;
+      return key === undefined ? category : { ...category, defaultCategoryKey: key, isSystem: true, isArchived: false };
+    });
+  }
+  return migrated;
+}
+
 export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid): Dataset {
   if (!isRecord(raw)) throw new Error("Snapshot is not an object");
   const version = typeof raw.schemaVersion === "number" ? raw.schemaVersion : 0;
@@ -149,6 +165,8 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
     if (isRecord(migrated.preferences)) migrated.preferences.language = "system";
     if (Array.isArray(migrated.categories)) migrated.categories = migrated.categories.map((category) => isRecord(category) && category.isSystem === true ? { ...category, defaultCategoryKey: "uncategorized" } : category);
   }
+
+  if (version <= 6) migrated = migrateV6ToV7(migrated);
 
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }
