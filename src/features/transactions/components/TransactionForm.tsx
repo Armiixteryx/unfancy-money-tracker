@@ -1,3 +1,11 @@
+import { normalizeAmountDraft } from "../../../localization/amountInput";
+import { errorToken, DomainError } from "../../../domain/errors";
+import { currencyPrecision } from "../../../domain/currency";
+import { translateMessage } from "../../../localization/i18n";
+import { amountDraft, getRegion } from "../../../localization/region";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { useEffect, useMemo, useState } from "react";
@@ -31,18 +39,25 @@ function today(): string {
 }
 
 export function TransactionForm({ categories, selectedCurrencies, baseCurrency, transaction, onSave, onCancel }: TransactionFormProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const [amountRegion] = useState(getRegion);
   const [formError, setFormError] = useState<string | null>(null);
   const currencies = useMemo(
     () => normalizeSelectedCurrencies(transaction ? [...selectedCurrencies, transaction.currency] : selectedCurrencies),
     [selectedCurrencies, transaction]
   );
   const { control, handleSubmit, setValue, watch, formState } = useForm<TransactionInput>({
-    resolver: zodResolver(transactionInputSchema),
+    resolver: async (values, context, options) => {
+      let amount: string;
+      try { amount = normalizeAmountDraft(values.amount, values.currency, amountRegion); }
+      catch (error) { return { values: {}, errors: { amount: { type: "validate", message: error instanceof DomainError ? errorToken(error) : "invalid_amount_draft" } } }; }
+      return zodResolver(transactionInputSchema)({ ...values, amount }, context, options);
+    },
     defaultValues: transaction
       ? {
-          amount: transaction.amount,
+          amount: amountDraft(transaction.amount, amountRegion),
           type: transaction.type,
           categoryId: transaction.categoryId,
           description: transaction.description,
@@ -86,12 +101,12 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
     <View style={styles.container}>
       <View style={styles.formHeader}>
         <View>
-          <Text style={styles.eyebrow}>{transaction ? "Update a local record" : "New local record"}</Text>
+          <Text style={styles.eyebrow}>{transaction ? i18n.t($ => $.ui.transactionsUpdateALocalRecord) : i18n.t($ => $.ui.transactionsNewLocalRecord)}</Text>
           <Text accessibilityRole="header" style={styles.title}>
-            {transaction ? "Edit transaction" : "Add transaction"}
+            {transaction ? i18n.t($ => $.ui.transactionsEditTransaction) : i18n.t($ => $.ui.transactionsAddTransaction)}
           </Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close transaction form" onPress={onCancel} style={styles.closeButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.transactionsCloseTransactionForm)} onPress={onCancel} style={styles.closeButton}>
           <Text style={styles.closeText}>×</Text>
         </Pressable>
       </View>
@@ -107,24 +122,24 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
               style={[styles.segment, type === option && (option === "expense" ? styles.expenseSelected : styles.incomeSelected)]}
             >
               <Text style={[styles.segmentText, type === option && styles.selectedSegmentText]}>
-                {option === "expense" ? "Expense" : "Income"}
+                {option === "expense" ? i18n.t($ => $.ui.transactionsExpense) : i18n.t($ => $.ui.dashboardIncome)}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <FieldLabel label="Amount" error={formState.errors.amount?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsAmount)} error={formState.errors.amount?.message === "invalid_amount_draft" ? `invalid_amount_draft:${amountDraft(currencyPrecision(watch("currency")) === 0 ? "12" : "12.5", amountRegion)}` : formState.errors.amount?.message}>
           <Controller
             control={control}
             name="amount"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
-                accessibilityLabel="Amount"
+                accessibilityLabel={i18n.t($ => $.ui.transactionsAmount)}
                 autoCorrect={false}
                 keyboardType="decimal-pad"
                 onBlur={onBlur}
                 onChangeText={onChange}
-                placeholder="0.00"
+                placeholder={amountDraft(currencyPrecision(watch("currency")) === 0 ? "0" : "0.00", amountRegion)}
                 placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={value}
@@ -133,7 +148,7 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
           />
         </FieldLabel>
 
-        <FieldLabel label="Category" error={formState.errors.categoryId?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsCategory)} error={formState.errors.categoryId?.message}>
           <View style={styles.chipGrid}>
             {activeCategories.map((category) => (
               <Pressable
@@ -144,24 +159,24 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
                 style={[styles.categoryChip, selectedCategoryId === category.id && styles.selectedChip]}
               >
                 <Text style={[styles.categoryChipText, selectedCategoryId === category.id && styles.selectedChipText]}>
-                  {category.name}
+                  {categoryLabel(category)}
                 </Text>
               </Pressable>
             ))}
           </View>
-          {activeCategories.length === 0 ? <Text style={styles.helper}>Create an active category in Settings first.</Text> : null}
+          {activeCategories.length === 0 ? <Text style={styles.helper}>{i18n.t($ => $.ui.transactionsCreateAnActiveCategoryInSettingsFirst)}</Text> : null}
         </FieldLabel>
 
-        <FieldLabel label="Description" error={formState.errors.description?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsDescription)} error={formState.errors.description?.message}>
           <Controller
             control={control}
             name="description"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
-                accessibilityLabel="Description"
+                accessibilityLabel={i18n.t($ => $.ui.transactionsDescription)}
                 onBlur={onBlur}
                 onChangeText={onChange}
-                placeholder="What was this for?"
+                placeholder={i18n.t($ => $.ui.transactionsWhatWasThisFor)}
                 placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={value}
@@ -170,13 +185,13 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
           />
         </FieldLabel>
 
-        <FieldLabel label="Date" error={formState.errors.date?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsDate)} error={formState.errors.date?.message}>
           <Controller
             control={control}
             name="date"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
-                accessibilityLabel="Date in YYYY-MM-DD format"
+                accessibilityLabel={i18n.t($ => $.ui.transactionsDateInYyyyMmDdFormat)}
                 autoCorrect={false}
                 onBlur={onBlur}
                 onChangeText={onChange}
@@ -189,7 +204,7 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
           />
         </FieldLabel>
 
-        <FieldLabel label="Currency" error={formState.errors.currency?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsCurrency)} error={formState.errors.currency?.message}>
           <Controller
             control={control}
             name="currency"
@@ -213,12 +228,12 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
           />
         </FieldLabel>
 
-        {formError ? <Text accessibilityRole="alert" style={styles.formError}>{formError}</Text> : null}
+        {formError ? <Text accessibilityRole="alert" style={styles.formError}>{translateMessage(formError, true)}</Text> : null}
         <Pressable accessibilityRole="button" disabled={formState.isSubmitting} onPress={() => void submit()} style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>{formState.isSubmitting ? "Saving…" : "Save transaction"}</Text>
+          <Text style={styles.saveButtonText}>{formState.isSubmitting ? i18n.t($ => $.ui.transactionsSaving) : i18n.t($ => $.ui.transactionsSaveTransaction)}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancelButton}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={styles.cancelButtonText}>{i18n.t($ => $.ui.commonCancel)}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -226,12 +241,13 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
 }
 
 function FieldLabel({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       {children}
-      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+      {error ? <Text style={styles.fieldError}>{translateMessage(error, true)}</Text> : null}
     </View>
   );
 }

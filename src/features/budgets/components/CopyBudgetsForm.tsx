@@ -1,7 +1,11 @@
+import { formatMonth as formatMonthLabel } from "../../../localization/region";
+import { translateMessage } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { formatMonthLabel, shiftCalendarMonth } from "../../../domain";
+import { shiftCalendarMonth } from "../../../domain";
 import type { Budget, CalendarMonth, Category } from "../../../domain/types";
 import type { CopyBudgetsResult, MutationResult } from "../../local-data/store/useLocalDatasetStore";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
@@ -16,6 +20,7 @@ export type CopyBudgetsFormProps = {
 };
 
 export function CopyBudgetsForm({ budgets, categories, targetMonth, initialSourceMonth, onCopy, onCancel }: CopyBudgetsFormProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const [sourceMonth, setSourceMonth] = useState<CalendarMonth>(initialSourceMonth);
   const [formError, setFormError] = useState<string | null>(null);
@@ -43,43 +48,43 @@ export function CopyBudgetsForm({ budgets, categories, targetMonth, initialSourc
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>Reuse a monthly plan</Text>
-          <Text accessibilityRole="header" style={styles.title}>Copy budgets</Text>
+          <Text style={styles.eyebrow}>{i18n.t($ => $.ui.budgetsReuseAMonthlyPlan)}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{i18n.t($ => $.ui.budgetsCopyBudgets)}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close copy budgets form" onPress={onCancel} style={styles.closeButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCloseCopyBudgetsForm)} onPress={onCancel} style={styles.closeButton}>
           <Text style={styles.closeText}>×</Text>
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.fields} keyboardShouldPersistTaps="handled">
         <View style={styles.field}>
-          <Text style={styles.label}>Copy from</Text>
+          <Text style={styles.label}>{i18n.t($ => $.ui.budgetsCopyFrom)}</Text>
           <View style={styles.monthControl}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Previous source month" accessibilityState={{ disabled: sourceMonth === "0000-01" }} disabled={sourceMonth === "0000-01"} onPress={() => setSourceMonth((value) => shiftCalendarMonth(value, -1))} style={styles.monthButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsPreviousSourceMonth)} accessibilityState={{ disabled: sourceMonth === "0000-01" }} disabled={sourceMonth === "0000-01"} onPress={() => setSourceMonth((value) => shiftCalendarMonth(value, -1))} style={styles.monthButton}>
               <Text style={styles.monthButtonText}>‹</Text>
             </Pressable>
             <Text accessibilityRole="text" style={styles.monthLabel}>{formatMonthLabel(sourceMonth)}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Next source month" onPress={() => setSourceMonth((value) => shiftCalendarMonth(value, 1))} style={styles.monthButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsNextSourceMonth)} onPress={() => setSourceMonth((value) => shiftCalendarMonth(value, 1))} style={styles.monthButton}>
               <Text style={styles.monthButtonText}>›</Text>
             </Pressable>
           </View>
-          <Text style={styles.helper}>Budgets will be added to {formatMonthLabel(targetMonth)}.</Text>
+          <Text style={styles.helper}>{i18n.t($ => $.ui.budgetsBudgetsWillBeAddedTo)} {formatMonthLabel(targetMonth)}.</Text>
         </View>
 
         <View accessibilityLiveRegion="polite" style={styles.preview}>
-          <Text style={styles.previewTitle}>Preview</Text>
-          <Text style={styles.previewText}>{sourceBudgets.length} {sourceBudgets.length === 1 ? "budget" : "budgets"} in {formatMonthLabel(sourceMonth)}</Text>
-          <Text style={styles.previewText}>{eligibleCount} eligible to copy</Text>
-          <Text style={styles.previewText}>{skippedCount} skipped because the category already exists or is unavailable</Text>
-          {sourceMonth === targetMonth ? <Text accessibilityRole="alert" style={styles.warning}>Choose a different source month.</Text> : null}
-          {sourceBudgets.length === 0 ? <Text style={styles.helper}>There are no budgets in this source month.</Text> : null}
-          {sourceBudgets.length > 0 && eligibleCount === 0 && sourceMonth !== targetMonth ? <Text style={styles.helper}>Nothing can be copied into this month.</Text> : null}
+          <Text style={styles.previewTitle}>{i18n.t($ => $.ui.budgetsPreview)}</Text>
+          <Text style={styles.previewText}>{i18n.t($ => $.notices.budgetPreview, { count: sourceBudgets.length, month: formatMonthLabel(sourceMonth) })}</Text>
+          <Text style={styles.previewText}>{eligibleCount} {i18n.t($ => $.ui.budgetsEligibleToCopy)}</Text>
+          <Text style={styles.previewText}>{skippedCount} {i18n.t($ => $.ui.budgetsSkippedBecauseTheCategoryAlreadyExistsOr)}</Text>
+          {sourceMonth === targetMonth ? <Text accessibilityRole="alert" style={styles.warning}>{i18n.t($ => $.ui.budgetsChooseADifferentSourceMonth)}</Text> : null}
+          {sourceBudgets.length === 0 ? <Text style={styles.helper}>{i18n.t($ => $.ui.budgetsThereAreNoBudgetsInThisSource)}</Text> : null}
+          {sourceBudgets.length > 0 && eligibleCount === 0 && sourceMonth !== targetMonth ? <Text style={styles.helper}>{i18n.t($ => $.ui.budgetsNothingCanBeCopiedIntoThisMonth)}</Text> : null}
         </View>
 
-        {formError ? <Text accessibilityRole="alert" style={styles.error}>{formError}</Text> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="Copy eligible budgets" accessibilityState={{ disabled }} disabled={disabled} onPress={() => void submit()} style={[styles.copyButton, disabled && styles.disabledButton]}>
-          <Text style={styles.copyText}>Copy eligible budgets</Text>
+        {formError ? <Text accessibilityRole="alert" style={styles.error}>{translateMessage(formError, true)}</Text> : null}
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCopyEligibleBudgets)} accessibilityState={{ disabled }} disabled={disabled} onPress={() => void submit()} style={[styles.copyButton, disabled && styles.disabledButton]}>
+          <Text style={styles.copyText}>{i18n.t($ => $.ui.budgetsCopyEligibleBudgets)}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Cancel copying budgets" onPress={onCancel} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCancelCopyingBudgets)} onPress={onCancel} style={styles.cancelButton}><Text style={styles.cancelText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable>
       </ScrollView>
     </View>
   );

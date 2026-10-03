@@ -1,3 +1,7 @@
+import { formatCalendarDate } from "../../../localization/region";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { formatMoneyForDisplay } from "../../../domain/money";
@@ -23,39 +27,40 @@ export function TransactionRow({
   onCancelDelete,
   onConfirmDelete
 }: TransactionRowProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const isIncome = transaction.type === "income";
   return (
     <View style={styles.row}>
       <View style={styles.rowContent}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${transaction.description}`} onPress={onPress} style={styles.main}>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.editRecord, { description: transaction.description })} onPress={onPress} style={styles.main}>
           <View style={[styles.icon, isIncome ? styles.incomeIcon : styles.expenseIcon]}>
             <Text style={styles.iconText}>{isIncome ? "+" : "−"}</Text>
           </View>
           <View style={styles.copy}>
             <Text numberOfLines={1} style={styles.description}>{transaction.description}</Text>
-            <Text style={styles.meta}>{category?.name ?? "Archived category"} · {transaction.date}</Text>
+            <Text style={styles.meta}>{categoryLabel(category)} · {formatCalendarDate(transaction.date)}</Text>
           </View>
           <Text style={[styles.amount, isIncome ? styles.incomeAmount : styles.expenseAmount]}>
             {isIncome ? "+" : "−"}{formatMoneyForDisplay({ amount: transaction.amount, currency: transaction.currency })}
           </Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${transaction.description}`} onPress={onDelete} style={styles.deleteButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.deleteRecord, { description: transaction.description })} onPress={onDelete} style={styles.deleteButton}>
           <Text style={styles.deleteText}>×</Text>
         </Pressable>
       </View>
       {isDeletePending ? (
         <View style={styles.confirmation}>
           <View style={styles.confirmationCopy}>
-            <Text style={styles.confirmationTitle}>Delete this transaction?</Text>
-            <Text style={styles.confirmationText}>This removes it from the local list. You can’t undo this action here.</Text>
+            <Text style={styles.confirmationTitle}>{i18n.t($ => $.ui.transactionsDeleteThisTransaction)}</Text>
+            <Text style={styles.confirmationText}>{i18n.t($ => $.ui.transactionsThisRemovesItFromTheLocalList)}</Text>
           </View>
           <View style={styles.confirmationActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Cancel deleting ${transaction.description}`} onPress={onCancelDelete} style={styles.cancelSmallButton}>
-              <Text style={styles.cancelSmallText}>Cancel</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.cancelDeleteRecord, { description: transaction.description })} onPress={onCancelDelete} style={styles.cancelSmallButton}>
+              <Text style={styles.cancelSmallText}>{i18n.t($ => $.ui.commonCancel)}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Confirm deletion of ${transaction.description}`} onPress={onConfirmDelete} style={styles.deleteConfirmButton}>
-              <Text style={styles.deleteConfirmText}>Delete</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.confirmDeleteRecord, { description: transaction.description })} onPress={onConfirmDelete} style={styles.deleteConfirmButton}>
+              <Text style={styles.deleteConfirmText}>{i18n.t($ => $.ui.settingsDelete)}</Text>
             </Pressable>
           </View>
         </View>

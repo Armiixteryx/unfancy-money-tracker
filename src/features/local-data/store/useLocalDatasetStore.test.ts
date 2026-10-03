@@ -1,3 +1,4 @@
+import { errorCode } from "../../../domain/errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DatasetPersistence, MemoryPersistenceAdapter } from "../../../platform/persistence";
@@ -61,7 +62,7 @@ describe("local dataset store", () => {
       currency: "USD"
     });
 
-    expect(result).toEqual({ ok: false, message: "Category type must match transaction type" });
+    expect(result).toEqual({ ok: false, message: errorCode("Category type must match transaction type") });
   });
 
   it("persists budgets, preferences, and category reassignment locally", async () => {
@@ -76,9 +77,9 @@ describe("local dataset store", () => {
     expect(preference.ok).toBe(true);
     expect(store.getState().dataset?.preferences.selectedCurrencies).toEqual(["USD", "EUR"]);
     const removedBase = await store.getState().setPreferences({ selectedCurrencies: ["USD"] });
-    expect(removedBase).toEqual({ ok: false, message: "The current base currency must remain selected." });
+    expect(removedBase).toEqual({ ok: false, message: errorCode("The current base currency must remain selected.") });
     const removedLast = await store.getState().setPreferences({ selectedCurrencies: [] });
-    expect(removedLast).toEqual({ ok: false, message: "Select at least one desired currency." });
+    expect(removedLast).toEqual({ ok: false, message: errorCode("Select at least one desired currency.") });
     const deleted = await store.getState().deleteCategory(expenseCategory.id);
     expect(deleted.ok).toBe(true);
     expect(store.getState().dataset?.categories.some((category) => category.id === expenseCategory.id)).toBe(false);
@@ -125,7 +126,7 @@ describe("local dataset store", () => {
 
     await expect(store.getState().replaceWithMockData("dashboard")).resolves.toEqual({
       ok: false,
-      message: "Mock data is available only in the local development environment."
+      message: errorCode("Mock data is available only in the local development environment.")
     });
   });
 
@@ -216,10 +217,10 @@ describe("local dataset store", () => {
       }
     });
 
-    await expect(store.getState().copyBudgets("2026-07", "2026-07")).resolves.toEqual({ ok: false, message: "Source and target months must be different." });
-    await expect(store.getState().copyBudgets("2026-08", "2026-09")).resolves.toEqual({ ok: false, message: "No budgets found in the source month." });
-    await expect(store.getState().copyBudgets("invalid", "2026-09")).resolves.toEqual({ ok: false, message: "Choose valid calendar months to copy budgets." });
-    await expect(store.getState().copyBudgets("2026-07", "2026-09")).resolves.toEqual({ ok: false, message: "No budgets are available to copy." });
+    await expect(store.getState().copyBudgets("2026-07", "2026-07")).resolves.toEqual({ ok: false, message: errorCode("Source and target months must be different.") });
+    await expect(store.getState().copyBudgets("2026-08", "2026-09")).resolves.toEqual({ ok: false, message: errorCode("No budgets found in the source month.") });
+    await expect(store.getState().copyBudgets("invalid", "2026-09")).resolves.toEqual({ ok: false, message: errorCode("Choose valid calendar months to copy budgets.") });
+    await expect(store.getState().copyBudgets("2026-07", "2026-09")).resolves.toEqual({ ok: false, message: errorCode("No budgets are available to copy.") });
     expect(store.getState().dataset?.budgets.filter((budget) => budget.month === "2026-09")).toHaveLength(0);
   });
 
@@ -240,9 +241,9 @@ describe("local dataset store", () => {
     const writesBeforeCopy = adapter.writes;
 
     const result = await store.getState().copyBudgets("2026-07", "2026-08");
-    expect(result).toEqual({ ok: false, message: "Budgets could not be saved locally. Retry to save your changes." });
+    expect(result).toEqual({ ok: false, message: errorCode("Budgets could not be saved locally. Retry to save your changes.") });
     expect(adapter.writes).toBe(writesBeforeCopy + 1);
-    expect(store.getState().saveError).toBe("Local save failed. Your change is still visible; retry to save it.");
+    expect(store.getState().saveError).toBe(errorCode("Local save failed. Your change is still visible; retry to save it."));
   });
 });
 

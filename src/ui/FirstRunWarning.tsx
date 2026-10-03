@@ -1,3 +1,5 @@
+import { i18n } from "../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -5,6 +7,7 @@ import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatas
 import { useAppTheme, useThemedStyles, type ThemeColors } from "./theme";
 
 export function FirstRunWarning() {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const dataset = useLocalDatasetStore((state) => state.dataset);
@@ -15,8 +18,8 @@ export function FirstRunWarning() {
   return (
     <View accessibilityRole="alert" style={styles.banner}>
       <Ionicons accessibilityElementsHidden color={colors.warning} name="warning-outline" size={22} />
-      <Text style={styles.message}>This is not a serious application. Do not use it to store real financial data.</Text>
-      <Pressable accessibilityLabel="Dismiss application warning" accessibilityRole="button" hitSlop={8} onPress={() => void setPreferences({ firstRunNoticeDismissed: true })} style={styles.dismiss}>
+      <Text style={styles.message}>{i18n.t($ => $.ui.commonThisIsNotASeriousApplicationDo)}</Text>
+      <Pressable accessibilityLabel={i18n.t($ => $.ui.commonDismissApplicationWarning)} accessibilityRole="button" hitSlop={8} onPress={() => void setPreferences({ firstRunNoticeDismissed: true })} style={styles.dismiss}>
         <Ionicons color={colors.text} name="close" size={20} />
       </Pressable>
     </View>

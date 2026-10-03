@@ -1,3 +1,5 @@
+import { DomainError, type ErrorParameters } from "./errors";
+import { formatMoney } from "../localization/region";
 import Decimal from "decimal.js";
 
 import { currencyPrecision, type CurrencyCode } from "./currency";
@@ -7,9 +9,9 @@ export type Money = {
   currency: CurrencyCode;
 };
 
-export class MoneyValidationError extends Error {
-  constructor(message: string) {
-    super(message);
+export class MoneyValidationError extends DomainError {
+  constructor(message: string, parameters: ErrorParameters = {}) {
+    super(message, parameters);
     this.name = "MoneyValidationError";
   }
 }
@@ -75,7 +77,7 @@ export function normalizeMoneyAmount(
     throw new MoneyValidationError("Amount must be greater than zero");
   }
   if (decimal.decimalPlaces() > currencyPrecision(currency)) {
-    throw new MoneyValidationError(`${currency} supports at most ${currencyPrecision(currency)} decimal places`);
+    throw new MoneyValidationError(`${currency} supports at most ${currencyPrecision(currency)} decimal places`, { currency, count: currencyPrecision(currency) });
   }
 
   return toCanonical(decimal, currency);
@@ -128,25 +130,6 @@ export function sumMoney(values: readonly Money[], currency: CurrencyCode): Mone
   return values.reduce<Money>((total, value) => addMoney(total, value), createMoney("0", currency));
 }
 
-const CURRENCY_SYMBOLS: Partial<Record<CurrencyCode, string>> = {
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  JPY: "¥",
-  CAD: "CA$",
-  AUD: "A$",
-  CHF: "CHF",
-  CNY: "CN¥",
-  BRL: "R$",
-  MXN: "MX$",
-  COP: "COP$",
-  CLP: "CLP$",
-  PEN: "S/",
-  ARS: "ARS$",
-  UYU: "UYU$",
-  VES: "Bs."
-};
-
 export function formatMoneyForDisplay(money: Money): string {
-  return `${CURRENCY_SYMBOLS[money.currency] ?? money.currency} ${money.amount}`;
+  return formatMoney(money);
 }

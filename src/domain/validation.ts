@@ -1,3 +1,4 @@
+import { DomainError, errorToken } from "./errors";
 import { z } from "zod";
 
 import { currencyCodeSchema } from "./currency";
@@ -29,7 +30,7 @@ export const transactionInputSchema = baseTransactionInputSchema.superRefine((in
     context.addIssue({
       code: "custom",
       path: ["amount"],
-      message: error instanceof Error ? error.message : "Enter a valid positive amount"
+      message: errorToken(error)
     });
   }
 
@@ -54,7 +55,7 @@ export const budgetInputSchema = z
       context.addIssue({
         code: "custom",
         path: ["amount"],
-        message: error instanceof Error ? error.message : "Enter a valid positive budget"
+        message: errorToken(error)
       });
     }
   });
@@ -70,6 +71,6 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>;
 
 export function assertCategoryMatchesTransaction(categoryKind: CategoryKind, transactionType: TransactionType): void {
   if (categoryKind !== transactionType) {
-    throw new Error("Category type must match transaction type");
+    throw new DomainError("Category type must match transaction type");
   }
 }

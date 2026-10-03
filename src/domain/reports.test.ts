@@ -27,7 +27,6 @@ describe("reports", () => {
     const point = monthlyReport([baseTransaction], "2026-07", 1)[0];
     expect(point).toBeDefined();
     if (!point) return;
-    expect(reportObservation(point)).toContain("1 transaction recorded");
-    expect(reportObservation(point)).not.toContain("should");
+    expect(reportObservation(point)).toEqual({ transactionCount: 1, currencies: ["USD"] });
   });
 });

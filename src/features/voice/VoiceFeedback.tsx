@@ -1,3 +1,6 @@
+import { translateMessage } from "../../localization/i18n";
+import { i18n } from "../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Platform,
@@ -36,6 +39,7 @@ export function VoiceFeedback({
   onRetrySave,
   onManual,
 }: VoiceFeedbackProps) {
+  useTranslation();
   const { colors } = useAppTheme();
   const button = (label: string, onPress: () => void) => (
     <Pressable
@@ -48,14 +52,14 @@ export function VoiceFeedback({
   );
   const status =
     phase === "recording"
-      ? "Recording · release to submit · 15 second limit"
+      ? i18n.t($ => $.ui.voiceRecordingReleaseToSubmit15SecondLimit)
       : phase === "permission"
-        ? "Waiting for microphone permission"
+        ? i18n.t($ => $.ui.voiceWaitingForMicrophonePermission)
         : phase === "starting"
-          ? "Starting microphone…"
+          ? i18n.t($ => $.ui.voiceStartingMicrophone)
           : phase === "saving"
-            ? "Saving locally…"
-            : "Processing expense…";
+            ? i18n.t($ => $.ui.voiceSavingLocally)
+            : i18n.t($ => $.ui.voiceProcessingExpense);
   return (
     <View
       className="ph-no-capture"
@@ -75,7 +79,7 @@ export function VoiceFeedback({
           durationMs={8000}
           message={saved.message}
           onDismiss={onDismissSaved}
-          actionLabel="Edit"
+          actionLabel={i18n.t($ => $.ui.budgetsEdit)}
           onAction={() => onEdit(saved.id)}
         />
       ) : null}
@@ -94,28 +98,28 @@ export function VoiceFeedback({
             <ActivityIndicator
               accessibilityLabel={
                 phase === "saving"
-                  ? "Saving expense locally"
-                  : "Processing voice expense"
+                  ? i18n.t($ => $.ui.voiceSavingExpenseLocally)
+                  : i18n.t($ => $.ui.voiceProcessingVoiceExpense)
               }
               color={colors.primary}
             />
           ) : null}
           <Text style={{ color: colors.text, flexShrink: 1 }}>
-            {message ?? status}
+            {message ? translateMessage(message, true) : status}
           </Text>
           <View style={styles.actions}>
-            {phase === "save_failed" ? button("Retry save", onRetrySave) : null}
-            {phase === "recording" ? button("Stop and submit", onStop) : null}
+            {phase === "save_failed" ? button(i18n.t($ => $.ui.voiceRetrySave), onRetrySave) : null}
+            {phase === "recording" ? button(i18n.t($ => $.ui.voiceStopAndSubmit), onStop) : null}
             {phase === "saving"
               ? null
               : phase !== "idle"
-                ? button(phase === "save_failed" ? "Close" : "Cancel", onCancel)
-                : button("Dismiss", onDismissMessage)}
+                ? button(phase === "save_failed" ? i18n.t($ => $.ui.voiceClose) : i18n.t($ => $.ui.commonCancel), onCancel)
+                : button(i18n.t($ => $.ui.voiceDismiss), onDismissMessage)}
             {message && phase !== "saving"
-              ? button("Enter manually", onManual)
+              ? button(i18n.t($ => $.ui.voiceEnterManually), onManual)
               : null}
             {message && phase === "idle"
-              ? button("Record again", onStart)
+              ? button(i18n.t($ => $.ui.voiceRecordAgain), onStart)
               : null}
           </View>
         </View>

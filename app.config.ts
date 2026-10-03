@@ -28,7 +28,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       bundler: "metro",
       output: "static"
     },
+    locales: { en: "./src/localization/native/en.json", es: "./src/localization/native/es.json" },
     plugins: [
+      "./plugins/with-ios-scene.cjs",
+      ["expo-localization", { supportedLocales: ["en", "es"] }],
       "expo-router",
       ["expo-audio", { microphonePermission: "Allow Unfancy Money Tracker to record an expense for remote voice processing.", enableAndroidRecording: true }]
     ]

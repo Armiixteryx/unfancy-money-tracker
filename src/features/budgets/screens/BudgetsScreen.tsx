@@ -1,7 +1,13 @@
+import { formatMonth as formatMonthLabel } from "../../../localization/region";
+import type { Message } from "../../../localization/notices";
+import { translateMessage } from "../../../localization/i18n";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
-import { calculateBudgetProgress, formatMonthLabel, shiftCalendarMonth, type BudgetProgress } from "../../../domain";
+import { calculateBudgetProgress, shiftCalendarMonth, type BudgetProgress } from "../../../domain";
 import type { BudgetInput } from "../../../domain/validation";
 import { currentCalendarMonth } from "../../../domain/aggregates";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
@@ -14,6 +20,7 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | { mode: "copy" } | null;
 
 export function BudgetsScreen() {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   const dataset = useLocalDatasetStore((state) => state.dataset);
@@ -26,14 +33,14 @@ export function BudgetsScreen() {
   const [month, setMonth] = useState(currentCalendarMonth());
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<Message | null>(null);
   const isBrowserWorkspace = width >= 900;
 
   const progress = useMemo<BudgetProgress[]>(() => {
     if (!dataset) return [];
     return dataset.budgets
       .filter((budget) => budget.month === month)
-      .map((budget) => calculateBudgetProgress(budget, dataset.transactions, dataset.categories.find((category) => category.id === budget.categoryId)?.name))
+      .map((budget) => calculateBudgetProgress(budget, dataset.transactions, categoryLabel(dataset.categories.find((category) => category.id === budget.categoryId))))
       .sort((left, right) => right.percentUsed - left.percentUsed);
   }, [dataset, month]);
 
@@ -44,14 +51,14 @@ export function BudgetsScreen() {
     const result = selectedBudget ? await editBudget(selectedBudget.id, input) : await addBudget(input);
     if (!result.ok) return result;
     if (!selectedBudget) void analytics.capture("budget_created", { surface: "budgets", actionResult: "success" });
-    setMessage(selectedBudget ? "Budget updated locally." : "Budget created locally.");
+    setMessage(selectedBudget ? i18n.t($ => $.ui.budgetsBudgetUpdatedLocally) : i18n.t($ => $.ui.budgetsBudgetCreatedLocally));
     return { ok: true };
   };
   const onCopy = async (sourceMonth: `${number}-${number}`, targetMonth: `${number}-${number}`): Promise<MutationResult<CopyBudgetsResult>> => {
     const result = await copyBudgets(sourceMonth, targetMonth);
     if (!result.ok) return result;
     setFormState(null);
-    setMessage(`Copied ${result.value.created.length} ${result.value.created.length === 1 ? "budget" : "budgets"} from ${formatMonthLabel(sourceMonth)}; skipped ${result.value.skipped} existing or unavailable categories.`);
+    setMessage({ code: "budgetsCopied", count: result.value.created.length, month: sourceMonth, skipped: result.value.skipped });
     void analytics.capture("budget_created", { surface: "budgets", actionResult: "success" });
     return result;
   };
@@ -59,32 +66,32 @@ export function BudgetsScreen() {
     if (!pendingDeleteId) return;
     const result = await deleteBudget(pendingDeleteId);
     setPendingDeleteId(null);
-    setMessage(result.ok ? "Budget deleted locally." : result.message);
+    setMessage(result.ok ? i18n.t($ => $.ui.budgetsBudgetDeletedLocally) : result.message);
   };
   const form = formState && formState.mode !== "copy" ? <BudgetForm budget={selectedBudget} budgets={dataset.budgets} categories={dataset.categories} defaultCurrency={dataset.preferences.baseCurrency} defaultMonth={month} onCancel={() => setFormState(null)} onSave={onSave} selectedCurrencies={dataset.preferences.selectedCurrencies} /> : null;
   const copyForm = formState?.mode === "copy" ? <CopyBudgetsForm budgets={dataset.budgets} categories={dataset.categories} targetMonth={month} initialSourceMonth={shiftCalendarMonth(month, -1)} onCancel={() => setFormState(null)} onCopy={onCopy} /> : null;
 
   return (
-    <AppScreen eyebrow="Monthly planning" title="Budgets">
+    <AppScreen eyebrow={i18n.t($ => $.ui.budgetsMonthlyPlanning)} title={i18n.t($ => $.ui.navigationBudgets)}>
       <View style={styles.toolbar}>
         <View style={styles.monthControl}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Previous budget month" onPress={() => setMonth((value) => shiftCalendarMonth(value, -1))} style={styles.monthButton}><Text style={styles.monthButtonText}>‹</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsPreviousBudgetMonth)} onPress={() => setMonth((value) => shiftCalendarMonth(value, -1))} style={styles.monthButton}><Text style={styles.monthButtonText}>‹</Text></Pressable>
           <Text accessibilityRole="header" style={styles.monthLabel}>{formatMonthLabel(month)}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Next budget month" onPress={() => setMonth((value) => shiftCalendarMonth(value, 1))} style={styles.monthButton}><Text style={styles.monthButtonText}>›</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsNextBudgetMonth)} onPress={() => setMonth((value) => shiftCalendarMonth(value, 1))} style={styles.monthButton}><Text style={styles.monthButtonText}>›</Text></Pressable>
         </View>
         <View style={styles.toolbarActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Copy budgets from another month" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Copy from another month</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "new" }); }} style={styles.addButton}><Text style={styles.addButtonText}>＋ Create budget</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCopyBudgetsFromAnotherMonth)} onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.budgetsCopyFromAnotherMonth)}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "new" }); }} style={styles.addButton}><Text style={styles.addButtonText}>{i18n.t($ => $.ui.budgetsCreateBudgetAlternative)}</Text></Pressable>
         </View>
       </View>
 
-      {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
-      {message ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{message}</Text> : null}
-      {pendingDeleteId ? <View style={styles.confirmation}><Text style={styles.confirmationText}>Delete this budget? You can’t undo this action here.</Text><View style={styles.confirmationActions}><Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.cancelSmall}><Text style={styles.cancelSmallText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void confirmDelete()} style={styles.deleteSmall}><Text style={styles.deleteSmallText}>Delete budget</Text></Pressable></View></View> : null}
+      {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
+      {message ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{translateMessage(message, false)}</Text> : null}
+      {pendingDeleteId ? <View style={styles.confirmation}><Text style={styles.confirmationText}>{i18n.t($ => $.ui.budgetsDeleteThisBudgetYouCanTUndo)}</Text><View style={styles.confirmationActions}><Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.cancelSmall}><Text style={styles.cancelSmallText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void confirmDelete()} style={styles.deleteSmall}><Text style={styles.deleteSmallText}>{i18n.t($ => $.ui.budgetsDeleteBudget)}</Text></Pressable></View></View> : null}
 
       <View style={[styles.workspace, isBrowserWorkspace && styles.browserWorkspace]}>
         <View style={styles.listCard}>
-          {progress.length === 0 ? <View style={styles.emptyWrap}><EmptyState title="No budgets for this month" description="Create a category limit to compare local expense activity with a monthly plan." /><View style={styles.emptyActions}><Pressable accessibilityRole="button" onPress={() => setFormState({ mode: "new" })} style={styles.emptyAction}><Text style={styles.addButtonText}>＋ Create budget</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.emptyCopyAction}><Text style={styles.secondaryButtonText}>Copy from another month</Text></Pressable></View></View> : <View style={styles.cards}>{progress.map((item) => <BudgetCard key={item.budget.id} progress={item} onEdit={() => setFormState({ mode: "edit", id: item.budget.id })} onDelete={() => setPendingDeleteId(item.budget.id)} />)}</View>}
+          {progress.length === 0 ? <View style={styles.emptyWrap}><EmptyState title={i18n.t($ => $.ui.budgetsNoBudgetsForThisMonth)} description={i18n.t($ => $.ui.budgetsCreateACategoryLimitToCompareLocal)} /><View style={styles.emptyActions}><Pressable accessibilityRole="button" onPress={() => setFormState({ mode: "new" })} style={styles.emptyAction}><Text style={styles.addButtonText}>{i18n.t($ => $.ui.budgetsCreateBudgetAlternative)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.emptyCopyAction}><Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.budgetsCopyFromAnotherMonth)}</Text></Pressable></View></View> : <View style={styles.cards}>{progress.map((item) => <BudgetCard key={item.budget.id} progress={item} onEdit={() => setFormState({ mode: "edit", id: item.budget.id })} onDelete={() => setPendingDeleteId(item.budget.id)} />)}</View>}
         </View>
         {isBrowserWorkspace ? form ?? copyForm : null}
       </View>
@@ -94,16 +101,17 @@ export function BudgetsScreen() {
 }
 
 function BudgetCard({ progress, onEdit, onDelete }: { progress: BudgetProgress; onEdit: () => void; onDelete: () => void }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const usedWidth = `${Math.min(progress.percentUsed, 100)}%` as `${number}%`;
-  const statusLabel = progress.status === "over_budget" ? "Over budget" : progress.status === "attention" ? "Near limit" : "On track";
+  const statusLabel = progress.status === "over_budget" ? i18n.t($ => $.ui.budgetsOverBudget) : progress.status === "attention" ? i18n.t($ => $.ui.budgetsNearLimit) : i18n.t($ => $.ui.budgetsOnTrack);
   return <View style={styles.budgetCard}>
-    <View style={styles.cardTop}><View><Text style={styles.categoryName}>{progress.categoryName}</Text><Text style={styles.meta}>{progress.budget.currency} · {progress.budget.month}</Text></View><Text style={[styles.status, progress.status === "over_budget" ? styles.overStatus : progress.status === "attention" ? styles.attentionStatus : styles.onTrackStatus]}>{statusLabel}</Text></View>
-    <View style={styles.amountRow}><View><Text style={styles.amountLabel}>Spent</Text><Text style={styles.spent}>{progress.spent.currency} {progress.spent.amount}</Text></View><View style={styles.amountRight}><Text style={styles.amountLabel}>Limit</Text><Text style={styles.limit}>{progress.budget.currency} {progress.budget.amount}</Text></View></View>
+    <View style={styles.cardTop}><View><Text style={styles.categoryName}>{categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === progress.budget.categoryId))}</Text><Text style={styles.meta}>{progress.budget.currency} · {progress.budget.month}</Text></View><Text style={[styles.status, progress.status === "over_budget" ? styles.overStatus : progress.status === "attention" ? styles.attentionStatus : styles.onTrackStatus]}>{statusLabel}</Text></View>
+    <View style={styles.amountRow}><View><Text style={styles.amountLabel}>{i18n.t($ => $.ui.budgetsSpent)}</Text><Text style={styles.spent}>{progress.spent.currency} {progress.spent.amount}</Text></View><View style={styles.amountRight}><Text style={styles.amountLabel}>{i18n.t($ => $.ui.budgetsLimit)}</Text><Text style={styles.limit}>{progress.budget.currency} {progress.budget.amount}</Text></View></View>
     <View accessibilityLabel={`${Math.round(progress.percentUsed)} percent of budget used`} style={styles.progressTrack}><View style={[styles.progressFill, progress.status === "over_budget" ? styles.overFill : progress.status === "attention" ? styles.attentionFill : styles.onTrackFill, { width: usedWidth }]} /></View>
     <Text style={styles.remaining}>{progress.remaining.amount.startsWith("-") ? `${progress.budget.currency} ${progress.remaining.amount.slice(1)} over the limit` : `${progress.budget.currency} ${progress.remaining.amount} remaining`}</Text>
-    {progress.otherCurrencySpending.length > 0 ? <Text style={styles.note}>Other-currency spending is shown separately until an exchange rate is available.</Text> : null}
-    <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}><Text style={styles.editText}>Edit</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Delete ${progress.categoryName} budget`} onPress={onDelete} style={styles.deleteButton}><Text style={styles.deleteText}>Delete</Text></Pressable></View>
+    {progress.otherCurrencySpending.length > 0 ? <Text style={styles.note}>{i18n.t($ => $.ui.budgetsOtherCurrencySpendingIsShownSeparatelyUntil)}</Text> : null}
+    <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}><Text style={styles.editText}>{i18n.t($ => $.ui.budgetsEdit)}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.deleteBudget, { name: categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === progress.budget.categoryId)) })} onPress={onDelete} style={styles.deleteButton}><Text style={styles.deleteText}>{i18n.t($ => $.ui.settingsDelete)}</Text></Pressable></View>
   </View>;
 }
 

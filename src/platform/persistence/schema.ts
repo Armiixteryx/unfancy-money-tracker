@@ -1,3 +1,4 @@
+import { DEFAULT_CATEGORY_KEYS } from "../../domain/types";
 import { z } from "zod";
 
 import { currencyCodeSchema, selectedCurrenciesSchema } from "../../domain/currency";
@@ -42,6 +43,7 @@ export const categorySchema = z.object({
   id: uuidSchema,
   kind: z.enum(["income", "expense"]),
   name: z.string().min(1).max(80),
+  defaultCategoryKey: z.enum(DEFAULT_CATEGORY_KEYS).optional(),
   isSystem: z.boolean(),
   isArchived: z.boolean(),
   createdAt: z.string().datetime(),
@@ -82,6 +84,7 @@ const categoryDeletionTombstoneSchema = z.object({
 export const preferencesSchema = z.object({
   baseCurrency: currencyCodeSchema,
   selectedCurrencies: selectedCurrenciesSchema,
+  language: z.enum(["system", "en", "es"]),
   theme: z.enum(["system", "light", "dark"]),
   analyticsConsent: z.boolean(),
   firstRunNoticeDismissed: z.boolean()

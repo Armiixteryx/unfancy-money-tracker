@@ -144,5 +144,11 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
   if (version <= 3) migrated = migrateV3ToV4(migrated);
   if (version <= 4) migrated = migrateV4ToV5(migrated);
 
+  if (version <= 5) {
+    migrated.schemaVersion = 6;
+    if (isRecord(migrated.preferences)) migrated.preferences.language = "system";
+    if (Array.isArray(migrated.categories)) migrated.categories = migrated.categories.map((category) => isRecord(category) && category.isSystem === true ? { ...category, defaultCategoryKey: "uncategorized" } : category);
+  }
+
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }

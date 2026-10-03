@@ -1,8 +1,11 @@
+import { i18n } from "../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 import { useAppTheme } from "../../ui/theme";
 import { useVoice } from "./VoiceProvider";
 export function VoiceEntryButton() {
+  useTranslation();
   const { phase, start, stop } = useVoice();
   const { colors } = useAppTheme();
   const disabled = ["processing", "saving", "save_failed"].includes(phase);
@@ -20,8 +23,8 @@ export function VoiceEntryButton() {
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Hold to record an expense"
-          accessibilityHint="Release to submit. Alternatively use Start recording and Stop and submit."
+          accessibilityLabel={i18n.t($ => $.ui.voiceHoldToRecordAnExpense)}
+          accessibilityHint={i18n.t($ => $.ui.voiceReleaseToSubmitAlternativelyUseStartRecording)}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPressIn={() => {
@@ -42,7 +45,7 @@ export function VoiceEntryButton() {
         >
           <Ionicons name="mic" color={colors.onPrimary} size={20} />
           <Text style={{ color: colors.onPrimary, fontWeight: "700" }}>
-            {phase === "recording" ? "Recording…" : "Hold to record expense"}
+            {phase === "recording" ? i18n.t($ => $.ui.voiceRecording) : i18n.t($ => $.ui.voiceHoldToRecordExpense)}
           </Text>
         </Pressable>
         <Pressable
@@ -57,14 +60,12 @@ export function VoiceEntryButton() {
           }}
         >
           <Text style={{ color: colors.primary, fontWeight: "700" }}>
-            {phase === "recording" ? "Stop and submit" : "Start recording"}
+            {phase === "recording" ? i18n.t($ => $.ui.voiceStopAndSubmit) : i18n.t($ => $.ui.voiceStartRecording)}
           </Text>
         </Pressable>
       </View>
       <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-        Voice audio is sent to Vercel/SpaceXAI; the transcript and active
-        category names go to Cloudflare. Say one expense: “Lunch forty thousand
-        pesos”. The saved record stays on this device.
+        {i18n.t($ => $.ui.voiceVoiceAudioIsSentToVercelSpacexai)}
       </Text>
     </View>
   );

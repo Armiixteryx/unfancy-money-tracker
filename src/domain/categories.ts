@@ -1,5 +1,6 @@
+import { DomainError } from "./errors";
 import { categoryInputSchema, type CategoryInput } from "./validation";
-import type { Category, CategoryKind, UUID } from "./types";
+import type { Category, CategoryKind, DefaultCategoryKey, UUID } from "./types";
 import { createUuid } from "../platform/identifiers/createUuid";
 
 const DEFAULT_EXPENSE_NAMES = [
@@ -32,6 +33,7 @@ export function seedDefaultCategories(
     kind,
     name,
     isSystem,
+    defaultCategoryKey: name.toLowerCase() as DefaultCategoryKey,
     isArchived: false,
     createdAt: now,
     updatedAt: now
@@ -41,7 +43,7 @@ export function seedDefaultCategories(
 export function findUncategorizedCategory(categories: readonly Category[], kind: CategoryKind): Category {
   const category = categories.find((candidate) => candidate.kind === kind && candidate.isSystem);
   if (!category) {
-    throw new Error(`Missing protected Uncategorized category for ${kind}`);
+    throw new DomainError(`Missing protected Uncategorized category for ${kind}`);
   }
   return category;
 }
@@ -66,11 +68,11 @@ export function createCategory(
 
 export function renameCategory(category: Category, name: string, now = new Date().toISOString()): Category {
   const parsed = categoryInputSchema.shape.name.parse(name);
-  if (category.isSystem) throw new Error("Protected categories cannot be renamed");
-  return { ...category, name: parsed, updatedAt: now };
+  if (category.isSystem) throw new DomainError("Protected categories cannot be renamed");
+  return { ...category, defaultCategoryKey: undefined, name: parsed, updatedAt: now };
 }
 
 export function archiveCategory(category: Category, now = new Date().toISOString()): Category {
-  if (category.isSystem) throw new Error("Protected categories cannot be archived");
+  if (category.isSystem) throw new DomainError("Protected categories cannot be archived");
   return { ...category, isArchived: true, updatedAt: now };
 }

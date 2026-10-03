@@ -111,6 +111,16 @@ emulator or connected device becomes available.
 
 Press `a` in the Expo terminal to open the installed development client. If the Android SDK is not configured, set `ANDROID_HOME` or create `android/local.properties` with the machine-specific `sdk.dir` path. The generated `android/` directory and local SDK path are not committed.
 
+## iOS development client
+
+Build with `pnpm run ios`; use `pnpm run ios --device 00008120-0009394210414032 --no-bundler` for David’s iPad, then connect to the server started by `pnpm run start:all`. Reinstall over the existing app to retain the local dataset.
+
+The local `plugins/with-ios-scene.cjs` prebuild plugin adds a single UIKit scene to Expo SDK 54's generated Swift app delegate. iOS/iPadOS 27 requires scene adoption for clients built with the iOS 27 SDK; without it the app closes before Metro connects, with `UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption` in the device crash report. The plugin creates the scene window before starting React Native and Expo's development launcher, preserves cold-start links, and forwards URL, universal-link, foreground, and background callbacks. See ADR 0019 and [Apple’s lifecycle migration guidance](https://developer.apple.com/documentation/uikit/transitioning-to-the-uikit-scene-based-life-cycle).
+
+After changing native plugins, run `pnpm exec expo prebuild --platform ios --no-install` and rebuild. The plugin is specific to the SDK 54 Swift template and rejects unexpected templates; review and remove it when upgrading to Expo's built-in scene support. Do not edit only the ignored generated `ios/` directory.
+
+For a physical-device startup check without Metro, use `pnpm run ios --device 00008120-0009394210414032 --configuration Release --no-bundler`. This local build includes the JavaScript bundle and uses the same development bundle identifier and local dataset. Rebuild with the default Debug configuration to restore the Metro development client. This command does not publish or deploy the app.
+
 ## Optional voice expense service
 
 Voice uses the existing SAM API on port 3001; Android's existing reversal scripts apply. Add `EXPO_PUBLIC_VOICE_API_URL=http://localhost:3001` to `.env.local` (the service root, without `/voice/expense`). Put `AI_GATEWAY_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_AUTH_TOKEN` in `.env.local` as backend-only variables. Never give these keys an `EXPO_PUBLIC_` prefix.

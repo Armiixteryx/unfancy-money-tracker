@@ -1,3 +1,5 @@
+import { i18n } from "../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState, type PropsWithChildren } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -7,17 +9,19 @@ import { AppBrand } from "../ui/AppBrand";
 import { FirstRunWarning } from "../ui/FirstRunWarning";
 
 function HydrationScreen() {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   return (
     <View style={styles.centered}>
       <AppBrand accessibilityElementsHidden />
-      <ActivityIndicator accessibilityLabel="Loading Unfancy Money Tracker" accessibilityRole="progressbar" color={colors.positive} size="large" style={styles.activityIndicator} />
+      <ActivityIndicator accessibilityLabel={i18n.t($ => $.ui.commonLoadingUnfancyMoneyTracker)} accessibilityRole="progressbar" color={colors.positive} size="large" style={styles.activityIndicator} />
     </View>
   );
 }
 
 function RecoveryScreen() {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const hydration = useLocalDatasetStore((state) => state.hydration);
   const retryHydration = useLocalDatasetStore((state) => state.retryHydration);
@@ -28,32 +32,32 @@ function RecoveryScreen() {
   return (
     <View style={styles.centered}>
       <View style={styles.recoveryIcon} />
-      <Text accessibilityRole="header" style={styles.title}>Local data needs attention</Text>
+      <Text accessibilityRole="header" style={styles.title}>{i18n.t($ => $.ui.commonLocalDataNeedsAttention)}</Text>
       <Text style={styles.description}>
-        We preserved the unreadable snapshot and blocked the app from opening partial data. Retry, recover the preserved copy, or reset this local copy.
+        {i18n.t($ => $.ui.commonWePreservedTheUnreadableSnapshotAndBlocked)}
       </Text>
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Retry local data" onPress={() => void retryHydration()} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Retry</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.commonRetryLocalData)} onPress={() => void retryHydration()} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.commonRetry)}</Text>
         </Pressable>
-        {hydration.status === "recovery" && hydration.backupAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Recover preserved local data" onPress={() => void recoverLocalData()} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Recover preserved copy</Text>
+        {hydration.status === "recovery" && hydration.backupAvailable ? <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.commonRecoverPreservedLocalData)} onPress={() => void recoverLocalData()} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.commonRecoverPreservedCopy)}</Text>
         </Pressable> : null}
         {confirmReset ? (
           <View style={styles.confirmation}>
-            <Text style={styles.confirmationText}>Resetting removes this local copy. Continue?</Text>
+            <Text style={styles.confirmationText}>{i18n.t($ => $.ui.commonResettingRemovesThisLocalCopyContinue)}</Text>
             <View style={styles.confirmationActions}>
               <Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.commonCancel)}</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => void resetLocalData()} style={styles.dangerButton}>
-                <Text style={styles.dangerButtonText}>Reset local data</Text>
+                <Text style={styles.dangerButtonText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text>
               </Pressable>
             </View>
           </View>
         ) : (
-          <Pressable accessibilityRole="button" accessibilityLabel="Reset local data" onPress={() => setConfirmReset(true)} style={styles.dangerButton}>
-            <Text style={styles.dangerButtonText}>Reset local data</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.commonResetLocalData)} onPress={() => setConfirmReset(true)} style={styles.dangerButton}>
+            <Text style={styles.dangerButtonText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text>
           </Pressable>
         )}
       </View>
@@ -62,6 +66,7 @@ function RecoveryScreen() {
 }
 
 export function DatasetHydrationGate({ children }: PropsWithChildren) {
+  useTranslation();
   const hydration = useLocalDatasetStore((state) => state.hydration);
   const initialize = useLocalDatasetStore((state) => state.initialize);
 

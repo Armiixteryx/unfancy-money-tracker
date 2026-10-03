@@ -1,3 +1,7 @@
+import { translateMessage } from "../../../localization/i18n";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -25,6 +29,7 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 export function TransactionsScreen() {
+  useTranslation();
   const router = useRouter();
   const { edit, new: newParam } = useLocalSearchParams<{ edit?: string; new?: string }>();
   const styles = useThemedStyles(createStyles);
@@ -60,7 +65,7 @@ export function TransactionsScreen() {
     setPendingSaveId(undefined);
     if (edit) {
       if (dataset.transactions.some((record) => record.id === edit)) setFormState({ mode: "edit", id: edit });
-      else setActionMessage("This transaction is no longer available.");
+      else setActionMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable));
     } else setFormState({ mode: "new" });
     router.setParams({ edit: undefined, new: undefined });
   }, [dataset, edit, newParam, router]);
@@ -68,7 +73,7 @@ export function TransactionsScreen() {
   useEffect(() => {
     if (dataset && formState?.mode === "edit" && !selectedTransaction) {
       setFormState(null);
-      setActionMessage("This transaction is no longer available.");
+      setActionMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable));
     }
   }, [dataset, formState, selectedTransaction]);
 
@@ -79,7 +84,7 @@ export function TransactionsScreen() {
     if (!result.ok) { setPendingSaveId(result.recordId); return result; }
     setPendingSaveId(undefined);
     if (formState?.mode !== "edit") void analytics.capture("transaction_created", { surface: "transactions", actionResult: "success" });
-    setActionMessage(formState?.mode === "edit" ? "Transaction updated locally." : "Transaction saved locally.");
+    setActionMessage(formState?.mode === "edit" ? i18n.t($ => $.ui.transactionsTransactionUpdatedLocally) : i18n.t($ => $.ui.transactionsTransactionSavedLocally));
     return { ok: true };
   };
 
@@ -108,7 +113,7 @@ export function TransactionsScreen() {
     setPendingDeleteId((currentId) => currentId === transactionId ? null : currentId);
     if (result.ok) {
       setActionMessage(null);
-      setDeleteSnackbarMessage("Transaction deleted.");
+      setDeleteSnackbarMessage(i18n.t($ => $.ui.transactionsTransactionDeleted));
     } else {
       setActionMessage(result.message);
     }
@@ -132,60 +137,60 @@ export function TransactionsScreen() {
 
   return (
     <AppScreen
-      eyebrow="Your local records"
+      eyebrow={i18n.t($ => $.ui.transactionsYourLocalRecords)}
       overlay={deleteSnackbarMessage ? <Snackbar message={deleteSnackbarMessage} onDismiss={() => setDeleteSnackbarMessage(null)} /> : null}
-      title="Transactions"
+      title={i18n.t($ => $.ui.navigationTransactions)}
     >
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
-            accessibilityLabel="Search transactions"
+            accessibilityLabel={i18n.t($ => $.ui.transactionsSearchTransactions)}
             onChangeText={(query) => setTransactionFilters({ query })}
-            placeholder="Search transactions"
+            placeholder={i18n.t($ => $.ui.transactionsSearchTransactions)}
             placeholderTextColor={colors.placeholder}
             style={styles.searchInput}
             value={transactionFilters.query ?? ""}
           />
         </View>
         <Pressable accessibilityRole="button" onPress={openNew} style={styles.addButton}>
-          <Text style={styles.addButtonText}>＋ Add transaction</Text>
+          <Text style={styles.addButtonText}>{i18n.t($ => $.ui.dashboardAddTransaction)}</Text>
         </Pressable>
       </View>
 
       <VoiceEntryButton />
 
       <View style={styles.filterRow}>
-        <FilterChip label="All" active={!transactionFilters.type || transactionFilters.type === "all"} onPress={() => setTransactionFilters({ type: "all" })} />
-        <FilterChip label="Income" active={transactionFilters.type === "income"} onPress={() => { setTransactionFilters({ type: "income" }); void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} />
-        <FilterChip label="Expenses" active={transactionFilters.type === "expense"} onPress={() => { setTransactionFilters({ type: "expense" }); void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} />
-        <FilterChip label={showMoreFilters ? "Hide filters" : "More filters"} active={showMoreFilters} onPress={() => setShowMoreFilters((value) => !value)} />
-        {hasActiveFilters ? <FilterChip label="Clear filters" active={false} onPress={clearTransactionFilters} /> : null}
+        <FilterChip label={i18n.t($ => $.ui.transactionsAll)} active={!transactionFilters.type || transactionFilters.type === "all"} onPress={() => setTransactionFilters({ type: "all" })} />
+        <FilterChip label={i18n.t($ => $.ui.dashboardIncome)} active={transactionFilters.type === "income"} onPress={() => { setTransactionFilters({ type: "income" }); void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} />
+        <FilterChip label={i18n.t($ => $.ui.dashboardExpenses)} active={transactionFilters.type === "expense"} onPress={() => { setTransactionFilters({ type: "expense" }); void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} />
+        <FilterChip label={showMoreFilters ? i18n.t($ => $.ui.transactionsHideFilters) : i18n.t($ => $.ui.transactionsMoreFilters)} active={showMoreFilters} onPress={() => setShowMoreFilters((value) => !value)} />
+        {hasActiveFilters ? <FilterChip label={i18n.t($ => $.ui.transactionsClearFilters)} active={false} onPress={clearTransactionFilters} /> : null}
       </View>
 
       {showMoreFilters ? <View style={styles.advancedFilters}>
-        <View style={styles.filterGroup}><Text style={styles.filterLabel}>Category</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>{<FilterChip label="All categories" active={!transactionFilters.categoryId} onPress={() => setTransactionFilters({ categoryId: "all" })} />}{categories.map((category) => <FilterChip key={category.id} label={category.name} active={transactionFilters.categoryId === category.id} onPress={() => setTransactionFilters({ categoryId: category.id })} />)}</ScrollView></View>
-        <View style={styles.filterGroup}><Text style={styles.filterLabel}>Currency</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}><FilterChip label="All currencies" active={!transactionFilters.currency} onPress={() => setTransactionFilters({ currency: "all" })} />{currencies.map((currency) => <FilterChip key={currency} label={currency} active={transactionFilters.currency === currency} onPress={() => setTransactionFilters({ currency })} />)}</ScrollView></View>
-        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>From date</Text><DateFilterPicker accessibilityLabel="Filter from date" maximumDate={transactionFilters.toDate} onChange={(fromDate) => { setTransactionFilters({ fromDate }); if (fromDate) void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} value={transactionFilters.fromDate} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>To date</Text><DateFilterPicker accessibilityLabel="Filter to date" minimumDate={transactionFilters.fromDate} onChange={(toDate) => { setTransactionFilters({ toDate }); if (toDate) void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} value={transactionFilters.toDate} /></View></View>
+        <View style={styles.filterGroup}><Text style={styles.filterLabel}>{i18n.t($ => $.ui.transactionsCategory)}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>{<FilterChip label={i18n.t($ => $.ui.transactionsAllCategories)} active={!transactionFilters.categoryId} onPress={() => setTransactionFilters({ categoryId: "all" })} />}{categories.map((category) => <FilterChip key={category.id} label={categoryLabel(category)} active={transactionFilters.categoryId === category.id} onPress={() => setTransactionFilters({ categoryId: category.id })} />)}</ScrollView></View>
+        <View style={styles.filterGroup}><Text style={styles.filterLabel}>{i18n.t($ => $.ui.transactionsCurrency)}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}><FilterChip label={i18n.t($ => $.ui.transactionsAllCurrencies)} active={!transactionFilters.currency} onPress={() => setTransactionFilters({ currency: "all" })} />{currencies.map((currency) => <FilterChip key={currency} label={currency} active={transactionFilters.currency === currency} onPress={() => setTransactionFilters({ currency })} />)}</ScrollView></View>
+        <View style={styles.dateFilters}><View style={styles.dateField}><Text style={styles.filterLabel}>{i18n.t($ => $.ui.transactionsFromDate)}</Text><DateFilterPicker accessibilityLabel={i18n.t($ => $.ui.transactionsFilterFromDate)} maximumDate={transactionFilters.toDate} onChange={(fromDate) => { setTransactionFilters({ fromDate }); if (fromDate) void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} value={transactionFilters.fromDate} /></View><View style={styles.dateField}><Text style={styles.filterLabel}>{i18n.t($ => $.ui.transactionsToDate)}</Text><DateFilterPicker accessibilityLabel={i18n.t($ => $.ui.transactionsFilterToDate)} minimumDate={transactionFilters.fromDate} onChange={(toDate) => { setTransactionFilters({ toDate }); if (toDate) void analytics.capture("transaction_filter_applied", { surface: "transactions", actionResult: "success" }); }} value={transactionFilters.toDate} /></View></View>
       </View> : null}
 
-      {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
+      {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
       {actionMessage ? <Text accessibilityLiveRegion="polite" style={styles.successBanner}>{actionMessage}</Text> : null}
 
 
       <View style={[styles.workspace, isBrowserWorkspace && styles.browserWorkspace]}>
         <View style={styles.listCard}>
           <View style={styles.listHeader}>
-            <Text style={styles.cardTitle}>Activity</Text>
-            <Text style={styles.resultCount}>{filteredTransactions.length} {filteredTransactions.length === 1 ? "record" : "records"}</Text>
+            <Text style={styles.cardTitle}>{i18n.t($ => $.ui.transactionsActivity)}</Text>
+            <Text style={styles.resultCount}>{i18n.t($ => $.notices.recordCount, { count: filteredTransactions.length })}</Text>
           </View>
           {transactions.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <EmptyState title="No transactions yet" description="Add your first income or expense to start building your local activity history." />
-              <Pressable accessibilityRole="button" onPress={openNew} style={styles.emptyAction}><Text style={styles.addButtonText}>＋ Add transaction</Text></Pressable>
+              <EmptyState title={i18n.t($ => $.ui.dashboardNoTransactionsYet)} description={i18n.t($ => $.ui.transactionsAddYourFirstIncomeOrExpenseTo)} />
+              <Pressable accessibilityRole="button" onPress={openNew} style={styles.emptyAction}><Text style={styles.addButtonText}>{i18n.t($ => $.ui.dashboardAddTransaction)}</Text></Pressable>
             </View>
           ) : filteredTransactions.length === 0 ? (
-            <View style={styles.noMatch}><Text style={styles.noMatchTitle}>No matching transactions</Text><Text style={styles.noMatchText}>Try a different search or clear the filters.</Text></View>
+            <View style={styles.noMatch}><Text style={styles.noMatchTitle}>{i18n.t($ => $.ui.transactionsNoMatchingTransactions)}</Text><Text style={styles.noMatchText}>{i18n.t($ => $.ui.transactionsTryADifferentSearchOrClearThe)}</Text></View>
           ) : (
             filteredTransactions.map((transaction) => (
               <TransactionRow
@@ -214,6 +219,7 @@ export function TransactionsScreen() {
 }
 
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.filterChip, active && styles.activeFilterChip]}><Text style={[styles.filterText, active && styles.activeFilterText]}>{label}</Text></Pressable>;
 }

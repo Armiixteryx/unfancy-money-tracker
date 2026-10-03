@@ -1,3 +1,5 @@
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -32,6 +34,7 @@ function formatLocalDate(date: Date): string {
 }
 
 export function DateFilterPicker({ accessibilityLabel, maximumDate, minimumDate, onChange, value }: DateFilterPickerProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(false);
 
@@ -47,22 +50,22 @@ export function DateFilterPicker({ accessibilityLabel, maximumDate, minimumDate,
   return (
     <View style={styles.controlRow}>
       <Pressable
-        accessibilityHint="Opens a calendar to choose a date"
-        accessibilityLabel={`${accessibilityLabel}: ${value ?? "Select date"}`}
+        accessibilityHint={i18n.t($ => $.ui.transactionsOpensACalendarToChooseADate)}
+        accessibilityLabel={`${accessibilityLabel}: ${value ?? i18n.t($ => $.ui.transactionsSelectDate)}`}
         accessibilityRole="button"
         onPress={() => setOpen(true)}
         style={({ pressed }) => [styles.dateButton, pressed && styles.dateButtonPressed]}
       >
-        <Text style={[styles.dateButtonText, !value && styles.placeholder]}>{value ?? "Select date"}</Text>
+        <Text style={[styles.dateButtonText, !value && styles.placeholder]}>{value ?? i18n.t($ => $.ui.transactionsSelectDate)}</Text>
       </Pressable>
       {value ? (
         <Pressable
-          accessibilityLabel={`Clear ${accessibilityLabel}`}
+          accessibilityLabel={i18n.t($ => $.notices.clearDate, { label: accessibilityLabel })}
           accessibilityRole="button"
           onPress={() => onChange(undefined)}
           style={({ pressed }) => [styles.clearButton, pressed && styles.clearButtonPressed]}
         >
-          <Text style={styles.clearButtonText}>Clear</Text>
+          <Text style={styles.clearButtonText}>{i18n.t($ => $.ui.transactionsClear)}</Text>
         </Pressable>
       ) : null}
       {open ? (

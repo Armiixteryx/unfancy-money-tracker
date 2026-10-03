@@ -1,3 +1,4 @@
+import { i18n } from "../../localization/i18n";
 import React from "react";
 import { Pressable, Text } from "react-native";
 import { Snackbar } from "../../ui/Snackbar";
@@ -87,6 +88,7 @@ async function finishResponse(transaction = input) {
   });
 }
 beforeEach(async () => {
+  await i18n.changeLanguage("en");
   vi.clearAllMocks();
   vi.useFakeTimers();
   (
@@ -131,8 +133,25 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => tree.unmount());
   vi.useRealTimers();
+  await i18n.changeLanguage("en");
 });
 describe("global voice lifecycle", () => {
+  it("keeps one voice operation across language changes and sends translated category names with unchanged IDs", async () => {
+    await act(async () => { await controls.start(); });
+    expect(controls.phase).toBe("recording");
+    await act(async () => { await i18n.changeLanguage("es"); });
+    expect(controls.phase).toBe("recording");
+    expect(mocks.start).toHaveBeenCalledOnce();
+    await act(async () => { void controls.stop(); });
+    const request = mocks.request.mock.calls[0]![0] as { categories: { id: string; name: string }[] };
+    expect(request.categories.find(category => category.id === food.id)?.name).toBe("Comida");
+    await act(async () => { await i18n.changeLanguage("en"); });
+    expect(controls.phase).toBe("processing");
+    expect(mocks.request).toHaveBeenCalledOnce();
+    await finishResponse();
+    expect(useLocalDatasetStore.getState().addTransaction).toHaveBeenCalledOnce();
+  });
+
   it("requires a fresh start after permission and handles early release during preparation", async () => {
     mocks.permission.mockResolvedValueOnce(false);
     await act(async () => {

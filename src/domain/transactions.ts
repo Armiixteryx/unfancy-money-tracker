@@ -1,3 +1,4 @@
+import { DomainError } from "./errors";
 import { normalizeMoneyAmount } from "./money";
 import { assertCategoryMatchesTransaction, transactionInputSchema, type TransactionInput } from "./validation";
 import type { Category, Transaction, TransactionType, UUID } from "./types";
@@ -10,10 +11,10 @@ export function createTransaction(
   const parsed = transactionInputSchema.parse(input);
   const category = dependencies.categories.find((candidate) => candidate.id === parsed.categoryId);
   if (!category) {
-    throw new Error("Select an existing category");
+    throw new DomainError("Select an existing category");
   }
   if (category.isArchived) {
-    throw new Error("Archived categories cannot be selected for new transactions");
+    throw new DomainError("Archived categories cannot be selected for new transactions");
   }
   assertCategoryMatchesTransaction(category.kind, parsed.type);
 

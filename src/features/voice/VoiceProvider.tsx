@@ -1,3 +1,7 @@
+import { formatMoneyForDisplay } from "../../domain/money";
+import { categoryLabel } from "../../localization/i18n";
+import { i18n } from "../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import {
   createContext,
@@ -35,7 +39,7 @@ type VoiceContextValue = {
 const VoiceContext = createContext<VoiceContextValue | null>(null);
 export const useVoice = () => {
   const value = useContext(VoiceContext);
-  if (!value) throw new Error("Voice provider missing");
+  if (!value) throw new Error(i18n.t($ => $.ui.voiceVoiceProviderMissing));
   return value;
 };
 type Session = {
@@ -52,6 +56,7 @@ export function localRecordingDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 export function VoiceProvider({ children }: PropsWithChildren) {
+  useTranslation();
   const router = useRouter();
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const phaseRef = useRef<VoicePhase>("idle");
@@ -136,7 +141,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     const dataset = useLocalDatasetStore.getState().dataset;
     const record = dataset?.transactions.find((t) => t.id === id);
     if (!record) {
-      setMessage("This transaction is no longer available.");
+      setMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable));
       return;
     }
     const category = dataset?.categories.find(
@@ -144,7 +149,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     );
     setSaved({
       id,
-      message: `${category?.name ?? "Uncategorized"} · ${record.description} · ${record.amount} ${record.currency}`,
+      message: `${categoryLabel(category)} · ${record.description} · ${record.amount} ${record.currency}`,
     });
     setMessage(null);
   };
@@ -171,7 +176,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       const audio = await value.recorder.read(recording);
       if (!current(value)) return;
       const dataset = useLocalDatasetStore.getState().dataset;
-      if (!dataset) throw new VoiceClientError("Local data is still loading.");
+      if (!dataset) throw new VoiceClientError(i18n.t($ => $.ui.voiceLocalDataIsStillLoading));
       const request: VoiceRequest = {
         requestId: value.id,
         audio,
@@ -180,7 +185,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         localDate: value.date,
         categories: dataset.categories
           .filter((c) => c.kind === "expense" && !c.isArchived)
-          .map(({ id, name, isSystem }) => ({ id, name, isSystem })),
+          .map(category => ({ id: category.id, name: categoryLabel(category), isSystem: category.isSystem })),
       };
       const response = await mutateRef.current({
         request,
@@ -218,7 +223,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       } else if (result.recordId) {
         transition("save_failed");
         setMessage(
-          "Local save failed. Retry save to keep this record without recording again.",
+          i18n.t($ => $.ui.voiceLocalSaveFailedRetrySaveToKeep),
         );
       } else {
         session.current = null;
@@ -232,7 +237,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         transition("idle");
         setMessage(
           error instanceof VoiceClientError
-            ? error.message
+            ? error.code
             : voiceErrorMessages.unavailable,
         );
       }
@@ -256,7 +261,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       recorder = createRecorder();
     } catch {
       transition("idle");
-      setMessage("Microphone recording is unavailable. Enter manually.");
+      setMessage(i18n.t($ => $.ui.voiceMicrophoneRecordingIsUnavailableEnterManually));
       return;
     }
     const value: Session = {
@@ -278,8 +283,8 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         transition("idle");
         setMessage(
           granted
-            ? "Microphone ready. Hold again or choose Start recording."
-            : "Microphone permission was denied. Allow it in device settings or enter manually.",
+            ? i18n.t($ => $.ui.voiceMicrophoneReadyHoldAgainOrChooseStart)
+            : i18n.t($ => $.ui.voiceMicrophonePermissionWasDeniedAllowItIn),
         );
         await cleanup(value);
         return;
@@ -304,7 +309,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         session.current = null;
         transition("idle");
         setMessage(
-          "Microphone recording is unavailable. Check permission and browser recording support, or enter manually.",
+          i18n.t($ => $.ui.voiceMicrophoneRecordingIsUnavailableCheckPermissionAnd),
         );
       }
       await cleanup(value);
@@ -328,7 +333,10 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       <VoiceFeedback
         phase={phase}
         message={message}
-        saved={saved}
+        saved={saved ? { ...saved, message: (() => {
+          const record = useLocalDatasetStore.getState().dataset?.transactions.find(transaction => transaction.id === saved.id);
+          return record ? `${categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === record.categoryId))} · ${record.description} · ${formatMoneyForDisplay(record)}` : saved.message;
+        })() } : null}
         onDismissSaved={() => setSaved(null)}
         onDismissMessage={() => setMessage(null)}
         onEdit={(id) => {

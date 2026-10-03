@@ -1,3 +1,4 @@
+import { DomainError } from "./errors";
 import Decimal from "decimal.js";
 
 import { addMoney, createMoney, normalizeMoneyAmount, subtractMoney, type Money } from "./money";
@@ -24,8 +25,8 @@ export function createBudget(
 ): Budget {
   const parsed = budgetInputSchema.parse(input);
   const category = dependencies.categories.find((candidate) => candidate.id === parsed.categoryId);
-  if (!category || category.kind !== "expense") throw new Error("Select an expense category");
-  if (category.isArchived) throw new Error("Archived categories cannot receive new budgets");
+  if (!category || category.kind !== "expense") throw new DomainError("Select an expense category");
+  if (category.isArchived) throw new DomainError("Archived categories cannot receive new budgets");
 
   const now = dependencies.now?.() ?? new Date().toISOString();
   return {

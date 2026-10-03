@@ -1,3 +1,5 @@
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { createElement, type ChangeEvent, type CSSProperties } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -12,6 +14,7 @@ type DateFilterPickerProps = {
 };
 
 export function DateFilterPicker({ accessibilityLabel, maximumDate, minimumDate, onChange, value }: DateFilterPickerProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const inputStyle = createInputStyle(styles.colors);
 
@@ -28,12 +31,12 @@ export function DateFilterPicker({ accessibilityLabel, maximumDate, minimumDate,
       })}
       {value ? (
         <Pressable
-          accessibilityLabel={`Clear ${accessibilityLabel}`}
+          accessibilityLabel={i18n.t($ => $.notices.clearDate, { label: accessibilityLabel })}
           accessibilityRole="button"
           onPress={() => onChange(undefined)}
           style={({ pressed }) => [styles.clearButton, pressed && styles.clearButtonPressed]}
         >
-          <Text style={styles.clearButtonText}>Clear</Text>
+          <Text style={styles.clearButtonText}>{i18n.t($ => $.ui.transactionsClear)}</Text>
         </Pressable>
       ) : null}
     </View>

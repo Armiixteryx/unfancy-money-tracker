@@ -1,8 +1,12 @@
+import { formatMonth } from "../../../localization/region";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import Decimal from "decimal.js";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { categoryReport, convertMonthAggregate, currentCalendarMonth, formatMoneyForDisplay, monthlyReport, reportObservation, type ReportPeriod } from "../../../domain";
+import { reportObservation, categoryReport, convertMonthAggregate, currentCalendarMonth, formatMoneyForDisplay, monthlyReport, type ReportPeriod } from "../../../domain";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
@@ -10,6 +14,7 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 import { useExchangeRates, rateRequestKey } from "../../exchange-rates/hooks/useExchangeRates";
 
 export function ReportsScreen() {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const analytics = useAnalytics();
@@ -29,37 +34,42 @@ export function ReportsScreen() {
   const maxExpenses = points.reduce((max, point) => point.aggregates.reduce((innerMax, aggregate) => Decimal.max(innerMax, aggregate.expenses.amount), max), new Decimal(0));
 
   return (
-    <AppScreen eyebrow="Factual summaries" title="Reports">
+    <AppScreen eyebrow={i18n.t($ => $.ui.reportsFactualSummaries)} title={i18n.t($ => $.ui.navigationReports)}>
       <View style={styles.toolbar}>
-        <View><Text style={styles.toolbarTitle}>Spending history</Text><Text style={styles.toolbarHint}>Descriptive only · no financial advice</Text></View>
+        <View><Text style={styles.toolbarTitle}>{i18n.t($ => $.ui.reportsSpendingHistory)}</Text><Text style={styles.toolbarHint}>{i18n.t($ => $.ui.reportsDescriptiveOnlyNoFinancialAdvice)}</Text></View>
         <View style={styles.periods}>{(["3m", "6m", "12m"] as const).map((option) => <Pressable accessibilityRole="button" accessibilityState={{ selected: period === option }} key={option} onPress={() => setPeriod(option)} style={[styles.periodChip, period === option && styles.activePeriod]}><Text style={[styles.periodText, period === option && styles.activePeriodText]}>{option.toUpperCase()}</Text></Pressable>)}</View>
       </View>
 
-      {!hasActivity ? <View style={styles.emptyCard}><EmptyState title="No report data yet" description="Add transactions to see monthly trends and category breakdowns. Your original currencies will remain visible until conversion rates are available." /></View> : <>
-        <View style={styles.notice}><Text style={styles.noticeTitle}>Original currencies preserved</Text><Text style={styles.noticeText}>Reports group figures by currency so a missing exchange rate never creates a misleading combined total.</Text></View>
-        <View style={styles.baseCard}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>Base currency trend</Text><Text style={styles.cardHint}>Historical rates · {baseCurrency}</Text></View><Text style={styles.cardHint}>{historicalRates.isLoading ? "Loading rates…" : historicalRates.hasError ? "Rate error" : historicalRates.unavailableCurrencies.length > 0 ? "Partial data" : "Ready"}</Text></View>{convertedPoints.some((point) => point.unavailableCurrencies.length > 0) ? <Text style={styles.noticeText}>Some dates have no usable rate yet, so combined historical totals remain unavailable for those currencies. Original values are still shown below.</Text> : <View style={styles.baseRows}>{convertedPoints.map((point, index) => <View key={points[index]?.month ?? `${point.currency}-${index}`} style={styles.baseRow}><Text style={styles.baseRowLabel}>{formatMonthLabelSafe(points[index]?.month ?? month)}</Text><Text style={styles.baseRowValue}>{formatMoneyForDisplay(point.expenses)} expenses</Text><Text style={styles.baseRowValue}>{formatMoneyForDisplay(point.income)} income</Text></View>)}</View>}<Text style={styles.cardHint}>Each conversion uses the nearest prior published rate for the transaction date; the effective date is available in Settings.</Text></View>
+      {!hasActivity ? <View style={styles.emptyCard}><EmptyState title={i18n.t($ => $.ui.reportsNoReportDataYet)} description={i18n.t($ => $.ui.reportsAddTransactionsToSeeMonthlyTrendsAnd)} /></View> : <>
+        <View style={styles.notice}><Text style={styles.noticeTitle}>{i18n.t($ => $.ui.reportsOriginalCurrenciesPreserved)}</Text><Text style={styles.noticeText}>{i18n.t($ => $.ui.reportsReportsGroupFiguresByCurrencySoA)}</Text></View>
+        <View style={styles.baseCard}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsBaseCurrencyTrend)}</Text><Text style={styles.cardHint}>{i18n.t($ => $.ui.reportsHistoricalRates)} {baseCurrency}</Text></View><Text style={styles.cardHint}>{historicalRates.isLoading ? i18n.t($ => $.ui.dashboardLoadingRates) : historicalRates.hasError ? i18n.t($ => $.ui.reportsRateError) : historicalRates.unavailableCurrencies.length > 0 ? i18n.t($ => $.ui.reportsPartialData) : i18n.t($ => $.ui.reportsReady)}</Text></View>{convertedPoints.some((point) => point.unavailableCurrencies.length > 0) ? <Text style={styles.noticeText}>{i18n.t($ => $.ui.reportsSomeDatesHaveNoUsableRateYet)}</Text> : <View style={styles.baseRows}>{convertedPoints.map((point, index) => <View key={points[index]?.month ?? `${point.currency}-${index}`} style={styles.baseRow}><Text style={styles.baseRowLabel}>{formatMonthLabelSafe(points[index]?.month ?? month)}</Text><Text style={styles.baseRowValue}>{formatMoneyForDisplay(point.expenses)} {i18n.t($ => $.ui.reportsExpenses)}</Text><Text style={styles.baseRowValue}>{formatMoneyForDisplay(point.income)} {i18n.t($ => $.ui.reportsIncome)}</Text></View>)}</View>}<Text style={styles.cardHint}>{i18n.t($ => $.ui.reportsEachConversionUsesTheNearestPriorPublished)}</Text></View>
         <View style={styles.card}>
-          <View style={styles.cardHeader}><View><Text style={styles.cardTitle}>Monthly expenses</Text><Text style={styles.cardHint}>Last {count} months · original currencies</Text></View><Text style={styles.cardHint}>{formatMonthLabelSafe(month)}</Text></View>
-          <View style={styles.chart}>{points.map((point) => <View key={point.month} style={styles.chartRow}><Text style={styles.chartLabel}>{point.label}</Text><View style={styles.bars}>{point.aggregates.length === 0 ? <Text style={styles.noActivity}>No activity</Text> : point.aggregates.map((aggregate) => <View key={aggregate.currency} style={styles.currencyBarRow}><Text style={styles.currencyLabel}>{aggregate.currency}</Text><View style={styles.track}><View style={[styles.expenseBar, { width: `${maxExpenses.isZero() ? 0 : Decimal(aggregate.expenses.amount).dividedBy(maxExpenses).times(100).toNumber()}%` }]} /></View><Text style={styles.barValue}>{formatMoneyForDisplay(aggregate.expenses)}</Text></View>)}</View></View>)}</View>
+          <View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsMonthlyExpenses)}</Text><Text style={styles.cardHint}>{i18n.t($ => $.ui.reportsLast)} {count} {i18n.t($ => $.ui.reportsMonthsOriginalCurrencies)}</Text></View><Text style={styles.cardHint}>{formatMonthLabelSafe(month)}</Text></View>
+          <View style={styles.chart}>{points.map((point) => <View key={point.month} style={styles.chartRow}><Text style={styles.chartLabel}>{formatMonth(point.month)}</Text><View style={styles.bars}>{point.aggregates.length === 0 ? <Text style={styles.noActivity}>{i18n.t($ => $.ui.reportsNoActivity)}</Text> : point.aggregates.map((aggregate) => <View key={aggregate.currency} style={styles.currencyBarRow}><Text style={styles.currencyLabel}>{aggregate.currency}</Text><View style={styles.track}><View style={[styles.expenseBar, { width: `${maxExpenses.isZero() ? 0 : Decimal(aggregate.expenses.amount).dividedBy(maxExpenses).times(100).toNumber()}%` }]} /></View><Text style={styles.barValue}>{formatMoneyForDisplay(aggregate.expenses)}</Text></View>)}</View></View>)}</View>
         </View>
         <View style={styles.grid}>
-          <View style={styles.card}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>Category breakdown</Text><Text style={styles.cardHint}>{formatMonthLabelSafe(month)}</Text></View></View>{categories.length === 0 ? <Text style={styles.muted}>No expense activity this month.</Text> : <CategoryList categories={categories} />}</View>
-          <View style={styles.card}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>What happened</Text><Text style={styles.cardHint}>A factual activity note</Text></View></View><Text style={styles.observation}>{reportObservation(points[points.length - 1] ?? { month, label: formatMonthLabelSafe(month), aggregates: [] })}</Text><Text style={styles.muted}>This summary describes recorded activity; it does not recommend actions.</Text></View>
+          <View style={styles.card}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsCategoryBreakdown)}</Text><Text style={styles.cardHint}>{formatMonthLabelSafe(month)}</Text></View></View>{categories.length === 0 ? <Text style={styles.muted}>{i18n.t($ => $.ui.dashboardNoExpenseActivityThisMonth)}</Text> : <CategoryList categories={categories} />}</View>
+          <View style={styles.card}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsWhatHappened)}</Text><Text style={styles.cardHint}>{i18n.t($ => $.ui.reportsAFactualActivityNote)}</Text></View></View><Text style={styles.observation}>{localizedObservation(points[points.length - 1] ?? { month, aggregates: [] })}</Text><Text style={styles.muted}>{i18n.t($ => $.ui.reportsThisSummaryDescribesRecordedActivityItDoes)}</Text></View>
         </View>
       </>}
     </AppScreen>
   );
 }
 
-function formatMonthLabelSafe(month: `${number}-${number}`): string {
-  const [year, monthNumber] = month.split("-");
-  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(Number(year), Number(monthNumber) - 1, 1)));
+function localizedObservation(point: Parameters<typeof reportObservation>[0]): string {
+  const observation = reportObservation(point);
+  return observation.transactionCount === 0
+    ? i18n.t($ => $.reports.empty, { month: formatMonth(point.month) })
+    : i18n.t($ => $.reports.activity, { count: observation.transactionCount, month: formatMonth(point.month), currencies: observation.currencies.join(", ") });
 }
 
+function formatMonthLabelSafe(month: `${number}-${number}`): string { return formatMonth(month); }
+
 function CategoryList({ categories }: { categories: ReturnType<typeof categoryReport> }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const max = categories.reduce((largest, item) => Decimal.max(largest, item.spent.amount), new Decimal(0));
-  return <View style={styles.categoryList}>{categories.slice(0, 8).map((item) => <View key={`${item.categoryId}:${item.currency}`} style={styles.categoryRow}><View style={styles.categoryCopy}><Text style={styles.categoryName}>{item.categoryName}</Text><Text style={styles.categoryMeta}>{item.currency}</Text></View><View style={styles.categoryBarTrack}><View style={[styles.categoryBar, { width: `${max.isZero() ? 0 : Decimal(item.spent.amount).dividedBy(max).times(100).toNumber()}%` }]} /></View><Text style={styles.categoryAmount}>{formatMoneyForDisplay(item.spent)}</Text></View>)}</View>;
+  return <View style={styles.categoryList}>{categories.slice(0, 8).map((item) => <View key={`${item.categoryId}:${item.currency}`} style={styles.categoryRow}><View style={styles.categoryCopy}><Text style={styles.categoryName}>{categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === item.categoryId))}</Text><Text style={styles.categoryMeta}>{item.currency}</Text></View><View style={styles.categoryBarTrack}><View style={[styles.categoryBar, { width: `${max.isZero() ? 0 : Decimal(item.spent.amount).dividedBy(max).times(100).toNumber()}%` }]} /></View><Text style={styles.categoryAmount}>{formatMoneyForDisplay(item.spent)}</Text></View>)}</View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

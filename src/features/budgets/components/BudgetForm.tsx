@@ -1,3 +1,11 @@
+import { normalizeAmountDraft } from "../../../localization/amountInput";
+import { errorToken, DomainError } from "../../../domain/errors";
+import { currencyPrecision } from "../../../domain/currency";
+import { translateMessage } from "../../../localization/i18n";
+import { amountDraft, getRegion } from "../../../localization/region";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { useEffect, useMemo, useState } from "react";
@@ -33,8 +41,10 @@ function eligibleExpenseCategories(categories: readonly Category[], budgets: rea
 }
 
 export function BudgetForm({ categories, budgets, selectedCurrencies, budget, defaultMonth, defaultCurrency, onSave, onCancel }: BudgetFormProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const [amountRegion] = useState(getRegion);
   const [formError, setFormError] = useState<string | null>(null);
   const currencies = useMemo(
     () => normalizeSelectedCurrencies(budget ? [...selectedCurrencies, budget.currency] : selectedCurrencies),
@@ -45,9 +55,14 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
     [budget?.id, budgets, categories, defaultMonth]
   );
   const { control, handleSubmit, setValue, watch, formState } = useForm<BudgetInput>({
-    resolver: zodResolver(budgetInputSchema),
+    resolver: async (values, context, options) => {
+      let amount: string;
+      try { amount = normalizeAmountDraft(values.amount, values.currency, amountRegion); }
+      catch (error) { return { values: {}, errors: { amount: { type: "validate", message: error instanceof DomainError ? errorToken(error) : "invalid_amount_draft" } } }; }
+      return zodResolver(budgetInputSchema)({ ...values, amount }, context, options);
+    },
     defaultValues: budget
-      ? { categoryId: budget.categoryId, month: budget.month, amount: budget.amount, currency: budget.currency }
+      ? { categoryId: budget.categoryId, month: budget.month, amount: amountDraft(budget.amount, amountRegion), currency: budget.currency }
       : { categoryId: initialExpenseCategories[0]?.id ?? "", month: defaultMonth, amount: "", currency: defaultCurrency }
   });
   const selectedMonth = watch("month");
@@ -80,35 +95,35 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>{budget ? "Update a monthly limit" : "New monthly limit"}</Text>
-          <Text accessibilityRole="header" style={styles.title}>{budget ? "Edit budget" : "Create budget"}</Text>
+          <Text style={styles.eyebrow}>{budget ? i18n.t($ => $.ui.budgetsUpdateAMonthlyLimit) : i18n.t($ => $.ui.budgetsNewMonthlyLimit)}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{budget ? i18n.t($ => $.ui.budgetsEditBudget) : i18n.t($ => $.ui.budgetsCreateBudget)}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close budget form" onPress={onCancel} style={styles.closeButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCloseBudgetForm)} onPress={onCancel} style={styles.closeButton}>
           <Text style={styles.closeText}>×</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.fields} keyboardShouldPersistTaps="handled">
-        <FieldLabel label="Category" error={formState.errors.categoryId?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsCategory)} error={formState.errors.categoryId?.message}>
           <View style={styles.chips}>
             {expenseCategories.map((category) => (
               <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryId === category.id }} key={category.id} onPress={() => setValue("categoryId", category.id, { shouldValidate: true })} style={[styles.chip, selectedCategoryId === category.id && styles.selectedChip]}>
-                <Text style={[styles.chipText, selectedCategoryId === category.id && styles.selectedChipText]}>{category.name}</Text>
+                <Text style={[styles.chipText, selectedCategoryId === category.id && styles.selectedChipText]}>{categoryLabel(category)}</Text>
               </Pressable>
             ))}
           </View>
-          {expenseCategories.length === 0 ? <Text style={styles.helper}>Every active expense category already has a budget for this month.</Text> : null}
+          {expenseCategories.length === 0 ? <Text style={styles.helper}>{i18n.t($ => $.ui.budgetsEveryActiveExpenseCategoryAlreadyHasA)}</Text> : null}
         </FieldLabel>
 
-        <FieldLabel label="Monthly limit" error={formState.errors.amount?.message}>
-          <Controller control={control} name="amount" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel="Monthly budget amount" autoCorrect={false} keyboardType="decimal-pad" onBlur={onBlur} onChangeText={onChange} placeholder="0.00" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
+        <FieldLabel label={i18n.t($ => $.ui.budgetsMonthlyLimit)} error={formState.errors.amount?.message === "invalid_amount_draft" ? `invalid_amount_draft:${amountDraft(currencyPrecision(watch("currency")) === 0 ? "12" : "12.5", amountRegion)}` : formState.errors.amount?.message}>
+          <Controller control={control} name="amount" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel={i18n.t($ => $.ui.budgetsMonthlyBudgetAmount)} autoCorrect={false} keyboardType="decimal-pad" onBlur={onBlur} onChangeText={onChange} placeholder={amountDraft(currencyPrecision(watch("currency")) === 0 ? "0" : "0.00", amountRegion)} placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
         </FieldLabel>
 
-        <FieldLabel label="Month" error={formState.errors.month?.message}>
-          <Controller control={control} name="month" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel="Budget month in YYYY-MM format" autoCorrect={false} onBlur={onBlur} onChangeText={onChange} placeholder="YYYY-MM" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
+        <FieldLabel label={i18n.t($ => $.ui.budgetsMonth)} error={formState.errors.month?.message}>
+          <Controller control={control} name="month" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel={i18n.t($ => $.ui.budgetsBudgetMonthInYyyyMmFormat)} autoCorrect={false} onBlur={onBlur} onChangeText={onChange} placeholder="YYYY-MM" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
         </FieldLabel>
 
-        <FieldLabel label="Currency" error={formState.errors.currency?.message}>
+        <FieldLabel label={i18n.t($ => $.ui.transactionsCurrency)} error={formState.errors.currency?.message}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.currencyRow}>
               {currencies.map((currency) => (
@@ -120,19 +135,20 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
           </ScrollView>
         </FieldLabel>
 
-        {formError ? <Text accessibilityRole="alert" style={styles.error}>{formError}</Text> : null}
+        {formError ? <Text accessibilityRole="alert" style={styles.error}>{translateMessage(formError, true)}</Text> : null}
         <Pressable accessibilityRole="button" disabled={formState.isSubmitting || expenseCategories.length === 0} onPress={() => void submit()} style={[styles.saveButton, (formState.isSubmitting || expenseCategories.length === 0) && styles.disabledSaveButton]}>
-          <Text style={styles.saveText}>{formState.isSubmitting ? "Saving…" : "Save budget"}</Text>
+          <Text style={styles.saveText}>{formState.isSubmitting ? i18n.t($ => $.ui.transactionsSaving) : i18n.t($ => $.ui.budgetsSaveBudget)}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancelButton}><Text style={styles.cancelText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable>
       </ScrollView>
     </View>
   );
 }
 
 function FieldLabel({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text>{children}{error ? <Text style={styles.fieldError}>{error}</Text> : null}</View>;
+  return <View style={styles.field}><Text style={styles.label}>{label}</Text>{children}{error ? <Text style={styles.fieldError}>{translateMessage(error, true)}</Text> : null}</View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

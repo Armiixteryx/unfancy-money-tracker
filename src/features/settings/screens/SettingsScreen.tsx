@@ -1,5 +1,11 @@
+import type { Message } from "../../../localization/notices";
+import { formatCalendarDate, formatNumber, formatTimestamp } from "../../../localization/region";
+import { translateMessage } from "../../../localization/i18n";
+import { categoryLabel } from "../../../localization/i18n";
+import { i18n } from "../../../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
@@ -11,6 +17,7 @@ import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 
 export function SettingsScreen() {
+  const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -18,8 +25,9 @@ export function SettingsScreen() {
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const setPreferences = useLocalDatasetStore((state) => state.setPreferences);
   const resetLocalData = useLocalDatasetStore((state) => state.resetLocalData);
+  const retryLocalSave = useLocalDatasetStore(state => state.retryLocalSave);
   const saveError = useLocalDatasetStore((state) => state.saveError);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<Message | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [mobileSection, setMobileSection] = useState<MobileSection | null>(null);
   const [desktopSection, setDesktopSection] = useState<SettingsSection>("preferences");
@@ -33,7 +41,7 @@ export function SettingsScreen() {
 
   if (!dataset) return null;
 
-  const updatePreference = async (value: Parameters<typeof setPreferences>[0], success: string) => {
+  const updatePreference = async (value: Parameters<typeof setPreferences>[0], success: Message) => {
     const result = await setPreferences(value);
     if ("analyticsConsent" in value && typeof value.analyticsConsent === "boolean") await analytics.setConsent(value.analyticsConsent);
     setMessage(result.ok ? success : result.message);
@@ -42,17 +50,18 @@ export function SettingsScreen() {
   const handleReset = async () => {
     await resetLocalData();
     setConfirmReset(false);
-    setMessage("Local data reset. No demo records were added.");
+    setMessage(i18n.t($ => $.ui.settingsLocalDataResetNoDemoRecordsWere));
   };
   const activeSection = isMobile ? mobileSection : desktopSection;
 
   return (
-    <AppScreen eyebrow="Preferences and privacy" title="Settings">
-      {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{saveError}</Text> : null}
-      {message ? <View accessibilityLiveRegion="polite" style={styles.successBanner}><Text style={styles.successBannerText}>{message}</Text><Pressable accessibilityLabel="Dismiss confirmation" accessibilityRole="button" hitSlop={8} onPress={() => setMessage(null)} style={styles.dismissBannerButton}><Ionicons color={colors.positive} name="close" size={20} /></Pressable></View> : null}
+    <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)}>
+      {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
+      {saveError ? <Pressable accessibilityRole="button" onPress={() => void retryLocalSave()} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.notices.retrySave)}</Text></Pressable> : null}
+      {message ? <View accessibilityLiveRegion="polite" style={styles.successBanner}><Text style={styles.successBannerText}>{translateMessage(message, false)}</Text><Pressable accessibilityLabel={i18n.t($ => $.ui.settingsDismissConfirmation)} accessibilityRole="button" hitSlop={8} onPress={() => setMessage(null)} style={styles.dismissBannerButton}><Ionicons color={colors.positive} name="close" size={20} /></Pressable></View> : null}
 
       {isMobile && mobileSection === null ? <MobileSettingsIndex onSelect={setMobileSection} /> : null}
-      {isMobile && mobileSection !== null ? <Pressable accessibilityRole="button" onPress={() => setMobileSection(null)} style={styles.mobileBack}><Ionicons color={colors.text} name="chevron-back" size={20} /><Text style={styles.mobileBackText}>All settings</Text></Pressable> : null}
+      {isMobile && mobileSection !== null ? <Pressable accessibilityRole="button" onPress={() => setMobileSection(null)} style={styles.mobileBack}><Ionicons color={colors.text} name="chevron-back" size={20} /><Text style={styles.mobileBackText}>{i18n.t($ => $.ui.settingsAllSettings)}</Text></Pressable> : null}
       <View style={!isMobile ? styles.desktopWorkspace : undefined}>
         {!isMobile ? <DesktopSettingsSidebar onSelect={setDesktopSection} selected={desktopSection} /> : null}
         <View style={!isMobile ? styles.desktopDetail : undefined}>
@@ -60,9 +69,11 @@ export function SettingsScreen() {
       {activeSection !== null ? <View style={styles.grid}>
         {activeSection === "preferences" ?
         <View style={styles.card}>
-          <SectionHeader title="Preferences" description="These choices are saved with your local dataset." />
-          <Text style={styles.label}>Currencies</Text>
-          <Text style={styles.helper}>Choose the currencies you want available in new records. Your base currency must remain selected.</Text>
+          <SectionHeader title={i18n.t($ => $.ui.settingsPreferences)} description={i18n.t($ => $.ui.settingsTheseChoicesAreSavedWithYourLocal)} />
+          <Text style={styles.label}>{t($ => $.settings.language)}</Text>
+          <View accessibilityRole="radiogroup" accessibilityLabel={t($ => $.settings.language)} style={styles.chips}>{(["system", "en", "es"] as const).map(language => <ChoiceChip role="radio" active={dataset.preferences.language === language} key={language} label={language === "system" ? t($ => $.settings.system) : language === "en" ? i18n.t($ => $.ui.settingsEnglish) : i18n.t($ => $.ui.settingsEspaOl)} onPress={() => void updatePreference({ language }, t($ => $.settings.saved))} />)}</View>
+          <Text style={styles.label}>{i18n.t($ => $.ui.settingsCurrencies)}</Text>
+          <Text style={styles.helper}>{i18n.t($ => $.ui.settingsChooseTheCurrenciesYouWantAvailableIn)}</Text>
           <View style={styles.chips}>{SUPPORTED_CURRENCIES.map((currency) => {
             const selected = dataset.preferences.selectedCurrencies.includes(currency);
             const isBase = dataset.preferences.baseCurrency === currency;
@@ -70,35 +81,35 @@ export function SettingsScreen() {
               const next = selected
                 ? dataset.preferences.selectedCurrencies.filter((candidate) => candidate !== currency)
                 : [...dataset.preferences.selectedCurrencies, currency];
-              void updatePreference({ selectedCurrencies: next }, "Currency choices saved locally.");
+              void updatePreference({ selectedCurrencies: next }, i18n.t($ => $.ui.settingsCurrencyChoicesSavedLocally));
             }} />;
           })}</View>
-          <Text style={styles.label}>Base currency</Text>
-          <Text style={styles.helper}>Used for future aggregate conversion and new budgets. Original transaction currencies stay unchanged.</Text>
-          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, `Base currency set to ${currency}.`)} />)}</View>
-          <Text style={styles.label}>Theme</Text>
-          <View style={styles.chips}>{(["system", "light", "dark"] as const).map((theme) => <ChoiceChip active={dataset.preferences.theme === theme} key={theme} label={theme.replace(/^./, (letter) => letter.toUpperCase())} onPress={() => void updatePreference({ theme }, "Theme preference saved locally.")} />)}</View>
+          <Text style={styles.label}>{i18n.t($ => $.ui.settingsBaseCurrency)}</Text>
+          <Text style={styles.helper}>{i18n.t($ => $.ui.settingsUsedForFutureAggregateConversionAndNew)}</Text>
+          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, { code: "baseCurrencySaved", currency })} />)}</View>
+          <Text style={styles.label}>{i18n.t($ => $.ui.settingsTheme)}</Text>
+          <View style={styles.chips}>{(["system", "light", "dark"] as const).map((theme) => <ChoiceChip active={dataset.preferences.theme === theme} key={theme} label={i18n.t($ => $.notices[theme])} onPress={() => void updatePreference({ theme }, i18n.t($ => $.ui.settingsThemePreferenceSavedLocally))} />)}</View>
         </View> : null}
 
         {activeSection === "rates" ?
         <View style={styles.card}>
-          <SectionHeader title="Exchange rates" description="Rate freshness is shown before any combined multi-currency total is presented." />
-          <View style={styles.statusRow}><View style={[styles.statusDot, rateQueries.hasError ? styles.statusDotBad : rateQueries.isLoading || rateQueries.unavailableCurrencies.length > 0 ? styles.statusDotMuted : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{rateQueries.isLoading ? "Loading rates" : rateQueries.hasError ? "Rate refresh needs attention" : rateQueries.unavailableCurrencies.length > 0 ? "Reference rate unavailable" : rateQueries.latestRates.size > 1 ? "Rates available" : "Same-currency totals"}</Text><Text style={styles.helper}>{rateQueries.isLoading ? "Fetching the latest available reference rates." : rateQueries.hasError ? "The provider could not be reached. Cached stale rates remain labeled when available." : rateQueries.unavailableCurrencies.length > 0 ? `ECB does not publish a reference rate for ${rateQueries.unavailableCurrencies.join(", ")}. Combined totals stay unavailable; original amounts remain visible.` : rateQueries.latestRates.size > 1 ? [...rateQueries.latestRates.values()].filter((rate) => rate.provider !== "same-currency").map((rate) => `${rate.base}/${rate.quote} · effective ${rate.effectiveDate} · ${rate.status} · fetched ${formatRateAge(rate.fetchedAt)}`).join(" · ") : "No provider rate is needed until a transaction uses a different currency."}</Text></View></View>
-          <View style={styles.infoBox}><Text style={styles.infoTitle}>Frankfurter · ECB reference rates</Text><Text style={styles.helper}>Original amounts stay unchanged. Combined totals are omitted when no usable conversion exists.</Text>{rateQueries.hasError ? <Pressable accessibilityRole="button" onPress={() => void rateQueries.retry()} style={styles.secondaryButton}><Text style={styles.secondaryText}>Retry rate refresh</Text></Pressable> : null}</View>
+          <SectionHeader title={i18n.t($ => $.ui.settingsExchangeRates)} description={i18n.t($ => $.ui.settingsRateFreshnessIsShownBeforeAnyCombined)} />
+          <View style={styles.statusRow}><View style={[styles.statusDot, rateQueries.hasError ? styles.statusDotBad : rateQueries.isLoading || rateQueries.unavailableCurrencies.length > 0 ? styles.statusDotMuted : styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{rateQueries.isLoading ? i18n.t($ => $.ui.settingsLoadingRates) : rateQueries.hasError ? i18n.t($ => $.ui.settingsRateRefreshNeedsAttention) : rateQueries.unavailableCurrencies.length > 0 ? i18n.t($ => $.ui.settingsReferenceRateUnavailable) : rateQueries.latestRates.size > 1 ? i18n.t($ => $.ui.dashboardRatesAvailable) : i18n.t($ => $.ui.settingsSameCurrencyTotals)}</Text><Text style={styles.helper}>{rateQueries.isLoading ? i18n.t($ => $.ui.settingsFetchingTheLatestAvailableReferenceRates) : rateQueries.hasError ? i18n.t($ => $.ui.settingsTheProviderCouldNotBeReachedCached) : rateQueries.unavailableCurrencies.length > 0 ? i18n.t($ => $.notices.rateUnavailable, { currencies: rateQueries.unavailableCurrencies.join(", ") }) : rateQueries.latestRates.size > 1 ? [...rateQueries.latestRates.values()].filter((rate) => rate.provider !== "same-currency").map((rate) => i18n.t($ => $.notices.rateDetails, { pair: `${rate.base}/${rate.quote}`, date: formatCalendarDate(rate.effectiveDate), status: rate.status === "stale" ? i18n.t($ => $.notices.stale) : i18n.t($ => $.notices.fresh), timestamp: formatTimestamp(rate.fetchedAt) })).join(" · ") : i18n.t($ => $.ui.settingsNoProviderRateIsNeededUntilA)}</Text></View></View>
+          <View style={styles.infoBox}><Text style={styles.infoTitle}>{i18n.t($ => $.ui.settingsFrankfurterEcbReferenceRates)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsOriginalAmountsStayUnchangedCombinedTotalsAre)}</Text>{rateQueries.hasError ? <Pressable accessibilityRole="button" onPress={() => void rateQueries.retry()} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.settingsRetryRateRefresh)}</Text></Pressable> : null}</View>
         </View> : null}
 
         {activeSection === "privacy" ?
         <View style={styles.card}>
-          <SectionHeader title="Local data and privacy" description="Your tracker is anonymous and keeps financial data on this device." />
-          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>Local-only dataset</Text><Text style={styles.helper}>{dataset.transactions.length} transactions · {dataset.budgets.length} budgets · {dataset.categories.length} categories</Text></View></View>
-          <Pressable accessibilityRole="button" accessibilityState={{ checked: dataset.preferences.analyticsConsent }} onPress={() => void updatePreference({ analyticsConsent: !dataset.preferences.analyticsConsent }, dataset.preferences.analyticsConsent ? "Analytics disabled." : "Analytics enabled with privacy controls.")} style={styles.toggleRow}><View style={[styles.toggle, dataset.preferences.analyticsConsent && styles.toggleOn]}><View style={[styles.toggleKnob, dataset.preferences.analyticsConsent && styles.toggleKnobOn]} /></View><View style={styles.statusCopy}><Text style={styles.statusTitle}>Optional analytics</Text><Text style={styles.helper}>{dataset.preferences.analyticsConsent ? "Enabled. Financial values and user-entered text remain excluded." : "Disabled by default. No product analytics is collected."}</Text></View></Pressable>
-          {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>Reset this local copy?</Text><Text style={styles.helper}>This removes local transactions, budgets, categories, and preferences. There is no demo-data restore.</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>Reset local data</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>Reset local data</Text></Pressable>}
+          <SectionHeader title={i18n.t($ => $.ui.settingsLocalDataAndPrivacy)} description={i18n.t($ => $.ui.settingsYourTrackerIsAnonymousAndKeepsFinancial)} />
+          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{i18n.t($ => $.ui.settingsLocalOnlyDataset)}</Text><Text style={styles.helper}>{formatNumber(dataset.transactions.length)} {i18n.t($ => $.ui.settingsTransactions)} {formatNumber(dataset.budgets.length)} {i18n.t($ => $.ui.settingsBudgets)} {formatNumber(dataset.categories.length)} {i18n.t($ => $.ui.settingsCategories)}</Text></View></View>
+          <Pressable accessibilityRole="button" accessibilityState={{ checked: dataset.preferences.analyticsConsent }} onPress={() => void updatePreference({ analyticsConsent: !dataset.preferences.analyticsConsent }, dataset.preferences.analyticsConsent ? i18n.t($ => $.ui.settingsAnalyticsDisabled) : i18n.t($ => $.ui.settingsAnalyticsEnabledWithPrivacyControls))} style={styles.toggleRow}><View style={[styles.toggle, dataset.preferences.analyticsConsent && styles.toggleOn]}><View style={[styles.toggleKnob, dataset.preferences.analyticsConsent && styles.toggleKnobOn]} /></View><View style={styles.statusCopy}><Text style={styles.statusTitle}>{i18n.t($ => $.ui.settingsOptionalAnalytics)}</Text><Text style={styles.helper}>{dataset.preferences.analyticsConsent ? i18n.t($ => $.ui.settingsEnabledFinancialValuesAndUserEnteredText) : i18n.t($ => $.ui.settingsDisabledByDefaultNoProductAnalyticsIs)}</Text></View></Pressable>
+          {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>{i18n.t($ => $.ui.settingsResetThisLocalCopy)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsThisRemovesLocalTransactionsBudgetsCategoriesAnd)}</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable>}
         </View> : null}
 
         {activeSection === "export" ?
         <View style={styles.card}>
-          <SectionHeader title="CSV export preview" description="A non-functional Pro feature preview. No export or payment is implemented in V1." />
-          <View style={styles.proBox}><Text style={styles.proBadge}>PRO PREVIEW</Text><Text style={styles.proTitle}>Take your records with you</Text><Text style={styles.helper}>Express interest in CSV export without downloading financial data or starting a subscription.</Text><Pressable accessibilityRole="button" onPress={() => { setMessage("CSV export interest recorded locally for this preview."); void analytics.capture("csv_upgrade_interest_clicked", { surface: "settings", actionResult: "success" }); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>I’m interested</Text></Pressable></View>
+          <SectionHeader title={i18n.t($ => $.notices.previewTitle)} description={i18n.t($ => $.notices.previewDescription)} />
+          <View style={styles.proBox}><Text style={styles.proBadge}>{i18n.t($ => $.ui.settingsProPreview)}</Text><Text style={styles.proTitle}>{i18n.t($ => $.ui.settingsTakeYourRecordsWithYou)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsExpressInterestInCsvExportWithoutDownloading)}</Text><Pressable accessibilityRole="button" onPress={() => { setMessage(i18n.t($ => $.notices.previewInterest)); void analytics.capture("csv_upgrade_interest_clicked", { surface: "settings", actionResult: "success" }); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.settingsIMInterested)}</Text></Pressable></View>
         </View> : null}
       </View> : null}
 
@@ -114,21 +125,22 @@ type MobileSection = SettingsSection;
 
 function getMobileGroups(colors: ThemeColors): readonly { title: string; rows: readonly { section: MobileSection; icon: keyof typeof Ionicons.glyphMap; iconBackground: string; title: string; description: string }[] }[] {
   return [
-  { title: "Personalization", rows: [
-    { section: "preferences", icon: "options-outline", iconBackground: colors.infoSubtle, title: "Currency & appearance", description: "Base currency and theme" },
-    { section: "categories", icon: "pricetags-outline", iconBackground: colors.positiveSubtle, title: "Categories", description: "Create and manage categories" }
+  { title: i18n.t($ => $.ui.settingsPersonalization), rows: [
+    { section: "preferences", icon: "options-outline", iconBackground: colors.infoSubtle, title: i18n.t($ => $.ui.settingsCurrencyAppearance), description: i18n.t($ => $.ui.settingsBaseCurrencyAndTheme) },
+    { section: "categories", icon: "pricetags-outline", iconBackground: colors.positiveSubtle, title: i18n.t($ => $.ui.settingsCategoriesAlternative), description: i18n.t($ => $.ui.settingsCreateAndManageCategories) }
   ] },
-  { title: "Data", rows: [
-    { section: "rates", icon: "swap-horizontal-outline", iconBackground: colors.infoSubtle, title: "Exchange rates", description: "Conversion status and freshness" },
-    { section: "privacy", icon: "shield-checkmark-outline", iconBackground: colors.negativeSubtle, title: "Local data & privacy", description: "Analytics and local data controls" }
+  { title: i18n.t($ => $.ui.settingsData), rows: [
+    { section: "rates", icon: "swap-horizontal-outline", iconBackground: colors.infoSubtle, title: i18n.t($ => $.ui.settingsExchangeRates), description: i18n.t($ => $.ui.settingsConversionStatusAndFreshness) },
+    { section: "privacy", icon: "shield-checkmark-outline", iconBackground: colors.negativeSubtle, title: i18n.t($ => $.ui.settingsLocalDataPrivacy), description: i18n.t($ => $.ui.settingsAnalyticsAndLocalDataControls) }
   ] },
-  { title: "More", rows: [
-    { section: "export", icon: "download-outline", iconBackground: colors.warningSubtle, title: "CSV export", description: "Pro feature preview" }
+  { title: i18n.t($ => $.ui.settingsMore), rows: [
+    { section: "export", icon: "download-outline", iconBackground: colors.warningSubtle, title: i18n.t($ => $.notices.csvExport), description: i18n.t($ => $.ui.settingsProFeaturePreview) }
   ] }
   ];
 }
 
 function MobileSettingsIndex({ onSelect }: { onSelect: (section: MobileSection) => void }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const mobileGroups = getMobileGroups(colors);
@@ -136,30 +148,29 @@ function MobileSettingsIndex({ onSelect }: { onSelect: (section: MobileSection) 
 }
 
 function DesktopSettingsSidebar({ selected, onSelect }: { selected: SettingsSection; onSelect: (section: SettingsSection) => void }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const mobileGroups = getMobileGroups(colors);
-  return <View accessibilityLabel="Settings sections" style={styles.desktopSidebar}>{mobileGroups.map((group) => <View key={group.title} style={styles.desktopNavGroup}><Text style={styles.desktopNavLabel}>{group.title}</Text>{group.rows.map((row) => { const active = row.section === selected; return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} key={row.section} onPress={() => onSelect(row.section)} style={[styles.desktopNavRow, active && styles.desktopNavRowActive]}><Ionicons color={active ? colors.positive : colors.muted} name={row.icon} size={19} /><View style={styles.desktopNavCopy}><Text style={[styles.desktopNavTitle, active && styles.desktopNavTitleActive]}>{row.title}</Text><Text numberOfLines={1} style={styles.desktopNavDescription}>{row.description}</Text></View></Pressable>; })}</View>)}</View>;
+  return <View accessibilityLabel={i18n.t($ => $.ui.settingsSettingsSections)} style={styles.desktopSidebar}>{mobileGroups.map((group) => <View key={group.title} style={styles.desktopNavGroup}><Text style={styles.desktopNavLabel}>{group.title}</Text>{group.rows.map((row) => { const active = row.section === selected; return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} key={row.section} onPress={() => onSelect(row.section)} style={[styles.desktopNavRow, active && styles.desktopNavRowActive]}><Ionicons color={active ? colors.positive : colors.muted} name={row.icon} size={19} /><View style={styles.desktopNavCopy}><Text style={[styles.desktopNavTitle, active && styles.desktopNavTitleActive]}>{row.title}</Text><Text numberOfLines={1} style={styles.desktopNavDescription}>{row.description}</Text></View></Pressable>; })}</View>)}</View>;
 }
 
-function formatRateAge(fetchedAt: string): string {
-  const ageHours = Math.max(0, Math.floor((Date.now() - new Date(fetchedAt).getTime()) / (60 * 60 * 1000)));
-  if (ageHours < 1) return "less than 1h ago";
-  if (ageHours === 1) return "1h ago";
-  return `${ageHours}h ago`;
-}
+
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   return <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionDescription}>{description}</Text></View>;
 }
 
-function ChoiceChip({ active, disabled = false, label, onPress }: { active: boolean; disabled?: boolean; label: string; onPress: () => void }) {
+function ChoiceChip({ active, disabled = false, label, onPress, role = "button" }: { role?: "button" | "radio"; active: boolean; disabled?: boolean; label: string; onPress: () => void }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
-  return <Pressable accessibilityRole="button" accessibilityState={{ checked: active, selected: active, disabled }} disabled={disabled} onPress={onPress} style={[styles.choiceChip, active && styles.choiceChipActive, disabled && styles.choiceChipDisabled]}><Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole={role} aria-checked={role === "radio" ? active : undefined} accessibilityState={{ checked: active, selected: active, disabled }} disabled={disabled} onPress={onPress} style={[styles.choiceChip, active && styles.choiceChipActive, disabled && styles.choiceChipDisabled]}><Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text></Pressable>;
 }
 
-function CategoryManager({ onMessage }: { onMessage: (message: string) => void }) {
+function CategoryManager({ onMessage }: { onMessage: (message: Message) => void }) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const dataset = useLocalDatasetStore((state) => state.dataset);
@@ -177,21 +188,21 @@ function CategoryManager({ onMessage }: { onMessage: (message: string) => void }
   const categories = dataset.categories.filter((category) => category.kind === kind).sort((left, right) => Number(left.isArchived) - Number(right.isArchived) || left.name.localeCompare(right.name));
   const add = async () => {
     const result = await addCategory({ kind, name: newName });
-    onMessage(result.ok ? `${newName.trim()} added locally.` : result.message);
+    onMessage(result.ok ? { code: "categoryAdded", name: newName.trim() } : result.message);
     if (result.ok) setNewName("");
   };
   const saveRename = async (id: string) => {
     const result = await renameCategory(id, editingName);
-    onMessage(result.ok ? "Category renamed locally." : result.message);
+    onMessage(result.ok ? i18n.t($ => $.ui.settingsCategoryRenamedLocally) : result.message);
     if (result.ok) setEditingId(null);
   };
   const confirmDelete = async (id: string) => {
     const result = await deleteCategory(id);
-    onMessage(result.ok ? "Category deleted; related records moved to Uncategorized." : result.message);
+    onMessage(result.ok ? i18n.t($ => $.ui.settingsCategoryDeletedRelatedRecordsMovedToUncategorized) : result.message);
     setPendingDeleteId(null);
   };
 
-  return <View style={styles.categoryCard}><SectionHeader title="Categories" description="Create, rename, archive, or delete categories. Protected Uncategorized categories stay available for reassignment." /><View style={styles.chips}>{(["expense", "income"] as const).map((option) => <ChoiceChip active={kind === option} key={option} label={option === "expense" ? "Expenses" : "Income"} onPress={() => setKind(option)} />)}</View><View style={styles.addCategoryRow}><TextInput accessibilityLabel="New category name" onChangeText={setNewName} onSubmitEditing={() => void add()} placeholder="New category name" placeholderTextColor={colors.placeholder} style={styles.categoryInput} value={newName} /><Pressable accessibilityRole="button" onPress={() => void add()} style={styles.primaryButton}><Text style={styles.primaryText}>Add category</Text></Pressable></View><View style={styles.categoryList}>{categories.map((category) => <View key={category.id} style={styles.categoryRow}><View style={styles.categoryCopy}><Text style={styles.categoryName}>{category.name}</Text><Text style={styles.helper}>{category.isSystem ? "Protected system category" : category.isArchived ? "Archived · historical records remain visible" : "Active"}</Text></View>{editingId === category.id ? <View style={styles.editRow}><TextInput accessibilityLabel={`Rename ${category.name}`} onChangeText={setEditingName} style={styles.editInput} value={editingName} /><Pressable accessibilityRole="button" onPress={() => void saveRename(category.id)} style={styles.tinyButton}><Text style={styles.tinyButtonText}>Save</Text></Pressable></View> : category.isSystem ? null : <View style={styles.categoryActions}><Pressable accessibilityRole="button" onPress={() => { setEditingId(category.id); setEditingName(category.name); }} style={styles.tinyButton}><Text style={styles.tinyButtonText}>Rename</Text></Pressable>{category.isArchived ? null : <Pressable accessibilityRole="button" onPress={() => void archiveCategory(category.id).then((result) => onMessage(result.ok ? "Category archived locally." : result.message))} style={styles.textButton}><Text style={styles.textButtonText}>Archive</Text></Pressable>}<Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(category.id)} style={styles.textButton}><Text style={styles.dangerTextSmall}>Delete</Text></Pressable></View>}{pendingDeleteId === category.id ? <View style={styles.categoryConfirm}><Text style={styles.helper}>Delete and move records to Uncategorized?</Text><Pressable accessibilityRole="button" onPress={() => void confirmDelete(category.id)} style={styles.dangerButton}><Text style={styles.dangerText}>Confirm</Text></Pressable><Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.textButton}><Text style={styles.textButtonText}>Cancel</Text></Pressable></View> : null}</View>)}</View></View>;
+  return <View style={styles.categoryCard}><SectionHeader title={i18n.t($ => $.ui.settingsCategoriesAlternative)} description={i18n.t($ => $.ui.settingsCreateRenameArchiveOrDeleteCategoriesProtected)} /><View style={styles.chips}>{(["expense", "income"] as const).map((option) => <ChoiceChip active={kind === option} key={option} label={option === "expense" ? i18n.t($ => $.ui.dashboardExpenses) : i18n.t($ => $.ui.dashboardIncome)} onPress={() => setKind(option)} />)}</View><View style={styles.addCategoryRow}><TextInput accessibilityLabel={i18n.t($ => $.ui.settingsNewCategoryName)} onChangeText={setNewName} onSubmitEditing={() => void add()} placeholder={i18n.t($ => $.ui.settingsNewCategoryName)} placeholderTextColor={colors.placeholder} style={styles.categoryInput} value={newName} /><Pressable accessibilityRole="button" onPress={() => void add()} style={styles.primaryButton}><Text style={styles.primaryText}>{i18n.t($ => $.ui.settingsAddCategory)}</Text></Pressable></View><View style={styles.categoryList}>{categories.map((category) => <View key={category.id} style={styles.categoryRow}><View style={styles.categoryCopy}><Text style={styles.categoryName}>{categoryLabel(category)}</Text><Text style={styles.helper}>{category.isSystem ? i18n.t($ => $.ui.settingsProtectedSystemCategory) : category.isArchived ? i18n.t($ => $.ui.settingsArchivedHistoricalRecordsRemainVisible) : i18n.t($ => $.ui.settingsActive)}</Text></View>{editingId === category.id ? <View style={styles.editRow}><TextInput accessibilityLabel={i18n.t($ => $.notices.renameCategory, { name: categoryLabel(category) })} onChangeText={setEditingName} style={styles.editInput} value={editingName} /><Pressable accessibilityRole="button" onPress={() => void saveRename(category.id)} style={styles.tinyButton}><Text style={styles.tinyButtonText}>{i18n.t($ => $.ui.settingsSave)}</Text></Pressable></View> : category.isSystem ? null : <View style={styles.categoryActions}><Pressable accessibilityRole="button" onPress={() => { setEditingId(category.id); setEditingName(categoryLabel(category)); }} style={styles.tinyButton}><Text style={styles.tinyButtonText}>{i18n.t($ => $.ui.settingsRename)}</Text></Pressable>{category.isArchived ? null : <Pressable accessibilityRole="button" onPress={() => void archiveCategory(category.id).then((result) => onMessage(result.ok ? i18n.t($ => $.ui.settingsCategoryArchivedLocally) : result.message))} style={styles.textButton}><Text style={styles.textButtonText}>{i18n.t($ => $.ui.settingsArchive)}</Text></Pressable>}<Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(category.id)} style={styles.textButton}><Text style={styles.dangerTextSmall}>{i18n.t($ => $.ui.settingsDelete)}</Text></Pressable></View>}{pendingDeleteId === category.id ? <View style={styles.categoryConfirm}><Text style={styles.helper}>{i18n.t($ => $.ui.settingsDeleteAndMoveRecordsToUncategorized)}</Text><Pressable accessibilityRole="button" onPress={() => void confirmDelete(category.id)} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.settingsConfirm)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => setPendingDeleteId(null)} style={styles.textButton}><Text style={styles.textButtonText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable></View> : null}</View>)}</View></View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
@@ -204,7 +215,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   label: { color: colors.text, fontSize: 14, fontWeight: "800" },
   helper: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  choiceChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, justifyContent: "center", minHeight: 40, paddingHorizontal: 13 },
+  choiceChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: 13 },
   choiceChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   choiceChipDisabled: { opacity: 0.55 },
   choiceText: { color: colors.muted, fontSize: 13, fontWeight: "800" },

@@ -6,12 +6,17 @@ export type CalendarMonth = `${number}-${number}`;
 
 export type TransactionType = "income" | "expense";
 export type CategoryKind = TransactionType;
+export type LanguagePreference = "system" | "en" | "es";
+export const DEFAULT_CATEGORY_KEYS = ["uncategorized", "income", "food", "housing", "transport", "shopping", "utilities", "entertainment", "health", "education", "subscriptions"] as const;
+export type DefaultCategoryKey = typeof DEFAULT_CATEGORY_KEYS[number];
+
 export type Theme = "system" | "light" | "dark";
 
 export type Category = {
   id: UUID;
   kind: CategoryKind;
   name: string;
+  defaultCategoryKey?: DefaultCategoryKey;
   isSystem: boolean;
   isArchived: boolean;
   createdAt: string;
@@ -47,6 +52,7 @@ export type CategoryDeletionTombstone = {
 };
 
 export type Preferences = {
+  language: LanguagePreference;
   baseCurrency: CurrencyCode;
   selectedCurrencies: CurrencyCode[];
   theme: Theme;

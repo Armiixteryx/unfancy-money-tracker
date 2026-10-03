@@ -46,6 +46,7 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
           return (
             <Pressable
               accessibilityRole="tab"
+              aria-selected={isFocused}
               accessibilityState={{ selected: isFocused }}
               key={route.key}
               onPress={() => selectRoute({ navigation, route, isFocused })}
@@ -73,6 +74,8 @@ function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         return (
           <Pressable
             accessibilityRole="tab"
+            accessibilityLabel={label}
+              aria-selected={isFocused}
             accessibilityState={{ selected: isFocused }}
             key={route.key}
             onPress={() => selectRoute({ navigation, route, isFocused })}
@@ -115,8 +118,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   webLabel: { color: colors.muted, fontSize: 14, fontWeight: "700" },
   webLabelActive: { color: colors.text },
   mobileContainer: { alignItems: "stretch", backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", height: 76, justifyContent: "space-around", paddingTop: 8 },
-  mobileItem: { alignItems: "center", flex: 1, gap: 6, justifyContent: "center", minHeight: 56 },
+  mobileItem: { alignItems: "center", flex: 1, minWidth: 0, paddingHorizontal: 2, gap: 6, justifyContent: "center", minHeight: 56 },
   mobileItemActive: { backgroundColor: colors.positiveSubtle, borderRadius: 12, marginBottom: 6, marginHorizontal: 4 },
-  mobileLabel: { color: colors.muted, fontSize: 11, fontWeight: "700" },
+  mobileLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", textAlign: "center", maxWidth: "100%" },
   mobileLabelActive: { color: colors.text }
 });

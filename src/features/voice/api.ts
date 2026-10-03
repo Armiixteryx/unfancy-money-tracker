@@ -1,3 +1,4 @@
+import { errorCode, type ErrorCode } from "../../domain/errors";
 import { z } from "zod";
 import { resolveLocalApiUrl } from "../../platform/runtime/localApiUrl";
 import {
@@ -7,7 +8,10 @@ import {
   type VoiceRequest,
   type VoiceResponse,
 } from "../../contracts/voice";
-export class VoiceClientError extends Error {}
+export class VoiceClientError extends Error {
+  readonly code: ErrorCode;
+  constructor(message: string) { super(message); this.code = errorCode(message); }
+}
 
 export function resolveVoiceExpenseUrl(configuredUrl: string): string {
   const url = new URL(resolveLocalApiUrl(configuredUrl));

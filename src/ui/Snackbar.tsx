@@ -1,3 +1,5 @@
+import { i18n } from "../localization/i18n";
+import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,6 +27,7 @@ export function Snackbar({
   actionLabel,
   onAction,
 }: SnackbarProps) {
+  useTranslation();
   const styles = useThemedStyles(createStyles);
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
@@ -82,7 +85,7 @@ export function Snackbar({
       <Pressable
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        accessibilityLabel="Dismiss notification"
+        accessibilityLabel={i18n.t($ => $.ui.commonDismissNotification)}
         accessibilityRole="button"
         hitSlop={8}
         onPress={onDismiss}

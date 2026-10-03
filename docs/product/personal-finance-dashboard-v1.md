@@ -18,6 +18,7 @@ The app is anonymous and local-only. Saved financial records stay in the local d
 | Categories | UUID-backed income and expense categories; defaults plus custom create, rename, archive, and delete |
 | Budgets | One expense-category budget per calendar month; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
+| Localization | Bundled English and neutral Latin American Spanish; System / English / Español selection, default System; device region independently controls money and date formatting |
 | Data and identity | Anonymous local use only; no account or cloud data capability in the app |
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
@@ -41,7 +42,7 @@ The product should demonstrate thoughtful product, design, and engineering pract
 - Use UUID-backed income and expense categories; create, rename, archive, or delete categories.
 - Create monthly category budgets and monitor progress or overspending.
 - Review monthly trends and category breakdowns.
-- Change base currency and theme, and inspect exchange-rate freshness.
+- Change base currency, theme, and UI language, and inspect exchange-rate freshness.
 - Use the tracker anonymously with local persistence from the first launch.
 - Open the CSV export CTA and see a Pro-feature preview.
 
@@ -82,7 +83,7 @@ The same five labels are used on mobile bottom navigation and the browser left r
 
 ### Settings
 
-- Base currency and theme.
+- Base currency, theme, and System / English / Español language preference.
 - Choose a non-empty set of desired currencies for new transaction and budget forms; the base currency is always included.
 - Category management.
 - Exchange-rate status.
@@ -129,6 +130,16 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - The app never runs a cloud-sync flow or performs a cloud reset; retained backend records are outside the app’s current product boundary.
 - Destructive data actions require explicit confirmation and clearly state their local/cloud impact before confirmation.
 - Empty states lead to the next relevant action: add a transaction, create a budget, or select a reporting period.
+
+## Localization and regional entry
+
+English and neutral Latin American Spanish ship with the app and work offline. System selects the first supported preferred device language, with English fallback. Language switches immediately without restarting navigation, clearing form drafts, or restarting voice operations; the browser document language follows the UI. Device regional conventions control number, money, calendar-date, month, and timestamp display independently of UI language. Money displays explicit currency codes and preserves exact decimal precision.
+
+New default categories and protected Uncategorized labels translate at presentation boundaries. Existing non-system, custom, and renamed category names remain unchanged. Renaming a translated default clears its default-label metadata; archive retains it; deleted defaults remain deleted. Voice sends resolved active category names with the existing category IDs and remote-processing boundaries.
+
+Amount entry accepts ASCII and device-localized digits with the device decimal separator, without grouping separators. Grouped/mixed/wrong separators, exponent notation, nonpositive amounts, and excess currency precision produce translated errors with regional examples. A mounted form keeps its amount-entry region until it closes; UI language changes update labels and feedback immediately. Transaction dates and budget months retain ISO text entry with translated labels and instructions. Displayed date-only records cannot shift across timezones; timestamps follow device timezone. Gregorian financial periods and all calculations remain unchanged.
+
+Only the chosen language preference persists. Schema 6 migrates older datasets to System, keeps migration/recovery backups, and marks protected categories through `isSystem` without inferring category origin from names. A successful local reset returns language to System; unreadable-preference recovery uses device language. Language choice introduces no analytics events or properties. App-owned iOS microphone permission text is localized; OS-owned dialogs retain system language behavior. See ADR 0018 for implementation and translation maintenance.
 
 ## Analytics and privacy
 
