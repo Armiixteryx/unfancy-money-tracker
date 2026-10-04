@@ -15,7 +15,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
 export AWS_PAGER=""
 
-for required_command in aws curl pnpm; do
+for required_command in aws curl pnpm node; do
   if ! command -v "$required_command" >/dev/null 2>&1; then
     echo "Required command '$required_command' is not installed or is not on PATH." >&2
     exit 1
@@ -70,16 +70,23 @@ if aws cloudformation describe-stacks --stack-name "$stack_name" --region "$depl
   fi
 fi
 
+pnpm exec tsx scripts/voice-environment.ts check
+
 echo "Running deployment checks."
 pnpm run infra:check
 
 echo "Reviewing the full CloudFormation diff."
 pnpm exec cdk diff "$stack_name" --context "stage=$stage"
 
+deployment_options=()
+if [[ "${CDK_IMPORT_EXISTING_RESOURCES:-}" == "1" ]]; then
+  deployment_options+=(--import-existing-resources)
+fi
+
 pnpm exec cdk deploy "$stack_name" \
   --context "stage=$stage" \
   --outputs-file "$outputs_file" \
-  --require-approval broadening
+  --require-approval broadening "${deployment_options[@]}"
 
 if [[ "$stage" == "dev" ]]; then
   pnpm exec tsx scripts/voice-environment.ts dev
@@ -146,6 +153,42 @@ fi
 sync_status="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" --request POST "$api_url/sync/pull")"
 if [[ "$sync_status" != "401" && "$sync_status" != "403" ]]; then
   echo "Deployment finished, but the unauthenticated sync smoke test returned HTTP $sync_status instead of 401/403." >&2
+  exit 1
+fi
+
+api_id="$(aws cloudformation list-stack-resources --stack-name "$stack_name" --region "$deployment_region" --query "StackResourceSummaries[?ResourceType=='AWS::ApiGatewayV2::Api'].PhysicalResourceId | [0]" --output text)"
+voice_auth="$(aws apigatewayv2 get-routes --api-id "$api_id" --region "$deployment_region" --query "Items[?RouteKey=='POST /voice/expense'].AuthorizationType | [0]" --output text)"
+if [[ "$voice_auth" != "NONE" ]]; then
+  echo "Voice route must remain anonymous for this rollout." >&2
+  exit 1
+fi
+voice_throttle="$(aws apigatewayv2 get-stage --api-id "$api_id" --stage-name '$default' --region "$deployment_region" --query 'RouteSettings."POST /voice/expense".[ThrottlingRateLimit,ThrottlingBurstLimit]' --output text)"
+read -r voice_rate voice_burst <<< "$voice_throttle"
+if [[ "$voice_rate" != "0.25" || "$voice_burst" != "2" ]]; then
+  echo "Voice route throttling does not match the expected rate and burst." >&2
+  exit 1
+fi
+voice_web_origin="${VOICE_WEB_ORIGIN:-https://main.d127yvlpbgr7e4.amplifyapp.com}"
+cors_headers="$(curl --silent --show-error --max-time 35 --output /dev/null --dump-header - --request OPTIONS --header "Origin: $voice_web_origin" --header 'Access-Control-Request-Method: POST' --header 'Access-Control-Request-Headers: content-type' "$api_url/voice/expense")"
+if ! CORS_HEADERS="$cors_headers" VOICE_WEB_ORIGIN="$voice_web_origin" node --input-type=module <<'JS'
+const headers = new Headers();
+for (const line of process.env.CORS_HEADERS.split(/\r?\n/)) {
+  const colon = line.indexOf(':');
+  if (colon > 0) headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
+}
+const origin = headers.get('access-control-allow-origin');
+const methods = headers.get('access-control-allow-methods')?.toLowerCase().split(',').map(value => value.trim());
+const allowed = headers.get('access-control-allow-headers')?.toLowerCase().split(',').map(value => value.trim());
+if (!['*', process.env.VOICE_WEB_ORIGIN].includes(origin) || !methods?.includes('post') || !allowed?.includes('content-type')) process.exitCode = 1;
+JS
+then
+  echo "Voice CORS preflight does not permit hosted JSON requests." >&2
+  exit 1
+fi
+
+voice_status="$(curl --silent --show-error --max-time 35 --output /dev/null --write-out "%{http_code}" --request POST --header 'Content-Type: application/json' --data '{}' "$api_url/voice/expense")"
+if [[ "$voice_status" != "422" ]]; then
+  echo "Anonymous voice malformed-request check returned HTTP $voice_status instead of 422." >&2
   exit 1
 fi
 

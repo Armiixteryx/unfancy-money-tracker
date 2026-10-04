@@ -10,6 +10,14 @@ describe("UnfancyMoneyTrackerStack", () => {
     const stack = new UnfancyMoneyTrackerStack(app, "Test-dev", { deploymentStage: "dev" });
     const template = Template.fromStack(stack);
 
+    const voiceRouteId = Object.keys(template.findResources("AWS::ApiGatewayV2::Route", {
+      Properties: { RouteKey: "POST /voice/expense" },
+    }))[0];
+    expect(voiceRouteId).toBeDefined();
+    template.hasResource("AWS::ApiGatewayV2::Stage", {
+      DependsOn: Match.arrayWith([voiceRouteId]),
+    });
+
     template.resourceCountIs("AWS::DynamoDB::Table", 1);
     template.resourceCountIs("AWS::SecretsManager::Secret", 1);
     template.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /voice/expense", AuthorizationType: "NONE" });

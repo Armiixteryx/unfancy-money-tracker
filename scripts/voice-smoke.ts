@@ -76,7 +76,8 @@ const examples = [
 ];
 async function main() {
   process.loadEnvFile(".env.local");
-  process.env.APP_ENV = "local";
+  const endpointOnly = process.argv.includes("--endpoint-only");
+  if (!endpointOnly) process.env.APP_ENV = "local";
   process.env.EXPO_PUBLIC_VOICE_API_URL ??= "http://127.0.0.1:3001";
   const directory = mkdtempSync(join(tmpdir(), "unfancy-voice-smoke-"));
   try {
@@ -143,10 +144,23 @@ async function main() {
           categories,
         };
         const signal = AbortSignal.timeout(27000);
-        let stage = "transcription";
         try {
+          if (endpointOnly) {
+            const result = await requestVoiceExpense(request, AbortSignal.timeout(30000));
+            const expectedId = example.customCategory ? customCategory.id
+              : dataset.categories.find(category => category.defaultCategoryKey === example.categoryKey)?.id;
+            const outcome = result.requestId !== request.requestId ? "identity_mismatch"
+              : result.transaction.amount !== example.amount ? "amount_mismatch"
+              : result.transaction.currency !== example.currency ? "currency_mismatch"
+              : result.transaction.categoryId === expectedId ? "matched"
+              : result.transaction.categoryId === categories.find(category => category.isFallback)?.id
+                ? "model_fallback" : "wrong_selection";
+            const passed = outcome === "matched";
+            console.log(`Synthetic case ${index + 1}: ${passed ? "PASS" : "FAIL"}; outcome ${outcome}.`);
+            if (!passed) process.exitCode = 1;
+            continue;
+          }
           const transcript = await transcribeAudio(request, signal);
-          stage = "classification";
           let diagnostic: { outcome: "matched" | "model_fallback" | "below_threshold"; selectedProbability: number; selectedCategoryId: string } | undefined;
           const transaction = await classifyExpense(
             transcript,
@@ -177,7 +191,7 @@ async function main() {
             category?.defaultCategoryKey === example.categoryKey &&
             outcome === "matched";
           console.log(
-            `Synthetic case ${index + 1}, ${format}: ${passed ? "PASS" : "FAIL"}; outcome ${outcome}; selected probability ${diagnostic?.selectedProbability.toFixed(3) ?? "n/a"}.`,
+            `Synthetic case ${index + 1}: ${passed ? "PASS" : "FAIL"}; outcome ${outcome}; selected probability ${diagnostic?.selectedProbability.toFixed(3) ?? "n/a"}.`,
           );
           if (!passed) process.exitCode = 1;
           if (format === "m4a" && [0, 1, 2, 5].includes(index)) {
@@ -185,7 +199,6 @@ async function main() {
               if (languageIndex > 0) await delay(15000);
               await i18n.changeLanguage(language);
               const endpointRequest = { ...request, categories: voiceCategoryChoices([...dataset.categories, customCategory], categoryLabel) };
-              stage = "endpoint";
               const endpointResult = await requestVoiceExpense(endpointRequest, AbortSignal.timeout(27000));
               const endpointExpectedId = example.customCategory
                 ? customCategory.id
@@ -197,13 +210,13 @@ async function main() {
                   : "wrong_selection";
               const endpointPassed = endpointResult.transaction.amount === example.amount &&
                 endpointResult.transaction.currency === example.currency && endpointOutcome === "matched";
-              console.log(`Synthetic endpoint case ${index + 1}, UI ${language}: ${endpointPassed ? "PASS" : "FAIL"}; outcome ${endpointOutcome}.`);
+              console.log(`Synthetic endpoint case ${index + 1}: ${endpointPassed ? "PASS" : "FAIL"}; outcome ${endpointOutcome}.`);
               if (!endpointPassed) process.exitCode = 1;
             }
           }
         } catch (error) {
           console.log(
-            `Synthetic example ${index + 1}, ${format}: FAIL (${stage}, ${sanitizeProviderError(error).code}).`,
+            `Synthetic case ${index + 1}: FAIL; outcome ${sanitizeProviderError(error).code}.`,
           );
           process.exitCode = 1;
         }

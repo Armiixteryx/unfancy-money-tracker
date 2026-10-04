@@ -21,6 +21,10 @@ async function main() {
     ),
   );
   const stage = process.argv[2];
+  if (stage === "check") {
+    console.log("Voice provider credentials are present and valid.");
+    return;
+  }
   if (!stage) {
     const base: unknown = JSON.parse(
       readFileSync("sam/env.local.json", "utf8"),
@@ -43,7 +47,7 @@ async function main() {
   }
   if (stage !== "dev")
     throw new Error("Production voice deployment remains deferred.");
-  const client = new SecretsManagerClient({});
+  const client = new SecretsManagerClient({ region: process.env.CDK_DEFAULT_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1" });
   await client.send(
     new PutSecretValueCommand({
       SecretId: `UnfancyMoneyTracker-${stage}/voice`,

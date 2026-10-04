@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestVoiceExpense, resolveVoiceExpenseUrl } from "./api";
+import { requestVoiceExpense, resolveVoiceExpenseUrl, resolveVoiceBackendUrl } from "./api";
 import { createEmptyDataset } from "../../platform/persistence/datasetPersistence";
 const dataset = createEmptyDataset();
 const request = {
@@ -87,4 +87,39 @@ describe("voice endpoint configuration", () => {
       expect(resolveVoiceExpenseUrl(configured)).toBe(expected);
     },
   );
+});
+
+
+describe("voice backend selection", () => {
+  const urls = { localUrl: "http://localhost:3001", devUrl: "https://dev.invalid/dev/rates/", prodUrl: "https://prod.invalid" };
+  it.each([
+    [undefined, "http://localhost:3001/voice/expense"],
+    ["local", "http://localhost:3001/voice/expense"],
+    ["dev", "https://dev.invalid/dev/voice/expense"],
+    ["prod", "https://prod.invalid/voice/expense"],
+  ])("selects only %s", (backend, expected) => {
+    expect(resolveVoiceBackendUrl({ ...urls, backend })).toBe(expected);
+  });
+  it.each([
+    { backend: "invalid" }, { backend: "" },
+    { backend: "dev", devUrl: undefined }, { backend: "prod", prodUrl: undefined },
+    { backend: "local", localUrl: undefined },
+    { backend: "dev", devUrl: "http://dev.invalid" },
+    { backend: "prod", prodUrl: "http://prod.invalid" },
+    { backend: "dev", devUrl: "private malformed value" },
+    { backend: "local", localUrl: "file:///private" },
+    { backend: "dev", devUrl: "https://user:secret@dev.invalid" },
+  ])("rejects invalid configuration without fallback", (override) => {
+    expect(() => resolveVoiceBackendUrl({ ...urls, ...override })).toThrow("Voice entry is not configured. Enter manually.");
+  });
+  it("does not send a request when the selected endpoint is missing", async () => {
+    vi.stubEnv("EXPO_PUBLIC_VOICE_BACKEND", "dev");
+    vi.stubEnv("EXPO_PUBLIC_VOICE_DEV_API_URL", "");
+    vi.stubEnv("EXPO_PUBLIC_VOICE_API_URL", urls.localUrl);
+    vi.stubGlobal("fetch", vi.fn());
+    try {
+      await expect(requestVoiceExpense(request, new AbortController().signal)).rejects.toThrow("Voice entry is not configured");
+      expect(fetch).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
+  });
 });

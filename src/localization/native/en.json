@@ -1,1 +1,5 @@
-{"NSMicrophoneUsageDescription":"Allow Unfancy Money Tracker to record an expense for remote voice processing."}
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "Allow Unfancy Money Tracker to record an expense for remote voice processing."
+  }
+}

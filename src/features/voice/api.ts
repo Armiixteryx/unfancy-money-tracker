@@ -24,16 +24,42 @@ export function resolveVoiceExpenseUrl(configuredUrl: string): string {
   return url.toString();
 }
 
+export interface VoiceBackendConfiguration {
+  backend?: string;
+  localUrl?: string;
+  devUrl?: string;
+  prodUrl?: string;
+}
+
+// Endpoint selection is independent of future voice-only authentication.
+export function resolveVoiceBackendUrl(config: VoiceBackendConfiguration): string {
+  const backend = config.backend ?? "local";
+  const configured = backend === "local" ? config.localUrl
+    : backend === "dev" ? config.devUrl
+    : backend === "prod" ? config.prodUrl : undefined;
+  try {
+    if (!configured) throw new Error();
+    const url = new URL(configured);
+    if (url.username || url.password ||
+        (backend === "local" ? !["http:", "https:"].includes(url.protocol) : url.protocol !== "https:"))
+      throw new Error();
+    return resolveVoiceExpenseUrl(configured);
+  } catch {
+    throw new VoiceClientError("Voice entry is not configured. Enter manually.");
+  }
+}
+
 export async function requestVoiceExpense(
   request: VoiceRequest,
   signal: AbortSignal,
 ): Promise<VoiceResponse> {
-  const configured = process.env.EXPO_PUBLIC_VOICE_API_URL;
-  if (!configured)
-    throw new VoiceClientError(
-      "Voice entry is not configured. Enter manually.",
-    );
-  const response = await fetch(resolveVoiceExpenseUrl(configured), {
+  const endpoint = resolveVoiceBackendUrl({
+    backend: process.env.EXPO_PUBLIC_VOICE_BACKEND,
+    localUrl: process.env.EXPO_PUBLIC_VOICE_API_URL,
+    devUrl: process.env.EXPO_PUBLIC_VOICE_DEV_API_URL,
+    prodUrl: process.env.EXPO_PUBLIC_VOICE_PROD_API_URL,
+  });
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(voiceRequestSchema.parse(request)),

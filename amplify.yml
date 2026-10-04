@@ -13,7 +13,7 @@ frontend:
         - pnpm install --frozen-lockfile
     build:
       commands:
-        - pnpm exec expo export --platform web
+        - pnpm exec expo export --platform web --clear
   artifacts:
     baseDirectory: dist
     files:

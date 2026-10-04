@@ -1,1 +1,5 @@
-{"NSMicrophoneUsageDescription":"Permite que Unfancy Money Tracker grabe un gasto para procesarlo por voz de forma remota."}
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "Permite que Unfancy Money Tracker grabe un gasto para procesarlo por voz de forma remota."
+  }
+}

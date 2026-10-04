@@ -99,7 +99,7 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       integration: new integrations.HttpLambdaIntegration("ExchangeRateIntegration", exchangeRateFunction),
       authorizer: new apigwv2.HttpNoneAuthorizer()
     });
-    api.addRoutes({
+    const voiceRoutes = api.addRoutes({
       path: "/voice/expense", methods: [apigwv2.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration("VoiceExpenseIntegration", voiceFunction),
       authorizer: new apigwv2.HttpNoneAuthorizer()
@@ -111,6 +111,8 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       throttle: { rateLimit: 5, burstLimit: 10 }
     });
 
+    // RouteSettings use a literal route key, so CloudFormation cannot infer this dependency.
+    stage.node.addDependency(...voiceRoutes);
     (stage.node.defaultChild as apigwv2.CfnStage).addPropertyOverride("RouteSettings", {
       "POST /voice/expense": { ThrottlingRateLimit: 0.25, ThrottlingBurstLimit: 2 }
     });
