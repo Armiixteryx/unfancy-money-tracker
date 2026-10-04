@@ -1,6 +1,6 @@
 # SAM local API
 
-The SAM template contains local sync and exchange-rate proxy boundaries for automated integration and contract testing. It does not provide interactive authentication or create AWS resources.
+The SAM template contains local sync and exchange-rate proxy boundaries for automated integration and contract testing. Local SAM does not provision resources; `local:init` creates the sync and rate-cache tables in DynamoDB Local. AWS resources are deployed through CDK.
 
 From the repository root:
 
