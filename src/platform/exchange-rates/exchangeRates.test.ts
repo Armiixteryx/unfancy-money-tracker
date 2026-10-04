@@ -14,7 +14,7 @@ describe("Frankfurter exchange-rate adapter", () => {
     expect(calls).toBe(0);
   });
 
-  it("parses ECB rows and retains a cached rate when the provider is unavailable", async () => {
+  it("parses blended rows and retains a cached rate when the provider is unavailable", async () => {
     const cache = new MemoryRateCache();
     let online = true;
     const adapter = new FrankfurterExchangeRateAdapter(cache, async () => {
@@ -29,7 +29,7 @@ describe("Frankfurter exchange-rate adapter", () => {
     expect(stale.status).toBe("stale");
   });
 
-  it("reports an unavailable ECB currency without retrying through decades of dates", async () => {
+  it("reports an unavailable currency without retrying through decades of dates", async () => {
     let calls = 0;
     const adapter = new FrankfurterExchangeRateAdapter(new MemoryRateCache(), async () => {
       calls += 1;

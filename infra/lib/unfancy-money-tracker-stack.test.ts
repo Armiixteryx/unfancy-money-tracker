@@ -19,7 +19,7 @@ describe("UnfancyMoneyTrackerStack", () => {
     });
 
     template.hasResourceProperties("AWS::Cognito::UserPoolClient", { AccessTokenValidity: 15, IdTokenValidity: 15, EnableTokenRevocation: true, AllowedOAuthFlowsUserPoolClient: false, ExplicitAuthFlows: ["ALLOW_USER_SRP_AUTH"], RefreshTokenRotation: { Feature: "ENABLED", RetryGracePeriodSeconds: 30 } });
-    template.resourceCountIs("AWS::DynamoDB::Table", 1);
+    template.resourceCountIs("AWS::DynamoDB::Table", 2);
     template.resourceCountIs("AWS::SecretsManager::Secret", 1);
     template.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /voice/expense", AuthorizationType: "JWT", AuthorizationScopes: ["aws.cognito.signin.user.admin"] });
     template.hasResourceProperties("AWS::ApiGatewayV2::Stage", { RouteSettings: { "POST /voice/expense": { ThrottlingRateLimit: 0.25, ThrottlingBurstLimit: 2 } } });
@@ -77,4 +77,20 @@ it("grants voice secret read access only to the dedicated voice role", () => {
   expect(JSON.stringify(readers[0]?.Properties.Roles)).toContain("VoiceExpenseFunctionServiceRole");
   expect(JSON.stringify(readers[0]?.Properties.PolicyDocument)).toContain("VoiceSecret");
   template.hasResource("AWS::SecretsManager::Secret",{DeletionPolicy:"Retain",UpdateReplacePolicy:"Retain"});
+});
+
+it("uses a dedicated on-demand Standard cache without TTL, indexes, streams, or backups and grants only rates GetItem/PutItem", () => {
+  const template = Template.fromStack(new UnfancyMoneyTrackerStack(new cdk.App({ context: { stage: "dev" } }), "Rates-dev", { deploymentStage: "dev" }));
+  template.hasResourceProperties("AWS::DynamoDB::Table", {
+    TableName: "Rates-dev-rates", BillingMode: "PAY_PER_REQUEST", TableClass: "STANDARD",
+    KeySchema: [{ AttributeName: "pk", KeyType: "HASH" }],
+    ProvisionedThroughput: Match.absent(), TimeToLiveSpecification: Match.absent(),
+    GlobalSecondaryIndexes: Match.absent(), LocalSecondaryIndexes: Match.absent(),
+    StreamSpecification: Match.absent(), PointInTimeRecoverySpecification: Match.absent()
+  });
+  const policies = Object.values(template.findResources("AWS::IAM::Policy"));
+  const cachePolicies = policies.filter(resource => JSON.stringify(resource.Properties.PolicyDocument).includes("RateCacheTable"));
+  expect(cachePolicies).toHaveLength(1);
+  expect(JSON.stringify(cachePolicies[0]?.Properties.Roles)).toContain("ExchangeRateFunctionServiceRole");
+  expect(cachePolicies[0]?.Properties.PolicyDocument.Statement[0].Action).toEqual(["dynamodb:GetItem", "dynamodb:PutItem"]);
 });

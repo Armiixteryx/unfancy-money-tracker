@@ -15,6 +15,7 @@ const command = process.argv[2] ?? "help";
 const region = process.env.AWS_REGION ?? "us-east-1";
 const endpoint = process.env.DYNAMODB_ENDPOINT ?? `http://127.0.0.1:${process.env.DYNAMODB_PORT ?? "8000"}`;
 const tableName = process.env.SYNC_TABLE_NAME ?? "unfancy-local-sync";
+const rateTableName = process.env.RATE_CACHE_TABLE_NAME ?? "unfancy-local-rates";
 const client = new DynamoDBClient({
   endpoint,
   region,
@@ -30,6 +31,8 @@ async function main(): Promise<void> {
   if (command === "health") {
     await waitForEndpoint();
     const response = await client.send(new DescribeTableCommand({ TableName: tableName }));
+    const rateResponse = await client.send(new DescribeTableCommand({ TableName: rateTableName }));
+    if (rateResponse.Table?.TableStatus !== "ACTIVE") throw new Error("Rate cache table is not active");
     if (response.Table?.TableStatus !== "ACTIVE") throw new Error(`Table ${tableName} is not active`);
     console.log(`DynamoDB Local table ${tableName} is healthy.`);
     return;
@@ -89,6 +92,18 @@ async function initialize(): Promise<void> {
     if (!(error instanceof ResourceInUseException) && !(error instanceof Error && error.name === "ResourceInUseException")) throw error;
   }
   await waitUntilTableExists({ client, maxWaitTime: 30 }, { TableName: tableName });
+  try {
+    await client.send(new CreateTableCommand({
+      TableName: rateTableName,
+      KeySchema: [{ AttributeName: "pk", KeyType: "HASH" }],
+      AttributeDefinitions: [{ AttributeName: "pk", AttributeType: "S" }],
+      BillingMode: "PAY_PER_REQUEST",
+      TableClass: "STANDARD"
+    }));
+  } catch (error) {
+    if (!(error instanceof Error && error.name === "ResourceInUseException")) throw error;
+  }
+  await waitUntilTableExists({ client, maxWaitTime: 30 }, { TableName: rateTableName });
 }
 
 async function waitForEndpoint(): Promise<void> {

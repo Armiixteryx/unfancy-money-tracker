@@ -67,11 +67,21 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       removalPolicy: retainedRemovalPolicy
     });
 
+    const rateCacheTable = new dynamodb.Table(this, "RateCacheTable", {
+      tableName: `${this.stackName}-rates`,
+      partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      tableClass: dynamodb.TableClass.STANDARD,
+      encryption: dynamodb.TableEncryption.DEFAULT,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+
     const syncFunction = this.createLambda("SyncFunction", "src/server/handlers/sync.ts", {
       SYNC_TABLE_NAME: syncTable.tableName,
       APP_ENV: props.deploymentStage
     });
-    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", { APP_ENV: props.deploymentStage });
+    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", { APP_ENV: props.deploymentStage, RATE_CACHE_TABLE_NAME: rateCacheTable.tableName });
+    rateCacheTable.grant(exchangeRateFunction, "dynamodb:GetItem", "dynamodb:PutItem");
     syncTable.grantReadWriteData(syncFunction);
     const voiceSecret = new secretsmanager.Secret(this, "VoiceSecret", {
       secretName: `UnfancyMoneyTracker-${props.deploymentStage}/voice`,
@@ -126,6 +136,7 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     new cdk.CfnOutput(this, "CognitoClientId", { value: userPoolClient.userPoolClientId });
     new cdk.CfnOutput(this, "CognitoRegion", { value: this.region });
     new cdk.CfnOutput(this, "DeploymentStage", { value: props.deploymentStage });
+    new cdk.CfnOutput(this, "RateCacheTableName", { value: rateCacheTable.tableName });
     new cdk.CfnOutput(this, "SyncTableName", { value: syncTable.tableName });
   }
 

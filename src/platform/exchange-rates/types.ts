@@ -1,4 +1,5 @@
-import type { CurrencyCode } from "../../domain/currency";
+import Decimal from "decimal.js";
+import { isCurrencyCode, type CurrencyCode } from "../../domain/currency";
 import { z } from "zod";
 
 export type RateStatus = "fresh" | "stale";
@@ -9,17 +10,19 @@ export type RateRecord = {
   rate: string;
   effectiveDate: string;
   fetchedAt: string;
-  provider: "frankfurter-ecb" | "same-currency";
+  provider: "frankfurter-blended" | "same-currency";
   status: RateStatus;
 };
 
 export const rateRecordSchema = z.object({
-  base: z.string(),
-  quote: z.string(),
-  rate: z.string().min(1),
+  base: z.custom<CurrencyCode>(value => typeof value === "string" && isCurrencyCode(value)),
+  quote: z.custom<CurrencyCode>(value => typeof value === "string" && isCurrencyCode(value)),
+  rate: z.string().regex(/^[0-9]+(?:\.[0-9]+)?(?:e[+-]?[0-9]+)?$/i).refine(value => {
+    try { const rate = new Decimal(value); return rate.isFinite() && rate.isPositive() && !rate.isZero(); } catch { return false; }
+  }),
   effectiveDate: z.string().date(),
   fetchedAt: z.string().datetime(),
-  provider: z.enum(["frankfurter-ecb", "same-currency"]),
+  provider: z.enum(["frankfurter-blended", "same-currency"]),
   status: z.enum(["fresh", "stale"])
 });
 

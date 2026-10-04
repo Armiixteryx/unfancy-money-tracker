@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { isCurrencyCode } from "../../domain/currency";
 import { FrankfurterExchangeRateAdapter } from "../../platform/exchange-rates/frankfurterExchangeRateAdapter";
-import { MemoryRateCache } from "../../platform/exchange-rates/memoryRateCache";
+import { createSharedRateCache } from "../repository/dynamoDbRateCache";
 import { ExchangeRateError } from "../../platform/exchange-rates/types";
 
 const requestSchema = z.object({
@@ -12,7 +12,7 @@ const requestSchema = z.object({
   date: z.string().date().optional()
 });
 
-const provider = new FrankfurterExchangeRateAdapter(new MemoryRateCache());
+const provider = new FrankfurterExchangeRateAdapter(createSharedRateCache());
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   try {
