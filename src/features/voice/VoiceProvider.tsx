@@ -1,3 +1,7 @@
+import { AuthenticationRequiredError } from "../../platform/auth/errors";
+import { subscribeAuthentication } from "../../platform/auth/lifecycle";
+import { useAuth } from "../auth/AuthProvider";
+import { authClient } from "../../platform/auth/client";
 import { formatMoneyForDisplay } from "../../domain/money";
 import { categoryLabel } from "../../localization/i18n";
 import { voiceCategoryChoices } from "./categoryChoices";
@@ -18,7 +22,7 @@ import { createUuid } from "../../platform/identifiers/createUuid";
 import { findUncategorizedCategory } from "../../domain/categories";
 import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
 import { voiceErrorMessages, type VoiceRequest } from "../../contracts/voice";
-import { requestVoiceExpense, VoiceClientError } from "./api";
+import { requestVoiceExpense, VoiceAuthenticationError, VoiceClientError } from "./api";
 import { createRecorder, type Recorder } from "./recording";
 import { VoiceFeedback } from "./VoiceFeedback";
 
@@ -59,6 +63,10 @@ export function localRecordingDate(date = new Date()) {
 export function VoiceProvider({ children }: PropsWithChildren) {
   useTranslation();
   const router = useRouter();
+  const auth = useAuth();
+  useEffect(() => {
+    if (["permission", "starting", "recording", "processing"].includes(phaseRef.current)) cancelRef.current();
+  }, [auth.epoch]);
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const phaseRef = useRef<VoicePhase>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -71,10 +79,12 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     mutationFn: ({
       request,
       signal,
+      accessToken,
     }: {
       request: VoiceRequest;
       signal: AbortSignal;
-    }) => requestVoiceExpense(request, signal),
+      accessToken: string;
+    }) => requestVoiceExpense(request, signal, accessToken),
     retry: 0,
     gcTime: 0,
   });
@@ -111,6 +121,9 @@ export function VoiceProvider({ children }: PropsWithChildren) {
   const cancelRef = useRef(cancel);
   cancelRef.current = cancel;
   useEffect(() => {
+    const unsubscribeAuth = subscribeAuthentication(() => {
+      if (["permission", "starting", "recording", "processing"].includes(phaseRef.current)) cancelRef.current();
+    });
     const subscription = AppState.addEventListener("change", (state) => {
       if (
         state !== "active" &&
@@ -131,6 +144,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     if (typeof document !== "undefined")
       document.addEventListener("visibilitychange", visibility);
     return () => {
+      unsubscribeAuth();
       subscription.remove();
       unsubscribe();
       if (typeof document !== "undefined")
@@ -186,7 +200,10 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         localDate: value.date,
         categories: voiceCategoryChoices(dataset.categories, categoryLabel),
       };
+      const accessToken = await authClient.accessToken();
+      if (!current(value)) return;
       const response = await mutateRef.current({
+        accessToken,
         request,
         signal: value.controller.signal,
       });
@@ -234,8 +251,9 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       if (current(value)) {
         session.current = null;
         transition("idle");
+        if ((error instanceof VoiceAuthenticationError || error instanceof AuthenticationRequiredError)) void auth.signOut().catch(() => {});
         setMessage(
-          error instanceof VoiceClientError
+          (error instanceof VoiceAuthenticationError || error instanceof AuthenticationRequiredError) ? (i18n.resolvedLanguage === "es" ? "Inicia sesión para usar la voz." : "Sign in to use voice.") : error instanceof VoiceClientError
             ? error.code
             : voiceErrorMessages.unavailable,
         );
@@ -249,6 +267,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const start = async () => {
+    if (!auth.identity) { auth.open(); return; }
     if (phaseRef.current !== "idle") return;
     const store = useLocalDatasetStore.getState();
     if (!store.dataset) return;

@@ -2,6 +2,8 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { Pressable } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { VoiceEntryButton } from "./VoiceEntryButton";
+const authentication = vi.hoisted(() => ({ identity: "synthetic@example.invalid" as string | null, epoch: 0, open: vi.fn(), signOut: vi.fn() }));
+vi.mock("../auth/AuthProvider", () => ({ useAuth: () => authentication }));
 const voice = vi.hoisted(() => ({
   phase: "idle",
   start: vi.fn().mockResolvedValue(undefined),
@@ -20,8 +22,19 @@ afterEach(async () => {
   await act(async () => tree.unmount());
   vi.clearAllMocks();
   voice.phase = "idle";
+  authentication.identity = "synthetic@example.invalid";
 });
 describe("hold and accessible recording controls", () => {
+  it("offers login to guests without requesting the microphone", async () => {
+    authentication.identity = null;
+    await act(async () => { tree = create(<VoiceEntryButton />); });
+    const buttons = tree.root.findAllByType(Pressable);
+    expect(buttons).toHaveLength(1);
+    await act(async () => { buttons[0]!.props.onPress(); });
+    expect(authentication.open).toHaveBeenCalledOnce();
+    expect(voice.start).not.toHaveBeenCalled();
+    expect(voice.stop).not.toHaveBeenCalled();
+  });
   it("keeps the hold target active while microphone preparation is pending", async () => {
     (
       globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

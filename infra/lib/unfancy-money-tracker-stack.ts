@@ -42,10 +42,13 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       userPoolClientName: `${this.stackName}-client`,
       generateSecret: false,
       preventUserExistenceErrors: true,
-      authFlows: { userPassword: true, userSrp: true },
+      authFlows: { userSrp: true },
       refreshTokenValidity: cdk.Duration.days(30),
-      accessTokenValidity: cdk.Duration.hours(1),
-      idTokenValidity: cdk.Duration.hours(1)
+      enableTokenRevocation: true,
+      refreshTokenRotationGracePeriod: cdk.Duration.seconds(30),
+      disableOAuth: true,
+      accessTokenValidity: cdk.Duration.minutes(15),
+      idTokenValidity: cdk.Duration.minutes(15)
     });
 
     const syncTable = new dynamodb.Table(this, "SyncTable", {
@@ -76,6 +79,7 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN
     });
     const voiceFunction = this.createLambda("VoiceExpenseFunction", "src/server/handlers/voiceExpense.ts", {
+      COGNITO_USER_POOL_ID: userPool.userPoolId, COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
       APP_ENV: props.deploymentStage, VOICE_SECRET_ARN: voiceSecret.secretArn,
       VOICE_CATEGORY_CONFIDENCE: "0.70", VOICE_CURRENCY_CONFIDENCE: "0.80"
     });
@@ -102,7 +106,7 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     const voiceRoutes = api.addRoutes({
       path: "/voice/expense", methods: [apigwv2.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration("VoiceExpenseIntegration", voiceFunction),
-      authorizer: new apigwv2.HttpNoneAuthorizer()
+      authorizer: jwtAuthorizer, authorizationScopes: ["aws.cognito.signin.user.admin"]
     });
     const stage = new apigwv2.HttpStage(this, "DefaultStage", {
       httpApi: api,

@@ -18,9 +18,10 @@ describe("UnfancyMoneyTrackerStack", () => {
       DependsOn: Match.arrayWith([voiceRouteId]),
     });
 
+    template.hasResourceProperties("AWS::Cognito::UserPoolClient", { AccessTokenValidity: 15, IdTokenValidity: 15, EnableTokenRevocation: true, AllowedOAuthFlowsUserPoolClient: false, ExplicitAuthFlows: ["ALLOW_USER_SRP_AUTH"], RefreshTokenRotation: { Feature: "ENABLED", RetryGracePeriodSeconds: 30 } });
     template.resourceCountIs("AWS::DynamoDB::Table", 1);
     template.resourceCountIs("AWS::SecretsManager::Secret", 1);
-    template.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /voice/expense", AuthorizationType: "NONE" });
+    template.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /voice/expense", AuthorizationType: "JWT", AuthorizationScopes: ["aws.cognito.signin.user.admin"] });
     template.hasResourceProperties("AWS::ApiGatewayV2::Stage", { RouteSettings: { "POST /voice/expense": { ThrottlingRateLimit: 0.25, ThrottlingBurstLimit: 2 } } });
     template.hasResourceProperties("AWS::DynamoDB::Table", {
       ProvisionedThroughput: {

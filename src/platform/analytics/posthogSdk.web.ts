@@ -3,7 +3,7 @@ import posthog from "posthog-js";
 import type { AnalyticsEvent, AnalyticsProperties } from "./types";
 import type { PostHogSdk, PostHogSdkConfig } from "./posthogSdk";
 
-const MASKED_SELECTOR = "[data-financial-content], [data-financial-value], [data-transaction-row], [data-chart-value]";
+const MASKED_SELECTOR = "[data-sensitive], [data-financial-content], [data-financial-value], [data-transaction-row], [data-chart-value]";
 
 export function createPostHogSdk(config: PostHogSdkConfig): PostHogSdk | null {
   if (!config.apiKey || typeof window === "undefined") return null;

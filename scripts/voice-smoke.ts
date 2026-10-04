@@ -146,7 +146,7 @@ async function main() {
         const signal = AbortSignal.timeout(27000);
         try {
           if (endpointOnly) {
-            const result = await requestVoiceExpense(request, AbortSignal.timeout(30000));
+            const result = await requestVoiceExpense(request, AbortSignal.timeout(30000), process.env.VOICE_ACCESS_TOKEN ?? "");
             const expectedId = example.customCategory ? customCategory.id
               : dataset.categories.find(category => category.defaultCategoryKey === example.categoryKey)?.id;
             const outcome = result.requestId !== request.requestId ? "identity_mismatch"
@@ -199,7 +199,7 @@ async function main() {
               if (languageIndex > 0) await delay(15000);
               await i18n.changeLanguage(language);
               const endpointRequest = { ...request, categories: voiceCategoryChoices([...dataset.categories, customCategory], categoryLabel) };
-              const endpointResult = await requestVoiceExpense(endpointRequest, AbortSignal.timeout(27000));
+              const endpointResult = await requestVoiceExpense(endpointRequest, AbortSignal.timeout(27000), process.env.VOICE_ACCESS_TOKEN ?? "");
               const endpointExpectedId = example.customCategory
                 ? customCategory.id
                 : dataset.categories.find(category => category.defaultCategoryKey === example.categoryKey)?.id;

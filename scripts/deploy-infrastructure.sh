@@ -86,7 +86,7 @@ fi
 pnpm exec cdk deploy "$stack_name" \
   --context "stage=$stage" \
   --outputs-file "$outputs_file" \
-  --require-approval broadening "${deployment_options[@]}"
+  --require-approval broadening ${deployment_options[@]+"${deployment_options[@]}"}
 
 if [[ "$stage" == "dev" ]]; then
   pnpm exec tsx scripts/voice-environment.ts dev
@@ -158,8 +158,8 @@ fi
 
 api_id="$(aws cloudformation list-stack-resources --stack-name "$stack_name" --region "$deployment_region" --query "StackResourceSummaries[?ResourceType=='AWS::ApiGatewayV2::Api'].PhysicalResourceId | [0]" --output text)"
 voice_auth="$(aws apigatewayv2 get-routes --api-id "$api_id" --region "$deployment_region" --query "Items[?RouteKey=='POST /voice/expense'].AuthorizationType | [0]" --output text)"
-if [[ "$voice_auth" != "NONE" ]]; then
-  echo "Voice route must remain anonymous for this rollout." >&2
+if [[ "$voice_auth" != "JWT" ]]; then
+  echo "Voice route must use the Cognito JWT authorizer." >&2
   exit 1
 fi
 voice_throttle="$(aws apigatewayv2 get-stage --api-id "$api_id" --stage-name '$default' --region "$deployment_region" --query 'RouteSettings."POST /voice/expense".[ThrottlingRateLimit,ThrottlingBurstLimit]' --output text)"
@@ -169,7 +169,7 @@ if [[ "$voice_rate" != "0.25" || "$voice_burst" != "2" ]]; then
   exit 1
 fi
 voice_web_origin="${VOICE_WEB_ORIGIN:-https://main.d127yvlpbgr7e4.amplifyapp.com}"
-cors_headers="$(curl --silent --show-error --max-time 35 --output /dev/null --dump-header - --request OPTIONS --header "Origin: $voice_web_origin" --header 'Access-Control-Request-Method: POST' --header 'Access-Control-Request-Headers: content-type' "$api_url/voice/expense")"
+cors_headers="$(curl --silent --show-error --max-time 35 --output /dev/null --dump-header - --request OPTIONS --header "Origin: $voice_web_origin" --header 'Access-Control-Request-Method: POST' --header 'Access-Control-Request-Headers: authorization,content-type' "$api_url/voice/expense")"
 if ! CORS_HEADERS="$cors_headers" VOICE_WEB_ORIGIN="$voice_web_origin" node --input-type=module <<'JS'
 const headers = new Headers();
 for (const line of process.env.CORS_HEADERS.split(/\r?\n/)) {
@@ -179,7 +179,7 @@ for (const line of process.env.CORS_HEADERS.split(/\r?\n/)) {
 const origin = headers.get('access-control-allow-origin');
 const methods = headers.get('access-control-allow-methods')?.toLowerCase().split(',').map(value => value.trim());
 const allowed = headers.get('access-control-allow-headers')?.toLowerCase().split(',').map(value => value.trim());
-if (!['*', process.env.VOICE_WEB_ORIGIN].includes(origin) || !methods?.includes('post') || !allowed?.includes('content-type')) process.exitCode = 1;
+if (!['*', process.env.VOICE_WEB_ORIGIN].includes(origin) || !methods?.includes('post') || !allowed?.includes('content-type') || !allowed?.includes('authorization')) process.exitCode = 1;
 JS
 then
   echo "Voice CORS preflight does not permit hosted JSON requests." >&2
@@ -187,9 +187,15 @@ then
 fi
 
 voice_status="$(curl --silent --show-error --max-time 35 --output /dev/null --write-out "%{http_code}" --request POST --header 'Content-Type: application/json' --data '{}' "$api_url/voice/expense")"
-if [[ "$voice_status" != "422" ]]; then
-  echo "Anonymous voice malformed-request check returned HTTP $voice_status instead of 422." >&2
+if [[ "$voice_status" != "401" ]]; then
+  echo "Anonymous voice malformed-request check returned HTTP $voice_status instead of 401." >&2
   exit 1
+fi
+
+if [[ "$stage" == "dev" ]]; then
+  pool_id="$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$deployment_region" --query "Stacks[0].Outputs[?OutputKey=='CognitoUserPoolId'].OutputValue | [0]" --output text)"
+  client_id="$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$deployment_region" --query "Stacks[0].Outputs[?OutputKey=='CognitoClientId'].OutputValue | [0]" --output text)"
+  COGNITO_USER_POOL_ID="$pool_id" COGNITO_CLIENT_ID="$client_id" AWS_REGION="$deployment_region" pnpm exec tsx scripts/check-voice-auth.ts "$api_url"
 fi
 
 echo "Deployment and smoke tests succeeded. Stack outputs are in $outputs_file."

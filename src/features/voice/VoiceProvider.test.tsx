@@ -1,3 +1,4 @@
+import { invalidateAuthentication } from "../../platform/auth/lifecycle";
 import { i18n } from "../../localization/i18n";
 import React from "react";
 import { Pressable, Text } from "react-native";
@@ -12,6 +13,8 @@ import type { TransactionInput } from "../../domain/validation";
 import { voiceRequestSchema, type VoiceResponse } from "../../contracts/voice";
 import { createCategory } from "../../domain/categories";
 import { VoiceProvider, useVoice, localRecordingDate } from "./VoiceProvider";
+vi.mock("../../platform/auth/client", () => ({ authClient: { accessToken: async () => "synthetic-token" } }));
+vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ identity: "synthetic@example.invalid", epoch: 0, open: vi.fn(), signOut: vi.fn() }) }));
 const mocks = vi.hoisted(() => ({
   permission: vi.fn(),
   requestPermission: vi.fn(),
@@ -258,6 +261,19 @@ describe("global voice lifecycle", () => {
       useLocalDatasetStore.getState().addTransaction,
     ).not.toHaveBeenCalled();
   });
+  it("sign-out synchronously cancels processing and invalidates late responses without resubmission", async () => {
+    const original = useLocalDatasetStore.getState().dataset;
+    await act(async () => { await controls.start(); });
+    await act(async () => { void controls.stop(); });
+    const signal = mocks.request.mock.calls[0]![1] as AbortSignal;
+    await act(async () => { invalidateAuthentication(); });
+    expect(signal.aborted).toBe(true);
+    expect(controls.phase).toBe("idle");
+    await finishResponse();
+    expect(useLocalDatasetStore.getState().addTransaction).not.toHaveBeenCalled();
+    expect(useLocalDatasetStore.getState().dataset).toBe(original);
+    expect(mocks.request).toHaveBeenCalledOnce();
+  });
   it("revalidates archived categories and retries only local persistence", async () => {
     const add = vi.fn(async (value: TransactionInput, id?: string) => {
       const record = createTransaction(value, {
@@ -295,6 +311,8 @@ describe("global voice lifecycle", () => {
     });
     await finishResponse({ ...input, categoryId: custom.id });
     expect(add.mock.calls[0]?.[0].categoryId).toBe(fallback.id);
+    expect(controls.phase).toBe("save_failed");
+    await act(async () => { invalidateAuthentication(); });
     expect(controls.phase).toBe("save_failed");
     const retry = tree.root
       .findAllByType(Pressable)

@@ -13,6 +13,10 @@ export class VoiceClientError extends Error {
   constructor(message: string) { super(message); this.code = errorCode(message); }
 }
 
+export class VoiceAuthenticationError extends VoiceClientError {
+  constructor() { super("Sign in to use voice."); }
+}
+
 export function resolveVoiceExpenseUrl(configuredUrl: string): string {
   const url = new URL(resolveLocalApiUrl(configuredUrl));
   url.pathname =
@@ -52,7 +56,9 @@ export function resolveVoiceBackendUrl(config: VoiceBackendConfiguration): strin
 export async function requestVoiceExpense(
   request: VoiceRequest,
   signal: AbortSignal,
+  accessToken: string,
 ): Promise<VoiceResponse> {
+  if (!accessToken) throw new VoiceAuthenticationError();
   const endpoint = resolveVoiceBackendUrl({
     backend: process.env.EXPO_PUBLIC_VOICE_BACKEND,
     localUrl: process.env.EXPO_PUBLIC_VOICE_API_URL,
@@ -61,10 +67,11 @@ export async function requestVoiceExpense(
   });
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify(voiceRequestSchema.parse(request)),
     signal,
   });
+  if (response.status === 401 || response.status === 403) throw new VoiceAuthenticationError();
   if (!response.ok) {
     let code: unknown;
     try {

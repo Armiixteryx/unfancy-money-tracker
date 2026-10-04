@@ -8,6 +8,7 @@ import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStor
 import { SettingsScreen } from "./SettingsScreen";
 
 const surface = vi.hoisted(() => ({ width: 400, os: "web" }));
+vi.mock("../../auth/AuthProvider", () => ({ useAuth: () => ({ identity: "synthetic@example.invalid", epoch: 0, open: vi.fn(), signOut: vi.fn() }) }));
 vi.mock("react-native", () => ({
   Pressable: "button", Text: "text", TextInput: "input", View: "view",
   Platform: { get OS() { return surface.os; } },

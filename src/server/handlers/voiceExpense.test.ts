@@ -36,7 +36,7 @@ describe("voice handler", () => {
   it("returns only a validated expense and matching request ID", async () => {
     const transcribe = vi.fn().mockResolvedValue("Synthetic ten dollars");
     const classify = vi.fn().mockResolvedValue(transaction);
-    const r = await createVoiceHandler({ transcribe, classify })(
+    const r = await createVoiceHandler({ authorize: async () => {}, transcribe, classify })(
       event(request),
     );
     expect(r).toMatchObject({ statusCode: 200 });
@@ -61,7 +61,7 @@ describe("voice handler", () => {
   ])("validates boundaries before providers", async (body) => {
     const transcribe = vi.fn();
     const classify = vi.fn();
-    const r = await createVoiceHandler({ transcribe, classify })(event(body));
+    const r = await createVoiceHandler({ authorize: async () => {}, transcribe, classify })(event(body));
     expect(r).toMatchObject({ statusCode: 422 });
     expect(transcribe).not.toHaveBeenCalled();
     expect(classify).not.toHaveBeenCalled();
@@ -72,7 +72,7 @@ describe("voice handler", () => {
         new Promise<string>(() => undefined),
     );
     const classify = vi.fn();
-    const result = await createVoiceHandler({
+    const result = await createVoiceHandler({ authorize: async () => {},
       transcribe,
       classify,
       deadlineMs: 5,
@@ -82,7 +82,7 @@ describe("voice handler", () => {
     expect(transcribe.mock.calls[0]?.[1]?.aborted).toBe(true);
   });
   it("sanitizes provider errors and rejects malformed results", async () => {
-    const r = await createVoiceHandler({
+    const r = await createVoiceHandler({ authorize: async () => {},
       transcribe: vi
         .fn()
         .mockRejectedValue(new Error("private provider payload")),
@@ -90,7 +90,7 @@ describe("voice handler", () => {
     })(event(request));
     expect(JSON.stringify(r)).not.toContain("private");
     expect(r).toMatchObject({ statusCode: 503 });
-    const malformed = await createVoiceHandler({
+    const malformed = await createVoiceHandler({ authorize: async () => {},
       transcribe: vi.fn().mockResolvedValue("text"),
       classify: vi.fn().mockResolvedValue({ ...transaction, type: "income" }),
     })(event(request));
@@ -98,10 +98,12 @@ describe("voice handler", () => {
   });
   it("preserves sanitized throttling", async () => {
     expect(
-      await createVoiceHandler({
+      await createVoiceHandler({ authorize: async () => {},
         transcribe: vi.fn().mockRejectedValue(new VoiceError("throttled")),
         classify: vi.fn(),
       })(event(request)),
     ).toMatchObject({ statusCode: 429 });
   });
 });
+
+it("rejects anonymous and invalid bearer requests before providers", async () => { const transcribe = vi.fn(); const classify = vi.fn(); for (const headers of [{}, { authorization: "Bearer invalid" }]) { const result = await createVoiceHandler({ transcribe, classify })({ ...event({}), headers }); expect(result).toMatchObject({ statusCode: 401 }); } expect(transcribe).not.toHaveBeenCalled(); expect(classify).not.toHaveBeenCalled(); });

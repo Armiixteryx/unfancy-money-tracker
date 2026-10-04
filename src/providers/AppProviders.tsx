@@ -1,3 +1,4 @@
+import { AuthProvider } from "../features/auth/AuthProvider";
 import { LocalizationProvider } from "../localization/LocalizationProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
@@ -21,7 +22,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <LocalizationProvider><AnalyticsProvider>
         <AppThemeProvider>
-          <DatasetHydrationGate><VoiceProvider>{children}</VoiceProvider></DatasetHydrationGate>
+          <AuthProvider><DatasetHydrationGate><VoiceProvider>{children}</VoiceProvider></DatasetHydrationGate></AuthProvider>
         </AppThemeProvider>
       </AnalyticsProvider></LocalizationProvider>
     </QueryClientProvider>

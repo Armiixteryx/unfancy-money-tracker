@@ -6,7 +6,7 @@ Build a polished, cross-platform finance tracker for individuals who want one cl
 
 Users enter transactions manually or optionally record a single expense by voice. Voice audio is processed remotely by Vercel/SpaceXAI, and its parser-derived description plus active expense-category choices are classified by Cloudflare; completed transactions persist locally. V1 does **not** model bank, cash, credit, or savings accounts; transactions have no source/destination fields and transfers are out of scope.
 
-The app is anonymous and local-only. Saved financial records stay in the local dataset on the device or browser; optional voice processing sends the recording and derived text/category choices to remote providers; account creation and cloud synchronization are not part of the current app scope.
+The app supports optional email/password Cognito login and remains local-only. Saved financial records stay in the local dataset on the device or browser; optional voice processing sends the recording and derived text/category choices to remote providers; sign-in authorizes voice processing only; cloud synchronization remains dormant.
 
 ## Product decisions
 
@@ -19,7 +19,7 @@ The app is anonymous and local-only. Saved financial records stay in the local d
 | Budgets | One expense-category budget per calendar month; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
 | Localization | Bundled English and neutral Latin American Spanish; System / English / Español selection, default System; device region independently controls money and date formatting |
-| Data and identity | Anonymous local use only; no account or cloud data capability in the app |
+| Data and identity | Optional email/password login for voice; one local dataset shared across guest and signed-in use; no cloud data capability |
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
 | First-run safety notice | Show a dismissible warning on first launch that this is not a serious application and must not be used to store real data |
@@ -126,7 +126,7 @@ Use a calm, modern fintech system: warm off-white surfaces, deep navy typography
 - Budgets apply only to expense transactions inside their selected calendar month, do not roll over, and may be exceeded.
 - Keep original transaction amount/currency for display. Convert dashboard and budget aggregates using the latest available rate; convert historical reports using the rate published on each transaction date.
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.
-- Anonymous data persists locally. The app does not create accounts or upload the local dataset.
+- Local data persists across login, logout, and account changes. The app never uploads the local dataset.
 - The app never runs a cloud-sync flow or performs a cloud reset; retained backend records are outside the app’s current product boundary.
 - Destructive data actions require explicit confirmation and clearly state their local/cloud impact before confirmation.
 - Empty states lead to the next relevant action: add a transaction, create a budget, or select a reporting period.
@@ -177,8 +177,8 @@ Say a description, positive amount, and currency for one expense. Initially supp
 
 After persistence succeeds, show category, description, original amount/currency, and Edit in an eight-second snackbar, paused on hover or keyboard focus. Edit opens the existing mobile form or browser pane. Failed writes retain the record identity and offer local save retry without repeating transcription or creating duplicates. Reset/replacement invalidates pending responses. Temporary recordings are deleted; application logs, analytics and replay exclude voice and financial contents. Provider retention is subject to Vercel/upstream and Cloudflare policies; Zero Data Retention is not promised. See ADR 0017 for details. Production deployment remains deferred.
 
-### Voice deployment and future identity boundary
+### Voice deployment and optional identity boundary
 
-Voice endpoint selection supports local (default), AWS dev, and a deferred production target. Dev/prod require HTTPS; invalid or missing selected configuration fails without switching services. The AWS dev backend is deployed in `us-east-1` as of October 3, 2026. Anonymous routing, CORS, malformed-input handling, Lambda readiness, and configured throttling are verified. Live synthetic recognition validation is incomplete and includes strict-match failures; Amplify main targets AWS dev; the user will perform further recognition tests. The voice route remains anonymous for this rollout.
+Voice endpoint selection supports local (default), AWS dev, and a deferred production target. Dev/prod require HTTPS; invalid or missing selected configuration fails without switching services. The AWS dev backend is deployed in `us-east-1` as of October 3, 2026. Authenticated routing, anonymous rejection, CORS, malformed-input handling, Lambda readiness, and configured throttling are verified. Live synthetic recognition validation is incomplete and includes strict-match failures; Amplify main targets AWS dev; the user will perform further recognition tests. Voice requires a Cognito access token issued by the configured pool/client.
 
-Future Cognito sign-in is scoped only to remote voice processing; it will not restrict manual tracking, enable synchronization, upload local records, or change dataset ownership. Session expiry must preserve manual entry and must not automatically resubmit audio. No login UI, token storage, or authentication enforcement ships in this deployment. See ADR 0017.
+Optional Cognito sign-in is scoped only to remote voice processing; it will not restrict manual tracking, enable synchronization, upload local records, or change dataset ownership. Session expiry must preserve manual entry and must not automatically resubmit audio. New installations show login with Skip login before dataset creation. Existing snapshots or recovery data bypass the introduction. The independent introduction marker survives local reset, recovery, and fixture replacement. Settings offers Account, identity, login, and sign-out. Guests retain all manual features and exchange rates; voice offers Sign in to use voice. Login returns to the originating screen and requires a fresh recording. Registration, email confirmation/resend, and password recovery/reset support English and Spanish. Passwords require 12 characters with uppercase, lowercase, a number, and a symbol; email spelling is preserved. Credentials stay outside financial data and Zustand, in dedicated encrypted native MMKV with a SecureStore key or host-only strict secure web cookies (HTTP only on loopback). Sign-out cancels recording and processing while preserving completed records and local-save retries. Social login, MFA enrollment, account deletion, and production deployment remain deferred. See ADR 0020. See ADR 0017.

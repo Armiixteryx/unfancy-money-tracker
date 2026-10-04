@@ -86,6 +86,8 @@ Resources:
       Environment:
         Variables:
           APP_ENV: local
+          COGNITO_USER_POOL_ID: us-east-1_gCLS9k4s0
+          COGNITO_CLIENT_ID: 63kh2vrfpvd7h9moob0m9l2umf
           AI_GATEWAY_API_KEY: ''
           CLOUDFLARE_ACCOUNT_ID: ''
           CLOUDFLARE_AUTH_TOKEN: ''

@@ -1,3 +1,4 @@
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
@@ -17,10 +18,21 @@ import {
   transcribeAudio,
 } from "../voice/providers";
 
+const verifier = CognitoJwtVerifier.create({ userPoolId: process.env.COGNITO_USER_POOL_ID ?? "us-east-1_gCLS9k4s0", clientId: process.env.COGNITO_CLIENT_ID ?? "63kh2vrfpvd7h9moob0m9l2umf", tokenUse: "access", scope: "aws.cognito.signin.user.admin" });
+export function createVoiceAuthorizer(tokenVerifier: { verify: (token: string) => Promise<unknown> }) {
+  return async (event: APIGatewayProxyEventV2) => {
+    const header = event.headers?.authorization ?? event.headers?.Authorization;
+    if (!header?.startsWith("Bearer ")) throw new Error("Unauthorized");
+    await tokenVerifier.verify(header.slice(7));
+  };
+}
+const authorize = createVoiceAuthorizer(verifier);
+
 type Dependencies = {
   transcribe: typeof transcribeAudio;
   classify: typeof classifyExpense;
   deadlineMs?: number;
+  authorize?: (event: APIGatewayProxyEventV2) => Promise<void>;
 };
 function decodeRequest(event: APIGatewayProxyEventV2): VoiceRequest {
   if (
@@ -71,6 +83,7 @@ export function createVoiceHandler(dependencies: Dependencies) {
   return async (
     event: APIGatewayProxyEventV2,
   ): Promise<APIGatewayProxyResultV2> => {
+    try { await (dependencies.authorize ?? authorize)(event); } catch { return { statusCode: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }, body: JSON.stringify({ code: "unauthorized" }) }; }
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {

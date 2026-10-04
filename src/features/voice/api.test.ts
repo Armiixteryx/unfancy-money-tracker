@@ -34,7 +34,7 @@ describe("voice request boundary", () => {
         ),
       );
       await expect(
-        requestVoiceExpense(request, new AbortController().signal),
+        requestVoiceExpense(request, new AbortController().signal, "synthetic-access-token"),
       ).rejects.toThrow("Voice processing is unavailable");
       expect(fetch).toHaveBeenCalledOnce();
     },
@@ -60,7 +60,7 @@ describe("voice request boundary", () => {
       ),
     );
     await expect(
-      requestVoiceExpense(request, new AbortController().signal),
+      requestVoiceExpense(request, new AbortController().signal, "synthetic-access-token"),
     ).rejects.toThrow("Voice processing is unavailable");
   });
 });
@@ -118,8 +118,20 @@ describe("voice backend selection", () => {
     vi.stubEnv("EXPO_PUBLIC_VOICE_API_URL", urls.localUrl);
     vi.stubGlobal("fetch", vi.fn());
     try {
-      await expect(requestVoiceExpense(request, new AbortController().signal)).rejects.toThrow("Voice entry is not configured");
+      await expect(requestVoiceExpense(request, new AbortController().signal, "synthetic-access-token")).rejects.toThrow("Voice entry is not configured");
       expect(fetch).not.toHaveBeenCalled();
     } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
   });
+});
+
+it("requires a token before uploading audio", async () => { const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher); await expect(requestVoiceExpense(request, new AbortController().signal, "")).rejects.toThrow("Sign in"); expect(fetcher).not.toHaveBeenCalled(); vi.unstubAllGlobals(); });
+
+it("sends a bearer access token and never retries after rejection", async () => {
+  vi.stubEnv("EXPO_PUBLIC_VOICE_API_URL", "https://synthetic.invalid");
+  const fetcher = vi.fn().mockResolvedValue(new Response("{}", { status: 401 }));
+  vi.stubGlobal("fetch", fetcher);
+  await expect(requestVoiceExpense(request, new AbortController().signal, "synthetic-access")).rejects.toThrow("Sign in");
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(fetcher.mock.calls[0]?.[1]?.headers.Authorization).toBe("Bearer synthetic-access");
+  vi.unstubAllGlobals(); vi.unstubAllEnvs();
 });

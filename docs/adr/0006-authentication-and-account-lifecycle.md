@@ -2,7 +2,7 @@
 
 ## Status
 
-Superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md). The retained Cognito infrastructure is not deleted.
+Superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md). The retained Cognito infrastructure is not deleted. Optional voice-only authentication is now defined by [ADR 0020](0020-optional-voice-authentication.md); the account-scoped synchronization and destructive logout rules below remain superseded.
 
 ## Context
 
