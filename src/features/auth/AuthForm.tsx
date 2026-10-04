@@ -35,7 +35,7 @@ export function AuthForm({ onComplete, onCancel }: { onComplete: () => Promise<v
   };
   const titles = { login: label("Sign in", "Iniciar sesión"), register: label("Create account", "Crear cuenta"), confirm: label("Confirm email", "Confirmar correo"), recover: label("Recover password", "Recuperar contraseña"), reset: label("Reset password", "Restablecer contraseña") };
   const button = (text: string, action: () => void) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy, busy }} disabled={busy} onPress={action} style={{ minHeight: 48, justifyContent: "center", padding: 12 }}><Text style={{ color: colors.primary, fontWeight: "700" }}>{text}</Text></Pressable>;
-  return <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24, backgroundColor: colors.canvas }}><SensitiveContent><View style={{ width: "100%", maxWidth: 480, alignSelf: "center", gap: 12 }}>
+  return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24, backgroundColor: colors.canvas }}><SensitiveContent><View style={{ width: "100%", maxWidth: 480, alignSelf: "center", gap: 12 }}>
     <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 28, fontWeight: "700" }}>{titles[mode]}</Text>
     <Text style={{ color: colors.muted }}>{label("Login is optional. Your records stay on this device. Sign in to use voice entry.", "La sesión es opcional. Tus registros permanecen en este dispositivo. Inicia sesión para usar la voz.")}</Text>
     {(["email", ...(passwordRequired ? ["password"] : []), ...(codeRequired ? ["code"] : [])] as ("email" | "password" | "code")[]).map(name => {
