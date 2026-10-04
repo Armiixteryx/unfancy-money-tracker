@@ -52,6 +52,7 @@ Do not introduce an alternative framework, state library, styling system, or per
 
 ## Working conventions
 
+- Before testing mobile changes, first check for an attached physical Android device with `adb devices` and an attached physical iPhone or iPad available to Xcode (for example, `xcrun xctrace list devices`). Prefer a connected physical device for each platform when one is available; use an emulator or simulator only when no suitable physical device is attached.
 - Start Android with `pnpm run android`; it automatically configures ADB port reversal for the local SAM API. Do not invoke `expo run:android` directly.
 - To run Android, iOS, and web from one Expo server, use `pnpm run start:all`, then open each target with Expo's `a`, `i`, and `w` shortcuts.
 - Keep TypeScript strict; avoid `any` and validate external or persisted data at boundaries.
