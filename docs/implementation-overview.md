@@ -6,7 +6,7 @@ _Current repository state reviewed September 6, 2026._
 
 Unfancy Money Tracker is a cross-platform Expo application for individuals who want a simple, consolidated view of manually entered income, expenses, monthly category budgets, and spending history.
 
-The app is anonymous and local-only: users work offline and keep financial data on the device or in the browser. Account and cloud-sync capability is suspended from the Expo client. The retained AWS/SAM/DynamoDB backend remains available for a future reintroduction but is not called or changed by the app. The product deliberately does not model bank accounts, transfers, investments, debt, shared finances, or financial advice.
+The app keeps financial records on the device or in the browser and supports anonymous manual tracking. Optional Cognito login enables remote voice entry only. The client calls the public rates Lambda and authenticated voice Lambda; the retained AWS/SAM/DynamoDB sync backend remains dormant. The product deliberately does not model bank accounts, transfers, investments, debt, shared finances, or financial advice.
 
 ## Main features
 
@@ -18,7 +18,7 @@ The app is anonymous and local-only: users work offline and keep financial data 
 | Reports | View 3-, 6-, or 12-month spending history, original-currency monthly bars, current-month category breakdown, and factual activity observations. | Implemented |
 | Settings | Change base currency and theme; manage categories; inspect exchange-rate freshness; toggle optional analytics; reset local data; view the CSV Pro preview. | Implemented |
 | Categories | Create, rename, archive, and delete income or expense categories. Protected `Uncategorized` categories remain available; deleting a category reassigns its records and budgets. | Implemented |
-| Exchange rates | Uses latest rates for current aggregates and transaction-date historical rates for reports. Cached rates are marked stale, and combined totals are withheld when a required rate is unavailable. | Implemented |
+| Exchange rates | Uses Frankfurter blended rates through a shared DynamoDB cache, with 24-hour freshness for latest and requested historical dates. Device caches support visibly stale offline fallback; combined totals are withheld when a required rate is unavailable. | Implemented |
 | Local dataset | Anonymous CRUD, encrypted local persistence, schema migration, recovery, category-deletion tombstones, and local fixture replacement. | Implemented |
 | Retained sync backend | Cognito, API Gateway, Lambda, and DynamoDB handlers/repositories/contracts remain for a future client reintroduction. The Expo app has no auth, sync client, runtime cloud configuration, or sync UI. | Dormant and retained |
 | Analytics | PostHog is opt-in and disabled by default. Allowed properties are restricted to safe product metadata; financial values and user-entered content are excluded. | Implemented |

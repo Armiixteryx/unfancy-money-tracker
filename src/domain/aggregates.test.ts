@@ -16,7 +16,7 @@ describe("converted month aggregates", () => {
       rate: "1.1",
       effectiveDate: "2026-07-02",
       fetchedAt: "2026-07-03T00:00:00.000Z",
-      provider: "frankfurter-ecb",
+      provider: "frankfurter-blended",
       status: "fresh"
     } : undefined);
 

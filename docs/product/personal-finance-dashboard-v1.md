@@ -125,6 +125,7 @@ Use a warm editorial fintech system inspired by the Monarch Refero style referen
 - Income never consumes a category budget.
 - Budgets apply only to expense transactions inside their selected calendar month, do not roll over, and may be exceeded.
 - Keep original transaction amount/currency for display. Convert dashboard and budget aggregates using the latest available rate; convert historical reports using the rate published on each transaction date.
+- Rates use Frankfurter’s blended feed through a shared backend cache; latest and historical lookups refresh after 24 hours. The development cutover invalidates only old local rate caches once, preserving financial records and preferences.
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.
 - Local data persists across login, logout, and account changes. The app never uploads the local dataset.
 - The app never runs a cloud-sync flow or performs a cloud reset; retained backend records are outside the app’s current product boundary.

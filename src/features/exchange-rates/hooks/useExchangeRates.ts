@@ -2,16 +2,18 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 
 import type { CurrencyCode } from "../../../domain/currency";
-import { FrankfurterExchangeRateAdapter } from "../../../platform/exchange-rates/frankfurterExchangeRateAdapter";
+import { rateQueryFreshness } from "../../../platform/exchange-rates/rateQueryFreshness";
 import { HttpExchangeRateProvider } from "../../../platform/exchange-rates/httpExchangeRateProvider";
 import { resolveLocalApiUrl } from "../../../platform/runtime/localApiUrl";
 import { createRateCache } from "../../../platform/exchange-rates/createRateCache";
 import { ExchangeRateError, type ExchangeRateProvider, type RateRecord } from "../../../platform/exchange-rates/types";
 
 const rateCache = createRateCache();
-const exchangeRateProvider: ExchangeRateProvider = process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL
-  ? new HttpExchangeRateProvider(resolveLocalApiUrl(process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL))
-  : new FrankfurterExchangeRateAdapter(rateCache);
+const exchangeRateProvider: ExchangeRateProvider = new HttpExchangeRateProvider(
+  resolveLocalApiUrl(process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL || "https://pjac53rgd3.execute-api.us-east-1.amazonaws.com/rates"),
+  fetch,
+  rateCache
+);
 
 export type RateRequest = { currency: CurrencyCode; date?: string };
 export type RateQueryState = "loading" | "fresh" | "stale" | "unavailable" | "error";
@@ -30,7 +32,7 @@ export function useExchangeRates(baseCurrency: CurrencyCode, requests: readonly 
       queryFn: () => request.date
         ? exchangeRateProvider.getHistoricalRate(request.currency, baseCurrency, request.date)
         : exchangeRateProvider.getLatestRate(request.currency, baseCurrency),
-      staleTime: 24 * 60 * 60 * 1000,
+      staleTime: rateQueryFreshness,
       retry: false,
       enabled: request.currency === baseCurrency || Boolean(request.currency)
     }))

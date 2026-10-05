@@ -140,10 +140,10 @@ Unfancy Money Tracker local environment
 
 Usage: scripts/local-env.sh <command>
 
-  start              Start DynamoDB Local and initialize the sync table
+  start              Start DynamoDB Local and initialize the sync and rate-cache tables
   stop               Stop local services without deleting data
   reset              Delete local containers, volumes, and generated artifacts
-  init               Create the local DynamoDB sync table if needed
+  init               Create the local DynamoDB sync and rate-cache tables if needed
   seed               Apply the synthetic backend fixture
   sam-api            Start the SAM API on port 3001
   sam-lambda         Start the SAM Lambda endpoint on port 3002

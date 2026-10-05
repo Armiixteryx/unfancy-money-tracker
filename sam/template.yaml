@@ -54,6 +54,19 @@ Resources:
         EntryPoints:
           - src/server/handlers/sync.ts
 
+  RateCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: unfancy-local-rates
+      BillingMode: PAY_PER_REQUEST
+      TableClass: STANDARD
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
   ExchangeRateFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -62,6 +75,15 @@ Resources:
       Environment:
         Variables:
           APP_ENV: local
+          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
+          RATE_CACHE_TABLE_NAME: unfancy-local-rates
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt RateCacheTable.Arn
       Events:
         Rates:
           Type: HttpApi

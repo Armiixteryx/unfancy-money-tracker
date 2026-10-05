@@ -12,7 +12,7 @@ Transactions preserve their original amount and currency, while dashboard, budge
 
 ### Provider and supported currencies
 
-Standardize v1 on Frankfurter’s exchange-rate API using ECB reference rates. Frankfurter provides daily rates, historical and time-series queries, currency metadata, provider filtering, and does not require an API key. The app performs conversion locally with `decimal.js`; it does not use a provider conversion endpoint. See the [Frankfurter API documentation](https://frankfurter.dev/).
+Standardize v1 on Frankfurter’s exchange-rate API using the default blended feed (no provider filter). Frankfurter provides daily rates, historical and time-series queries, currency metadata, and does not require an API key. The app performs conversion locally with `decimal.js`; it does not use a provider conversion endpoint. See the [Frankfurter API documentation](https://frankfurter.dev/).
 
 Define an `ExchangeRateProvider` adapter so the source can be replaced without changing domain calculations.
 
@@ -24,7 +24,13 @@ Exclude crypto, metals, legacy currencies, and unsupported codes from transactio
 
 ### Rate records and cache
 
-Represent a cached rate with its base currency, quote currency, decimal rate, effective rate date, fetched timestamp, and provider identifier. Cache by base currency, quote currency, and effective date. Batch requests for historical reports where possible.
+Represent a cached rate with its base currency, quote currency, decimal rate, effective rate date, fetched timestamp, and provider identifier. Provider identifiers are `frankfurter-blended | same-currency`; pre-cutover responses are rejected.
+
+The rates Lambda uses a dedicated regional DynamoDB Standard table in `us-east-1`, with on-demand billing, strongly consistent GetItem reads, and GetItem/PutItem permissions limited to that table. Keys include base, quote, and either latest or the **requested** historical date. Keep the actual effective date and original upstream fetch timestamp in each validated record. No indexes, TTL deletion, backups, streams, or replication are configured.
+
+Latest and historical records are fresh for strictly less than 24 hours after their original fetch. At exactly 24 hours, refresh upstream. Reads never renew timestamps; expired records remain indefinitely for stale fallback. Failed refresh returns an available record with `stale` status. Malformed/incompatible cache entries are misses, and cache read/write failures never prevent valid upstream results from being returned. A bounded ten-day prior-date search handles absent weekend/holiday observations.
+
+The client uses the shared `/rates` endpoint and retains a separately validated device/browser rate cache for offline fallback. Query freshness follows the original fetched timestamp rather than time of cache reuse. The development cutover has no compatibility transition: native rate-only MMKV is cleared once using a marker; the web rate-only IndexedDB upgrades from version 1 to 2 and clears its rate store once. Financial records, preferences, authentication, and recovery storage are untouched.
 
 Refresh rates on app launch, app focus, and reconnect when the cached rate is older than 24 hours. A manual retry action is available after provider errors.
 
@@ -54,7 +60,10 @@ Preserve original transaction amounts and currencies. Perform conversion and agg
 - Latest-rate conversion for dashboard and budgets versus transaction-date conversion for reports.
 - Weekend and holiday fallback to the nearest prior published rate.
 - Missing historical-rate behavior and same-currency conversion.
-- Base/quote/effective-date cache isolation, batching, and reload persistence.
+- Base/quote/requested-date cache isolation, shared reuse, and reload persistence.
+- Exact 24-hour expiration for latest and historical rates, stale fallback, malformed entries, and cache read/write failures.
+- Pre-cutover response rejection and one-time rate-only cleanup.
+- All curated currencies against USD, including COP/VES.
 - Currency selector enforcement for the curated ISO list.
 - Decimal precision, half-up rounding, and absence of floating-point arithmetic.
 - No provider credentials, transaction amounts, descriptions, or categories appear in logs or analytics.
