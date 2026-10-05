@@ -6,6 +6,11 @@ import { normalizeMoneyAmount } from "./money";
 import type { CategoryKind, TransactionType } from "./types";
 
 export const uuidSchema = z.string().uuid();
+export const uuidV7Schema = z.string().uuid().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+export const systemCategoryIds = ["income-income", "income-uncategorized", ...["food", "housing", "transport", "shopping", "utilities", "entertainment", "health", "education", "subscriptions", "uncategorized"].map(key => `expense-${key}`)];
+// Historical UUIDs remain readable locally; new sync records use UUIDv7.
+export const categoryIdSchema = z.union([uuidSchema, z.string().refine(value => systemCategoryIds.includes(value))]);
+export const syncCategoryIdSchema = z.union([uuidV7Schema, z.string().refine(value => systemCategoryIds.includes(value))]);
 export const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 export const calendarMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use YYYY-MM");
 
@@ -17,7 +22,7 @@ function isRealCalendarDate(value: string): boolean {
 const baseTransactionInputSchema = z.object({
   amount: z.string(),
   type: z.enum(["income", "expense"]),
-  categoryId: uuidSchema,
+  categoryId: categoryIdSchema,
   description: z.string().trim().min(1, "Description is required").max(200, "Description is too long"),
   date: calendarDateSchema,
   currency: currencyCodeSchema
@@ -43,7 +48,7 @@ export type TransactionInput = z.infer<typeof transactionInputSchema>;
 
 export const budgetInputSchema = z
   .object({
-    categoryId: uuidSchema,
+    categoryId: categoryIdSchema,
     month: calendarMonthSchema,
     amount: z.string(),
     currency: currencyCodeSchema

@@ -44,7 +44,7 @@ describe("local dataset store", () => {
     expect(deleted.ok).toBe(true);
     expect(store.getState().dataset?.transactions).toHaveLength(0);
     expect(store.getState().dataset).not.toHaveProperty("recordTombstones");
-    expect(store.getState().dataset).not.toHaveProperty("sync");
+    expect(store.getState().dataset).toHaveProperty("sync.enabled", false);
   });
 
   it("rejects a category from the wrong transaction kind at the domain boundary", async () => {
@@ -164,7 +164,7 @@ describe("local dataset store", () => {
     expect(result.ok).toBe(true);
     expect(store.getState().dataset?.datasetId).toBe(originalId);
     expect(store.getState().dataset?.transactions.length).toBeGreaterThan(10);
-    expect(store.getState().dataset).not.toHaveProperty("sync");
+    expect(store.getState().dataset).toHaveProperty("sync.enabled", false);
   });
 
   it("does not replace data outside the explicit local development environment", async () => {
@@ -176,6 +176,14 @@ describe("local dataset store", () => {
       ok: false,
       message: errorCode("Mock data is available only in the local development environment.")
     });
+  });
+  it("requires a confirmed local reset before fixtures can replace a bound dataset",async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV","local");
+    const adapter=new MemoryPersistenceAdapter();const store=createDatasetStore(new DatasetPersistence(adapter),async () => undefined);await store.getState().initialize();
+    await store.getState().updateFromSync(current => ({ ...current,sync:{ ...current.sync!,binding:{ owner:"synthetic-owner",datasetId:current.datasetId },enabled:false } }));
+    const saved=await adapter.readSnapshot();const epoch=store.getState().datasetEpoch;
+    expect((await store.getState().replaceWithMockData("dashboard")).ok).toBe(false);
+    expect(await adapter.readSnapshot()).toBe(saved);expect(store.getState().datasetEpoch).toBe(epoch);
   });
 
   it("retries legacy cleanup before hydrating when cleanup fails", async () => {

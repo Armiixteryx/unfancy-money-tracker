@@ -21,11 +21,11 @@ const SYSTEM_CATEGORY_DEFINITIONS: readonly { name: string; kind: CategoryKind; 
 type CategoryIdFactory = () => UUID;
 
 export function seedDefaultCategories(
-  idFactory: CategoryIdFactory = createUuid,
+  _idFactory: CategoryIdFactory = createUuid,
   now: string = new Date().toISOString()
 ): Category[] {
   return SYSTEM_CATEGORY_DEFINITIONS.map(({ name, kind, key }) => ({
-    id: idFactory(),
+    id: `${kind}-${key}`,
     kind,
     name,
     isSystem: true,

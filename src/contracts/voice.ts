@@ -3,6 +3,7 @@ import {
   calendarDateSchema,
   transactionInputSchema,
   uuidSchema,
+  categoryIdSchema,
 } from "../domain/validation";
 
 export const MAX_AUDIO_BYTES = 1024 * 1024;
@@ -37,7 +38,7 @@ export const voiceRequestSchema = z
       .array(
         z
           .object({
-            id: uuidSchema,
+            id: categoryIdSchema,
             name: z.string().trim().min(1).max(80),
             localizedNames: z.object({
               en: z.string().trim().min(1).max(80),

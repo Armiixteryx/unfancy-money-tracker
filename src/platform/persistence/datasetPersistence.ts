@@ -1,3 +1,4 @@
+import { emptySyncState } from "../../features/sync/state";
 import { seedDefaultCategories } from "../../domain/categories";
 import type { Dataset, UUID } from "../../domain/types";
 import { createUuid } from "../identifiers/createUuid";
@@ -21,6 +22,7 @@ export function createEmptyDataset(
 ): Dataset {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
+    sync: emptySyncState(),
     datasetId: idFactory(),
     transactions: [],
     categories: seedDefaultCategories(idFactory, now),

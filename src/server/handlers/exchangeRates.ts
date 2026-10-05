@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { isCurrencyCode } from "../../domain/currency";
 import { FrankfurterExchangeRateAdapter } from "../../platform/exchange-rates/frankfurterExchangeRateAdapter";
-import { createSharedRateCache } from "../repository/dynamoDbRateCache";
+import { createSharedRateCache } from "../repository/invokedRateCache";
 import { ExchangeRateError } from "../../platform/exchange-rates/types";
 
 const requestSchema = z.object({

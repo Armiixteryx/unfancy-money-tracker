@@ -1,6 +1,8 @@
+import type { SyncState } from "../features/sync/state";
 import type { CurrencyCode } from "./currency";
 
 export type UUID = string;
+export type CategoryId = string;
 export type CalendarDate = string;
 export type CalendarMonth = `${number}-${number}`;
 
@@ -13,7 +15,7 @@ export type DefaultCategoryKey = typeof DEFAULT_CATEGORY_KEYS[number];
 export type Theme = "system" | "light" | "dark";
 
 export type Category = {
-  id: UUID;
+  id: CategoryId;
   kind: CategoryKind;
   name: string;
   // Stable built-in meaning; translated labels never replace the record UUID or stored name.
@@ -29,7 +31,7 @@ export type Transaction = {
   amount: string;
   currency: CurrencyCode;
   type: TransactionType;
-  categoryId: UUID;
+  categoryId: CategoryId;
   description: string;
   date: CalendarDate;
   createdAt: string;
@@ -38,7 +40,7 @@ export type Transaction = {
 
 export type Budget = {
   id: UUID;
-  categoryId: UUID;
+  categoryId: CategoryId;
   month: CalendarMonth;
   amount: string;
   currency: CurrencyCode;
@@ -62,6 +64,7 @@ export type Preferences = {
 };
 
 export type Dataset = {
+  sync?: SyncState;
   schemaVersion: number;
   datasetId: UUID;
   transactions: readonly Transaction[];

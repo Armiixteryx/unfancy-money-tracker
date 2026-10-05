@@ -5,7 +5,9 @@ import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as authorizers from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as cognito from "aws-cdk-lib/aws-cognito";
-import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import { PostgresStack } from "./postgres-stack";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
@@ -16,6 +18,7 @@ export type DeploymentStage = "dev" | "prod";
 
 export interface UnfancyMoneyTrackerStackProps extends cdk.StackProps {
   deploymentStage: DeploymentStage;
+  postgres: PostgresStack;
 }
 
 export class UnfancyMoneyTrackerStack extends cdk.Stack {
@@ -51,38 +54,20 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       idTokenValidity: cdk.Duration.minutes(15)
     });
 
-    const syncTable = new dynamodb.Table(this, "SyncTable", {
-      tableName: `${this.stackName}-sync`,
-      partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
-      sortKey: { name: "sk", type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 10,
-      tableClass: dynamodb.TableClass.STANDARD,
-      encryption: dynamodb.TableEncryption.DEFAULT,
-      pointInTimeRecoverySpecification: isProduction
-        ? { pointInTimeRecoveryEnabled: true, recoveryPeriodInDays: 35 }
-        : undefined,
-      deletionProtection: isProduction,
-      removalPolicy: retainedRemovalPolicy
-    });
-
-    const rateCacheTable = new dynamodb.Table(this, "RateCacheTable", {
-      tableName: `${this.stackName}-rates`,
-      partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      tableClass: dynamodb.TableClass.STANDARD,
-      encryption: dynamodb.TableEncryption.DEFAULT,
-      removalPolicy: cdk.RemovalPolicy.DESTROY
-    });
-
-    const syncFunction = this.createLambda("SyncFunction", "src/server/handlers/sync.ts", {
-      SYNC_TABLE_NAME: syncTable.tableName,
-      APP_ENV: props.deploymentStage
-    });
-    const exchangeRateFunction = this.createLambda("ExchangeRateFunction", "src/server/handlers/exchangeRates.ts", { APP_ENV: props.deploymentStage, RATE_CACHE_TABLE_NAME: rateCacheTable.tableName });
-    rateCacheTable.grant(exchangeRateFunction, "dynamodb:GetItem", "dynamodb:PutItem");
-    syncTable.grantReadWriteData(syncFunction);
+    const database=props.postgres;
+    if (isProduction && database.sharedDevelopmentConcurrency) throw new Error("Production requires reserved concurrency");
+    const privateOptions={ vpc:database.vpc,vpcSubnets:{ subnetType:ec2.SubnetType.PRIVATE_ISOLATED },securityGroups:[database.workerSecurityGroup] };
+    const connection={ PGHOST:database.database.dbInstanceEndpointAddress,PGDATABASE:"unfancy",PG_CA_FILE:"/var/task/rds-global-bundle.pem",APP_ENV:props.deploymentStage };
+    const syncFunction=this.createLambda("SyncFunction","src/server/handlers/sync.ts",{ ...connection,DB_SECRET_ARN:database.syncSecret.secretArn },{ ...privateOptions,reservedConcurrentExecutions:database.sharedDevelopmentConcurrency ? undefined : 5 });
+    const cacheFunction=this.createLambda("RateCacheFunction","src/server/handlers/rateCache.ts",{ ...connection,DB_SECRET_ARN:database.rateSecret.secretArn },{ ...privateOptions,reservedConcurrentExecutions:database.sharedDevelopmentConcurrency ? undefined : 2 });
+    database.syncSecret.grantRead(syncFunction); database.rateSecret.grantRead(cacheFunction);
+    const exchangeRateFunction=this.createLambda("ExchangeRateFunction","src/server/handlers/exchangeRates.ts",{ APP_ENV:props.deploymentStage,RATE_CACHE_FUNCTION_NAME:cacheFunction.functionName });
+    cacheFunction.grantInvoke(exchangeRateFunction);
+    for (const [name,worker] of [["Sync",syncFunction],["RateCache",cacheFunction]] as const) {
+      new cloudwatch.Alarm(this,`${name}ErrorsAlarm`,{ metric:worker.metricErrors(),threshold:1,evaluationPeriods:1 });
+      new cloudwatch.Alarm(this,`${name}ThrottlesAlarm`,{ metric:worker.metricThrottles(),threshold:1,evaluationPeriods:1 });
+      new cloudwatch.Alarm(this,`${name}ConnectionLatencyAlarm`,{ metric:new cloudwatch.Metric({ namespace:"Unfancy/Database",metricName:"ConnectionLatency",dimensionsMap:{ Worker:name },statistic:"p95",period:cdk.Duration.minutes(5) }),threshold:2000,evaluationPeriods:2 });
+    }
     const voiceSecret = new secretsmanager.Secret(this, "VoiceSecret", {
       secretName: `UnfancyMoneyTracker-${props.deploymentStage}/voice`,
       description: "Backend-only voice provider credentials; populated by the development deployment script",
@@ -104,8 +89,8 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       corsPreflight: { allowHeaders: ["authorization", "content-type"], allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST], allowOrigins: ["*"] }
     });
     const syncIntegration = new integrations.HttpLambdaIntegration("SyncIntegration", syncFunction);
-    for (const route of ["/sync/push", "/sync/pull", "/sync/conflicts/resolve"]) {
-      api.addRoutes({ path: route, methods: [apigwv2.HttpMethod.POST], integration: syncIntegration });
+    for (const route of ["/sync/push", "/sync/pull", "/sync/conflicts/resolve", "/sync/bootstrap"]) {
+      api.addRoutes({ path: route, methods: [apigwv2.HttpMethod.POST], integration: syncIntegration, authorizationScopes:["aws.cognito.signin.user.admin"] });
     }
     api.addRoutes({
       path: "/rates",
@@ -136,17 +121,17 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     new cdk.CfnOutput(this, "CognitoClientId", { value: userPoolClient.userPoolClientId });
     new cdk.CfnOutput(this, "CognitoRegion", { value: this.region });
     new cdk.CfnOutput(this, "DeploymentStage", { value: props.deploymentStage });
-    new cdk.CfnOutput(this, "RateCacheTableName", { value: rateCacheTable.tableName });
-    new cdk.CfnOutput(this, "SyncTableName", { value: syncTable.tableName });
+
   }
 
-  private createLambda(id: string, entry: string, environment: Record<string, string>): NodejsFunction {
+  private createLambda(id: string, entry: string, environment: Record<string, string>, options: Partial<lambda.FunctionOptions> = {}): NodejsFunction {
     const isProduction = this.node.tryGetContext("stage") === "prod";
     const logGroup = new logs.LogGroup(this, `${id}LogGroup`, {
       retention: isProduction ? logs.RetentionDays.THREE_MONTHS : logs.RetentionDays.ONE_WEEK,
       removalPolicy: isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY
     });
     return new NodejsFunction(this, id, {
+      ...options,
       entry: path.join(__dirname, "../..", entry),
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -154,7 +139,10 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(29),
       environment,
       logGroup,
-      bundling: { minify: false, sourceMap: true, target: "es2022" }
+      bundling: { minify:false,sourceMap:true,target:"es2022",commandHooks:{
+        beforeBundling:() => [],beforeInstall:() => [],
+        afterBundling:(inputDir,outputDir) => [`cp "${inputDir}/db/certs/rds-global-bundle.pem" "${outputDir}/rds-global-bundle.pem"`]
+      } }
     });
   }
 }

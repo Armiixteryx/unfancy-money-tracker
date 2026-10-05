@@ -9,12 +9,20 @@ web-build/
 coverage/
 .aws-sam/
 cdk.out/
+.cdk-out-dev/
+.cdk-out-prod/
 .localstack/
 .env.local
 .env.*.local
 *.log
 .DS_Store
 .cdk-outputs.*.json
+.cdk-database-outputs.*.json
 
 .voice-smoke/
 sam/env.voice.local.json
+
+db/migration-lambda/target/
+.sync-smoke/
+
+.migration-result.*.json

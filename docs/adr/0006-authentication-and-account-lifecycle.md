@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
+
 Superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md). The retained Cognito infrastructure is not deleted. Optional voice-only authentication is now defined by [ADR 0020](0020-optional-voice-authentication.md); the account-scoped synchronization and destructive logout rules below remain superseded.
 
 ## Context

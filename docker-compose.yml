@@ -1,31 +1,56 @@
 services:
-  dynamodb:
-    image: amazon/dynamodb-local:latest
-    container_name: unfancy-money-tracker-dynamodb
+  postgres:
+    image: postgres:18.6
     restart: unless-stopped
-    user: root
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
-    working_dir: /home/dynamodblocal
-    ports:
-      - "${DYNAMODB_PORT:-8000}:8000"
-    volumes:
-      - unfancy-dynamodb-data:/home/dynamodblocal/data
-
-  localstack:
-    image: localstack/localstack:3.8
-    container_name: unfancy-money-tracker-localstack
-    profiles: ["localstack"]
+    command:
+      - postgres
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_duration_statement=-1
+      - -c
+      - log_min_error_statement=panic
+      - -c
+      - log_min_messages=fatal
+      - -c
+      - log_error_verbosity=terse
+      - -c
+      - log_parameter_max_length=0
+      - -c
+      - log_parameter_max_length_on_error=0
+      - -c
+      - log_disconnections=off
     environment:
-      SERVICES: ${LOCALSTACK_SERVICES:-cognito-idp,apigateway,lambda,secretsmanager,ses,sts}
-      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
-      DEBUG: ${LOCALSTACK_DEBUG:-0}
-      PERSISTENCE: "1"
+      POSTGRES_DB: unfancy
+      POSTGRES_USER: unfancy_migrations
+      POSTGRES_PASSWORD: local-development-only
     ports:
-      - "${LOCALSTACK_PORT:-4566}:4566"
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
-      - unfancy-localstack-data:/var/lib/localstack
-      - /var/run/docker.sock:/var/run/docker.sock
-
+      - unfancy-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unfancy_migrations -d unfancy"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  flyway:
+    image: redgate/flyway:13.9.0
+    platform: linux/amd64
+    profiles: ["migrations"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/unfancy
+      FLYWAY_USER: unfancy_migrations
+      FLYWAY_PASSWORD: local-development-only
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_IGNORE_MIGRATION_PATTERNS: "*:pending"
+      FLYWAY_CLEAN_DISABLED: "true"
+      FLYWAY_BASELINE_ON_MIGRATE: "false"
+      FLYWAY_VALIDATE_ON_MIGRATE: "true"
+    volumes:
+      - ./db/migrations:/flyway/sql:ro
+    command: migrate
 volumes:
-  unfancy-dynamodb-data:
-  unfancy-localstack-data:
+  unfancy-postgres-data:

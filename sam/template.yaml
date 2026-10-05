@@ -22,14 +22,20 @@ Resources:
   SyncFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ..
+      CodeUri: .
       Handler: src/server/handlers/sync.handler
       Environment:
         Variables:
           APP_ENV: local
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
-          SYNC_TABLE_NAME: unfancy-local-sync
+          DATABASE_URL: postgresql://unfancy_migrations:local-development-only@host.docker.internal:55432/unfancy
+          COGNITO_USER_POOL_ID: us-east-1_gCLS9k4s0
+          COGNITO_CLIENT_ID: 63kh2vrfpvd7h9moob0m9l2umf
       Events:
+        Bootstrap:
+          Type: HttpApi
+          Properties:
+            Path: /sync/bootstrap
+            Method: post
         Push:
           Type: HttpApi
           Properties:
@@ -46,44 +52,17 @@ Resources:
             Path: /sync/conflicts/resolve
             Method: post
     Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/server/handlers/sync.ts
-
-  RateCacheTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: unfancy-local-rates
-      BillingMode: PAY_PER_REQUEST
-      TableClass: STANDARD
-      AttributeDefinitions:
-        - AttributeName: pk
-          AttributeType: S
-      KeySchema:
-        - AttributeName: pk
-          KeyType: HASH
+      BuildMethod: makefile
 
   ExchangeRateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ..
+      CodeUri: .
       Handler: src/server/handlers/exchangeRates.handler
       Environment:
         Variables:
           APP_ENV: local
-          DYNAMODB_ENDPOINT: http://host.docker.internal:8000
-          RATE_CACHE_TABLE_NAME: unfancy-local-rates
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-              Resource: !GetAtt RateCacheTable.Arn
+          DATABASE_URL: postgresql://unfancy_migrations:local-development-only@host.docker.internal:55432/unfancy
       Events:
         Rates:
           Type: HttpApi
@@ -91,18 +70,12 @@ Resources:
             Path: /rates
             Method: get
     Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/server/handlers/exchangeRates.ts
+      BuildMethod: makefile
 
   VoiceExpenseFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ..
+      CodeUri: .
       Handler: src/server/handlers/voiceExpense.handler
       Timeout: 29
       Environment:
@@ -125,10 +98,4 @@ Resources:
               ThrottlingRateLimit: 0.25
               ThrottlingBurstLimit: 2
     Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Sourcemap: true
-        EntryPoints:
-          - src/server/handlers/voiceExpense.ts
+      BuildMethod: makefile

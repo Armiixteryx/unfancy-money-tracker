@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { archiveCategory, createCategory, findUncategorizedCategory, renameCategory, seedDefaultCategories } from "./categories";
 
 describe("category defaults", () => {
-  it("creates fresh UUID-backed defaults for each dataset", () => {
+  it("uses identical system slugs across datasets", () => {
     let first = 0;
     let second = 0;
     const firstDataset = seedDefaultCategories(() => `00000000-0000-4000-8000-${String(++first).padStart(12, "0")}`);
     const secondDataset = seedDefaultCategories(() => `00000000-0000-4000-8000-${String(100 + ++second).padStart(12, "0")}`);
 
     expect(firstDataset).toHaveLength(12);
-    expect(firstDataset.map((category) => category.id)).not.toEqual(secondDataset.map((category) => category.id));
+    expect(firstDataset.map((category) => category.id)).toEqual(secondDataset.map((category) => category.id));
     expect(findUncategorizedCategory(firstDataset, "expense").isSystem).toBe(true);
     expect(firstDataset.some((category) => category.name === "Subscriptions")).toBe(true);
     expect(firstDataset.every((category) => category.isSystem && !category.isArchived && category.defaultCategoryKey)).toBe(true);

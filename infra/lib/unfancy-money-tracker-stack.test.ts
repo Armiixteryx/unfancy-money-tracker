@@ -1,96 +1,61 @@
 import * as cdk from "aws-cdk-lib";
-import { Match, Template } from "aws-cdk-lib/assertions";
-import { describe, expect, it } from "vitest";
-
+import { Match,Template } from "aws-cdk-lib/assertions";
+import { describe,expect,it } from "vitest";
+import { PostgresStack } from "./postgres-stack";
 import { UnfancyMoneyTrackerStack } from "./unfancy-money-tracker-stack";
-
-describe("UnfancyMoneyTrackerStack", () => {
-  it("uses a throttled DynamoDB serverless boundary without relational networking", () => {
-    const app = new cdk.App({ context: { stage: "dev" } });
-    const stack = new UnfancyMoneyTrackerStack(app, "Test-dev", { deploymentStage: "dev" });
-    const template = Template.fromStack(stack);
-
-    const voiceRouteId = Object.keys(template.findResources("AWS::ApiGatewayV2::Route", {
-      Properties: { RouteKey: "POST /voice/expense" },
-    }))[0];
-    expect(voiceRouteId).toBeDefined();
-    template.hasResource("AWS::ApiGatewayV2::Stage", {
-      DependsOn: Match.arrayWith([voiceRouteId]),
-    });
-
-    template.hasResourceProperties("AWS::Cognito::UserPoolClient", { AccessTokenValidity: 15, IdTokenValidity: 15, EnableTokenRevocation: true, AllowedOAuthFlowsUserPoolClient: false, ExplicitAuthFlows: ["ALLOW_USER_SRP_AUTH"], RefreshTokenRotation: { Feature: "ENABLED", RetryGracePeriodSeconds: 30 } });
-    template.resourceCountIs("AWS::DynamoDB::Table", 2);
-    template.resourceCountIs("AWS::SecretsManager::Secret", 1);
-    template.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /voice/expense", AuthorizationType: "JWT", AuthorizationScopes: ["aws.cognito.signin.user.admin"] });
-    template.hasResourceProperties("AWS::ApiGatewayV2::Stage", { RouteSettings: { "POST /voice/expense": { ThrottlingRateLimit: 0.25, ThrottlingBurstLimit: 2 } } });
-    template.hasResourceProperties("AWS::DynamoDB::Table", {
-      ProvisionedThroughput: {
-        ReadCapacityUnits: 5,
-        WriteCapacityUnits: 10
-      },
-      SSESpecification: { SSEEnabled: false }
-    });
-    template.hasResourceProperties("AWS::ApiGatewayV2::Stage", {
-      StageName: "$default",
-      DefaultRouteSettings: {
-        ThrottlingBurstLimit: 10,
-        ThrottlingRateLimit: 5
+function templates(stage:"dev" | "prod"="dev",developmentConcurrencyMode?: "shared" | "reserved") {
+  const app=new cdk.App({ context:{ stage } });
+  const postgres=new PostgresStack(app,`Database-${stage}`,{ deploymentStage:stage,developmentConcurrencyMode });
+  const services=new UnfancyMoneyTrackerStack(app,`Services-${stage}`,{ deploymentStage:stage,postgres });
+  return { database:Template.fromStack(postgres),services:Template.fromStack(services) };
+}
+describe("portable PostgreSQL boundary",() => {
+  it("uses private Single-AZ encrypted RDS, separate roles, and no NAT, proxy, or DynamoDB",() => {
+    const { database,services }=templates("dev","shared");
+    for (const template of [database,services]) for (const type of ["AWS::DynamoDB::Table","AWS::EC2::NatGateway","AWS::RDS::DBProxy"]) template.resourceCountIs(type,0);
+    database.hasResourceProperties("AWS::RDS::DBInstance",{ DBInstanceClass:"db.t3.micro",Engine:"postgres",EngineVersion:"18.6",AllocatedStorage:"20",StorageType:"gp3",StorageEncrypted:true,MultiAZ:false,PubliclyAccessible:false,BackupRetentionPeriod:1 });
+    database.hasResourceProperties("AWS::RDS::DBParameterGroup", { Family: "postgres18", Parameters: {
+      "rds.force_ssl": "1", log_statement: "none", log_min_duration_statement: "-1",
+      log_min_error_statement: "panic", log_min_messages: "fatal", log_error_verbosity: "terse",
+      log_parameter_max_length: "0", log_parameter_max_length_on_error: "0",
+      log_disconnections: "0", log_connections: Match.absent()
+    } });
+    database.hasResourceProperties("AWS::EC2::VPCEndpoint",{ VpcEndpointType:"Interface",PrivateDnsEnabled:true,ServiceName:Match.anyValue() });
+    database.resourceCountIs("AWS::SecretsManager::Secret",3);
+    database.hasResourceProperties("AWS::Lambda::Function",{ Runtime:"java21",ReservedConcurrentExecutions:Match.absent(),VpcConfig:Match.objectLike({ SubnetIds:Match.anyValue() }) });
+    for (const template of [database,services]) {
+      for (const resource of Object.values(template.findResources("AWS::Lambda::Function"))) {
+        expect(resource.Properties.ReservedConcurrentExecutions).toBeUndefined();
       }
-    });
-    for (const resourceType of [
-      "AWS::RDS::DBCluster",
-      "AWS::RDS::DBProxy",
-      "AWS::EC2::VPC",
-      "AWS::EC2::NatGateway",
-      "AWS::KMS::Key"
-    ]) {
-      template.resourceCountIs(resourceType, 0);
     }
+    services.hasResourceProperties("AWS::ApiGatewayV2::Route",{ RouteKey:"POST /sync/bootstrap",AuthorizationType:"JWT",AuthorizationScopes:["aws.cognito.signin.user.admin"] });
+    const publicRate=Object.values(services.findResources("AWS::Lambda::Function")).find(resource => resource.Properties.Environment.Variables.RATE_CACHE_FUNCTION_NAME);
+    expect(publicRate?.Properties.VpcConfig).toBeUndefined();
+    services.resourceCountIs("AWS::Lambda::Url",0);
   });
-
-  it("retains and protects the future production table with recovery enabled", () => {
-    const app = new cdk.App({ context: { stage: "prod" } });
-    const stack = new UnfancyMoneyTrackerStack(app, "Test-prod", { deploymentStage: "prod" });
-    const template = Template.fromStack(stack);
-
-    template.hasResource("AWS::DynamoDB::Table", {
-      DeletionPolicy: "Retain",
-      UpdateReplacePolicy: "Retain",
-      Properties: Match.objectLike({
-        DeletionProtectionEnabled: true,
-        PointInTimeRecoverySpecification: {
-          PointInTimeRecoveryEnabled: true,
-          RecoveryPeriodInDays: 35
-        }
-      })
-    });
-    expect(template.findResources("AWS::DynamoDB::Table")).toBeTruthy();
+  it("keeps Cognito resource logical identities and auth settings",() => {
+    const { services }=templates();
+    expect(Object.keys(services.findResources("AWS::Cognito::UserPool"))).toEqual(["UserPool6BA7E5F2"]);
+    services.hasResourceProperties("AWS::Cognito::UserPoolClient",{ AccessTokenValidity:15,IdTokenValidity:15,EnableTokenRevocation:true,ExplicitAuthFlows:["ALLOW_USER_SRP_AUTH"] });
+    services.hasResourceProperties("AWS::ApiGatewayV2::Route",{ RouteKey:"POST /voice/expense",AuthorizationScopes:["aws.cognito.signin.user.admin"] });
   });
-});
-
-it("grants voice secret read access only to the dedicated voice role", () => {
-  const app=new cdk.App({context:{stage:"dev"}});
-  const template=Template.fromStack(new UnfancyMoneyTrackerStack(app,"VoiceIAM-dev",{deploymentStage:"dev"}));
-  const policies=template.findResources("AWS::IAM::Policy");
-  const readers=Object.values(policies).filter(resource=>JSON.stringify(resource.Properties.PolicyDocument).includes("secretsmanager:GetSecretValue"));
-  expect(readers).toHaveLength(1);
-  expect(JSON.stringify(readers[0]?.Properties.Roles)).toContain("VoiceExpenseFunctionServiceRole");
-  expect(JSON.stringify(readers[0]?.Properties.PolicyDocument)).toContain("VoiceSecret");
-  template.hasResource("AWS::SecretsManager::Secret",{DeletionPolicy:"Retain",UpdateReplacePolicy:"Retain"});
-});
-
-it("uses a dedicated on-demand Standard cache without TTL, indexes, streams, or backups and grants only rates GetItem/PutItem", () => {
-  const template = Template.fromStack(new UnfancyMoneyTrackerStack(new cdk.App({ context: { stage: "dev" } }), "Rates-dev", { deploymentStage: "dev" }));
-  template.hasResourceProperties("AWS::DynamoDB::Table", {
-    TableName: "Rates-dev-rates", BillingMode: "PAY_PER_REQUEST", TableClass: "STANDARD",
-    KeySchema: [{ AttributeName: "pk", KeyType: "HASH" }],
-    ProvisionedThroughput: Match.absent(), TimeToLiveSpecification: Match.absent(),
-    GlobalSecondaryIndexes: Match.absent(), LocalSecondaryIndexes: Match.absent(),
-    StreamSpecification: Match.absent(), PointInTimeRecoverySpecification: Match.absent()
+  it("protects production database and scopes invocation and secrets",() => {
+    const { database,services }=templates("prod");
+    database.hasResource("AWS::RDS::DBInstance",{ DeletionPolicy:"Snapshot",Properties:Match.objectLike({ DeletionProtection:true,BackupRetentionPeriod:7 }) });
+    database.hasResourceProperties("AWS::Lambda::Function",{ Runtime:"java21",ReservedConcurrentExecutions:1 });
+    services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:5 });
+    services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:2 });
+    const policies=Object.values(services.findResources("AWS::IAM::Policy"));
+    const invoke=policies.filter(resource => JSON.stringify(resource.Properties.PolicyDocument).includes("lambda:InvokeFunction"));
+    expect(invoke).toHaveLength(1); expect(JSON.stringify(invoke[0]?.Properties.Roles)).toContain("ExchangeRateFunctionServiceRole");
+    const voice=policies.filter(resource => JSON.stringify(resource.Properties.PolicyDocument).includes("VoiceSecret"));
+    expect(voice).toHaveLength(1); expect(JSON.stringify(voice[0]?.Properties.Roles)).toContain("VoiceExpenseFunctionServiceRole");
   });
-  const policies = Object.values(template.findResources("AWS::IAM::Policy"));
-  const cachePolicies = policies.filter(resource => JSON.stringify(resource.Properties.PolicyDocument).includes("RateCacheTable"));
-  expect(cachePolicies).toHaveLength(1);
-  expect(JSON.stringify(cachePolicies[0]?.Properties.Roles)).toContain("ExchangeRateFunctionServiceRole");
-  expect(cachePolicies[0]?.Properties.PolicyDocument.Statement[0].Action).toEqual(["dynamodb:GetItem", "dynamodb:PutItem"]);
+  it("restores development reservations explicitly and rejects a shared production database",() => {
+    const { database,services }=templates("dev","reserved");
+    database.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:1 });
+    services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:5 });
+    services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:2 });
+    expect(() => new PostgresStack(new cdk.App(),"InvalidProduction",{ deploymentStage:"prod",developmentConcurrencyMode:"shared" })).toThrow("only supported in development");
+  });
 });

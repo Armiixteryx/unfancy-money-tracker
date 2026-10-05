@@ -38,13 +38,13 @@ require_sam() {
 case "${1:-help}" in
   start)
     require_docker
-    compose up -d dynamodb
-    pnpm exec tsx scripts/local-dynamodb.ts init
+    compose up -d --wait postgres
+    compose run --rm flyway validate migrate
     compose ps
     ;;
   stop)
     require_docker
-    compose stop dynamodb localstack
+    compose stop postgres
     ;;
   reset)
     require_docker
@@ -58,13 +58,13 @@ case "${1:-help}" in
     ;;
   init)
     require_docker
-    compose up -d dynamodb
-    pnpm exec tsx scripts/local-dynamodb.ts init
+    compose up -d --wait postgres
+    compose run --rm flyway validate migrate
     ;;
   seed)
     require_docker
     "$0" init
-    pnpm exec tsx scripts/local-dynamodb.ts seed
+    echo "Use local:seed-app for explicit synthetic app fixtures."
     ;;
   sam-api)
     require_docker
@@ -74,7 +74,7 @@ case "${1:-help}" in
       exit 1
     fi
     sam validate --template sam/template.yaml --lint
-    sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
+    bash scripts/build-sam.sh
     pnpm exec tsx scripts/voice-environment.ts
     sam local start-api --template .aws-sam/build/template.yaml --env-vars sam/env.voice.local.json --skip-pull-image --host 127.0.0.1 --port "${SAM_PORT:-3001}"
     ;;
@@ -86,17 +86,8 @@ case "${1:-help}" in
       exit 1
     fi
     sam validate --template sam/template.yaml --lint
-    sam build --template-file sam/template.yaml --build-dir .aws-sam/build --cached
+    bash scripts/build-sam.sh
     sam local start-lambda --template .aws-sam/build/template.yaml --skip-pull-image --host 127.0.0.1 --port "${SAM_LAMBDA_PORT:-3002}"
-    ;;
-  localstack-start)
-    require_docker
-    compose --profile localstack up -d localstack
-    compose ps localstack
-    ;;
-  localstack-stop)
-    require_docker
-    compose --profile localstack stop localstack
     ;;
   status)
     require_docker
@@ -104,7 +95,7 @@ case "${1:-help}" in
     ;;
   health)
     require_docker
-    pnpm exec tsx scripts/local-dynamodb.ts health
+    compose exec -T postgres pg_isready -U unfancy_migrations -d unfancy
     ;;
   verify)
     require_docker
@@ -140,17 +131,15 @@ Unfancy Money Tracker local environment
 
 Usage: scripts/local-env.sh <command>
 
-  start              Start DynamoDB Local and initialize the sync and rate-cache tables
+  start              Start PostgreSQL 18.6 and run Flyway
   stop               Stop local services without deleting data
   reset              Delete local containers, volumes, and generated artifacts
-  init               Create the local DynamoDB sync and rate-cache tables if needed
+  init               Validate and apply versioned SQL migrations
   seed               Apply the synthetic backend fixture
   sam-api            Start the SAM API on port 3001
   sam-lambda         Start the SAM Lambda endpoint on port 3002
-  localstack-start   Start optional LocalStack services on port 4566
-  localstack-stop    Stop optional LocalStack services
   status             Show local service status
-  health             Check DynamoDB Local and the sync table
+  health             Check PostgreSQL readiness
   verify             Check Docker, SAM CLI, and Compose configuration
   test               Run the deterministic unit test suite
   integration        Run local adapter and sync integration tests
@@ -158,8 +147,7 @@ Usage: scripts/local-env.sh <command>
   typecheck          Run the strict TypeScript check
   lint               Run ESLint
 
-The default ports are DynamoDB Local 8000, SAM API 3001, SAM Lambda 3002,
-and optional LocalStack 4566.
+The default ports are PostgreSQL 5432, SAM API 3001, SAM Lambda 3002.
 Set LOCAL_ENV_FILE=.env.local to use a local override file.
 HELP
     ;;

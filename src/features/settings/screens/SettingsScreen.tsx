@@ -1,3 +1,4 @@
+import { SyncSettings } from "../../sync/SyncSettings";
 import { SensitiveContent } from "../../../platform/analytics/SensitiveContent";
 import { useAuth } from "../../auth/AuthProvider";
 import type { Message } from "../../../localization/notices";
@@ -52,7 +53,7 @@ export function SettingsScreen() {
   };
 
   const handleReset = async () => {
-    await resetLocalData();
+    try { await resetLocalData(); } catch { setMessage("local_reset_failed_your_records_remain_available"); return; }
     setConfirmReset(false);
     setMessage(i18n.t($ => $.ui.settingsLocalDataResetNoDemoRecordsWere));
   };
@@ -61,6 +62,7 @@ export function SettingsScreen() {
   return (
     <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)}>
       <SensitiveContent><View style={styles.card}><Text style={{ color: colors.text, fontWeight: "700" }}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
+      <SyncSettings />
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
       {saveError ? <Pressable accessibilityRole="button" onPress={() => void retryLocalSave()} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.notices.retrySave)}</Text></Pressable> : null}
       {message ? <View accessibilityLiveRegion="polite" style={styles.successBanner}><Text style={styles.successBannerText}>{translateMessage(message, false)}</Text><Pressable accessibilityLabel={i18n.t($ => $.ui.settingsDismissConfirmation)} accessibilityRole="button" hitSlop={8} onPress={() => setMessage(null)} style={styles.dismissBannerButton}><Ionicons color={colors.positive} name="close" size={20} /></Pressable></View> : null}

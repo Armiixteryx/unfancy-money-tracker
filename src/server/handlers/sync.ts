@@ -1,38 +1,15 @@
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-
 import { pullRequestSchema, pushRequestSchema, resolveConflictRequestSchema } from "../contracts/sync";
-import { DynamoDbSyncRepository, type SyncRepository } from "../repository";
-
-let repository: Promise<SyncRepository> | null = null;
-
-async function getRepository(): Promise<SyncRepository> {
-  if (!repository) repository = createRepository();
-  return repository;
-}
-
-async function createRepository(): Promise<SyncRepository> {
-  const tableName = process.env.SYNC_TABLE_NAME;
-  if (!tableName) throw new Error("Sync persistence is not configured");
-  const endpoint = process.env.DYNAMODB_ENDPOINT;
-  const client = new DynamoDBClient({
-    endpoint,
-    region: process.env.AWS_REGION ?? "us-east-1",
-    credentials: endpoint
-      ? { accessKeyId: "local", secretAccessKey: "local" }
-      : undefined
-  });
-  return new DynamoDbSyncRepository(
-    DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } }),
-    tableName
-  );
-}
+import { PostgresSyncRepository } from "../repository/postgresSyncRepository";
+import { getPostgresPool } from "../repository/postgres";
+async function getRepository() { return new PostgresSyncRepository(await getPostgresPool()); }
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   try {
-    const subject = getSubject(event);
+    const subject = await getSubject(event);
     if (!subject) return json(401, { error: "unauthenticated" });
+    if (event.requestContext.http.method === "POST" && event.rawPath.endsWith("/sync/bootstrap")) return json(200, await (await getRepository()).bootstrap(subject));
     const body = parseBody(event.body);
     const path = event.rawPath;
     if (event.requestContext.http.method === "POST" && path.endsWith("/sync/push")) {
@@ -41,7 +18,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     }
     if (event.requestContext.http.method === "POST" && path.endsWith("/sync/pull")) {
       const request = pullRequestSchema.parse(body);
-      return json(200, await (await getRepository()).pull(subject, request.datasetId, request.cursor));
+      return json(200, await (await getRepository()).pull(subject, request.datasetId, request.cursor, request.limit));
     }
     if (event.requestContext.http.method === "POST" && path.endsWith("/sync/conflicts/resolve")) {
       const request = resolveConflictRequestSchema.parse(body);
@@ -57,16 +34,20 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
   }
 }
 
-function getSubject(event: APIGatewayProxyEventV2): string | null {
-  const requestContext = event.requestContext as APIGatewayProxyEventV2["requestContext"] & {
-    authorizer?: { jwt?: { claims?: Record<string, unknown> } };
-  };
-  const claims = requestContext.authorizer?.jwt?.claims;
-  const claimedSubject = typeof claims?.sub === "string" ? claims.sub : null;
-  if (claimedSubject) return claimedSubject;
-  const isLocalRuntime = process.env.APP_ENV === "local" || process.env.AWS_SAM_LOCAL === "true";
-  if (isLocalRuntime) return event.headers?.["x-local-subject"] ?? event.headers?.["X-Local-Subject"] ?? null;
-  return null;
+const verifier=CognitoJwtVerifier.create({ userPoolId:process.env.COGNITO_USER_POOL_ID ?? "us-east-1_gCLS9k4s0",clientId:process.env.COGNITO_CLIENT_ID ?? "63kh2vrfpvd7h9moob0m9l2umf",tokenUse:"access",scope:"aws.cognito.signin.user.admin" });
+export async function getSubject(event: APIGatewayProxyEventV2): Promise<string | null> {
+  const context=event.requestContext as APIGatewayProxyEventV2["requestContext"] & { authorizer?:{ jwt?:{ claims?:Record<string,unknown> } } };
+  const claims=context.authorizer?.jwt?.claims;
+  if (typeof claims?.sub === "string" && claims.token_use === "access") return claims.sub;
+  const isLocal=process.env.APP_ENV==="local" || process.env.AWS_SAM_LOCAL==="true";
+  if (!isLocal) return null;
+  // The local-only integration hook is disabled unless explicitly opted in by the test runner.
+  if (process.env.ALLOW_LOCAL_SYNC_SUBJECT==="1") {
+    const subject=event.headers?.["x-local-subject"]; if (subject) return subject;
+  }
+  const header=event.headers?.authorization ?? event.headers?.Authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  try { return (await verifier.verify(header.slice(7))).sub; } catch { return null; }
 }
 
 function parseBody(body: string | undefined): unknown {

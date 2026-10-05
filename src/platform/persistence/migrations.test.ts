@@ -7,6 +7,25 @@ import { createEmptyDataset, DatasetPersistence, hydrateDataset } from "./datase
 import { MemoryPersistenceAdapter } from "./memoryPersistenceAdapter";
 import { migrateSnapshot } from "./migrations";
 
+it("migrates historical UUID built-ins to slugs while preserving custom IDs, records, and the backup", async () => {
+  const dataset=createEmptyDataset();
+  const food=dataset.categories.find(category => category.id==="expense-food")!;
+  const oldFood="00000000-0000-4000-8000-000000000001";
+  const custom={ ...createCategory({ kind:"expense",name:"Synthetic custom" }),id:"00000000-0000-4000-8000-000000000002" };
+  const categories=[...dataset.categories.map(category => category.id===food.id ? { ...category,id:oldFood } : category),custom];
+  const transaction={ ...createTransaction({ type:"expense",categoryId:oldFood,amount:"12.5",currency:"USD",description:"Synthetic preserved record",date:"2026-10-05" },{ categories }),id:"00000000-0000-4000-8000-000000000003" };
+  const budget={ ...createBudget({ categoryId:oldFood,amount:"50",currency:"USD",month:"2026-10" },{ categories }),id:"00000000-0000-4000-8000-000000000004" };
+  const raw={ ...dataset,schemaVersion:7,categories,transactions:[transaction],budgets:[budget] };
+  const snapshot=JSON.stringify(raw);const adapter=new MemoryPersistenceAdapter(snapshot);
+  const persistence=new DatasetPersistence(adapter);const hydrated=await persistence.hydrate();
+  expect(hydrated.status).toBe("ready");if (hydrated.status!=="ready") throw new Error("Synthetic migration failed");
+  expect(hydrated.dataset.categories.find(category => category.id===custom.id)).toEqual(custom);
+  expect(hydrated.dataset.transactions).toEqual([{ ...transaction,categoryId:"expense-food" }]);
+  expect(hydrated.dataset.budgets).toEqual([{ ...budget,categoryId:"expense-food" }]);
+  expect(hydrated.dataset.sync).toMatchObject({ binding:null,enabled:false,outbox:[] });
+  expect(adapter.migrationBackups).toEqual([snapshot]);
+});
+
 describe("schema 7 system categories", () => {
   it("promotes keyed defaults and reactivates archived defaults without changing record identity or reseeding", async () => {
     const original = createEmptyDataset();
@@ -39,7 +58,7 @@ describe("schema 7 system categories", () => {
     const migrated = migrateSnapshot(raw, idFactory);
     expect(idFactory).not.toHaveBeenCalled();
     expect(JSON.stringify(raw)).toBe(snapshot);
-    expect(migrated).toMatchObject({ schemaVersion: 7, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
+    expect(migrated).toMatchObject({ schemaVersion: 8, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
     expect(migrated.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt])).toEqual(raw.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt]));
     expect(migrated.categories.find(category => category.id === food.id)).toMatchObject({ isSystem: true, isArchived: false, defaultCategoryKey: "food" });
     expect(migrated.categories.filter(category => category.defaultCategoryKey).every(category => category.isSystem && !category.isArchived)).toBe(true);

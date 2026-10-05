@@ -1,3 +1,5 @@
+import { datasetEnvelopeSchema } from "../../../platform/persistence/schema";
+import { trackLocalChanges } from "../../sync/state";
 import { DomainError, errorCode, errorToken } from "../../../domain/errors";
 import { create } from "zustand";
 import { ZodError } from "zod";
@@ -18,6 +20,7 @@ type SaveStatus = "idle" | "saving" | "error";
 
 export type DatasetStoreState = {
   datasetEpoch: number;
+  updateFromSync: (update: (current: Dataset) => Dataset, replace?: boolean) => Promise<boolean>;
   retryLocalSave: () => Promise<MutationResult<null>>;
   hydration: HydrationState;
   dataset: Dataset | null;
@@ -72,7 +75,9 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
   return create<DatasetStoreState>((set, get) => {
     let initialization: Promise<void> | null = null;
 
-    const commit = async (dataset: Dataset): Promise<boolean> => {
+    const commit = async (requested: Dataset, fromSync = false): Promise<boolean> => {
+      const previous = get().dataset;
+      const dataset = previous && !fromSync ? trackLocalChanges(previous,requested) : requested;
       set({ dataset, saveStatus: "saving", saveError: null });
       try {
         await persistence.save(dataset);
@@ -86,6 +91,21 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
 
     return {
       datasetEpoch: 0,
+      updateFromSync: async (update, replace = false) => {
+        const current=get().dataset;
+        if (!current || get().saveStatus !== "idle") return false;
+        const next=datasetEnvelopeSchema.parse(update(current)) as Dataset;
+        if (!replace) return commit(next,true);
+        set({ datasetEpoch:get().datasetEpoch+1,dataset:null,hydration:{ status:"loading" },saveStatus:"saving" });
+        try {
+          await persistence.save(next);
+          set({ dataset:next,hydration:{ status:"ready",dataset:next },saveStatus:"idle",saveError:null });
+          return true;
+        } catch {
+          set({ dataset:current,hydration:{ status:"ready",dataset:current },saveStatus:"error",saveError:"local_save_failed_retry_to_save_your_change" });
+          return false;
+        }
+      },
       retryLocalSave: async () => {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
@@ -108,9 +128,10 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
           }
           const result = await persistence.hydrate();
           if (result.status === "ready") {
-            set({ hydration: result, dataset: result.dataset });
+            set({ hydration: result, dataset: result.dataset,saveStatus:"saving" });
             try {
               await persistence.save(result.dataset);
+              set({ saveStatus:"idle" });
             } catch {
               set({ saveStatus: "error", saveError: "local_data_could_not_be_saved_retry_from_settings" });
             }
@@ -145,6 +166,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
         if (!isLocalDevelopmentRuntime()) return { ok: false, message: "mock_data_is_available_only_in_the_local_development_environment" };
+        if (dataset.sync?.binding) return { ok: false, message: "confirm_a_local_reset_before_replacing_synced_records_with_fixtures" };
         set({ datasetEpoch: get().datasetEpoch + 1 });
         const next = createMockDataset(preset, dataset.datasetId);
         const saved = await commit(next);
@@ -179,7 +201,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
         if (!dataset.transactions.some((transaction) => transaction.id === id)) return { ok: false, message: "this_transaction_is_no_longer_available" };
-        await commit({ ...dataset, transactions: dataset.transactions.filter((transaction) => transaction.id !== id) });
+        if (!await commit({ ...dataset, transactions: dataset.transactions.filter((transaction) => transaction.id !== id) })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
         return { ok: true, value: null };
       },
       addBudget: async (input) => {
@@ -188,7 +210,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         try {
           const budget = createBudget(input, { categories: dataset.categories, idFactory: createUuid, now });
           if (dataset.budgets.some((candidate) => budgetKey(candidate) === budgetKey(budget))) return { ok: false, message: "duplicate_budget" };
-          await commit({ ...dataset, budgets: [...dataset.budgets, budget] });
+          if (!await commit({ ...dataset, budgets: [...dataset.budgets, budget] })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
           return { ok: true, value: budget };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -202,7 +224,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         try {
           const budget = updateBudget(existing, input, { categories: dataset.categories, now });
           if (dataset.budgets.some((candidate) => candidate.id !== id && budgetKey(candidate) === budgetKey(budget))) return { ok: false, message: "duplicate_budget" };
-          await commit({ ...dataset, budgets: dataset.budgets.map((candidate) => candidate.id === id ? budget : candidate) });
+          if (!await commit({ ...dataset, budgets: dataset.budgets.map((candidate) => candidate.id === id ? budget : candidate) })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
           return { ok: true, value: budget };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -255,7 +277,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
         if (!dataset.budgets.some((budget) => budget.id === id)) return { ok: false, message: "this_budget_is_no_longer_available" };
-        await commit({ ...dataset, budgets: dataset.budgets.filter((budget) => budget.id !== id) });
+        if (!await commit({ ...dataset, budgets: dataset.budgets.filter((budget) => budget.id !== id) })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
         return { ok: true, value: null };
       },
       setPreferences: async (preferences) => {
@@ -284,7 +306,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         try {
           const category = createCategory(input, { idFactory: createUuid, now });
           if (hasDuplicateCategoryName(dataset.categories, category)) return { ok: false, message: "duplicate_category" };
-          await commit({ ...dataset, categories: [...dataset.categories, category] });
+          if (!await commit({ ...dataset, categories: [...dataset.categories, category] })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
           return { ok: true, value: category };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -298,7 +320,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         try {
           const category = renameCategory(existing, name, now());
           if (hasDuplicateCategoryName(dataset.categories, category)) return { ok: false, message: "duplicate_category" };
-          await commit({ ...dataset, categories: dataset.categories.map((candidate) => candidate.id === id ? category : candidate) });
+          if (!await commit({ ...dataset, categories: dataset.categories.map((candidate) => candidate.id === id ? category : candidate) })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
           return { ok: true, value: category };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -311,7 +333,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         if (!existing) return { ok: false, message: "this_category_is_no_longer_available" };
         try {
           const category = archiveCategory(existing, now());
-          await commit({ ...dataset, categories: dataset.categories.map((candidate) => candidate.id === id ? category : candidate) });
+          if (!await commit({ ...dataset, categories: dataset.categories.map((candidate) => candidate.id === id ? category : candidate) })) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
           return { ok: true, value: category };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };
@@ -325,6 +347,12 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         if (existing.isSystem) return { ok: false, message: "protected_categories_cannot_be_deleted" };
         try {
           const fallback = findUncategorizedCategory(dataset.categories, existing.kind);
+          const reassignedKeys=new Set<string>();
+          for (const budget of dataset.budgets) {
+            const key=`${budget.month}:${budget.categoryId===id ? fallback.id : budget.categoryId}`;
+            if (reassignedKeys.has(key)) return { ok:false,message:"duplicate_budget" };
+            reassignedKeys.add(key);
+          }
           const deletedAt = now();
           const next: Dataset = {
             ...dataset,
@@ -333,7 +361,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
             budgets: dataset.budgets.map((budget) => budget.categoryId === id ? { ...budget, categoryId: fallback.id, updatedAt: deletedAt } : budget),
             categoryDeletionTombstones: [...dataset.categoryDeletionTombstones, { recordType: "category", recordId: id, deletedAt }]
           };
-          await commit(next);
+          if (!await commit(next)) return { ok:false,message:"local_save_failed_retry_to_save_your_change" };
           return { ok: true, value: fallback };
         } catch (error) {
           return { ok: false, message: safeErrorMessage(error) };

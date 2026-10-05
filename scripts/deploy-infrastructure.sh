@@ -70,26 +70,92 @@ if aws cloudformation describe-stacks --stack-name "$stack_name" --region "$depl
   fi
 fi
 
-pnpm exec tsx scripts/voice-environment.ts check
+concurrency_mode="reserved"
+cdk_context=(--context "stage=$stage")
+if [[ "$stage" == "dev" ]]; then
+  concurrency_mode="${DEV_LAMBDA_CONCURRENCY_MODE:-reserved}"
+  if [[ "$concurrency_mode" != "shared" && "$concurrency_mode" != "reserved" ]]; then
+    echo "DEV_LAMBDA_CONCURRENCY_MODE must be shared or reserved." >&2
+    exit 1
+  fi
+  cdk_context+=(--context "devConcurrencyMode=$concurrency_mode")
+fi
+unreserved="$(aws lambda get-account-settings --region "$deployment_region" --query 'AccountLimit.UnreservedConcurrentExecutions' --output text)"
+owned_reservations=0
+if [[ "$concurrency_mode" == "reserved" ]]; then
+  for owned_stack in "$stack_name" "UnfancyMoneyTrackerDatabase-$stage"; do
+    if owned_functions="$(aws cloudformation list-stack-resources --stack-name "$owned_stack" --region "$deployment_region" --query "StackResourceSummaries[?ResourceType=='AWS::Lambda::Function'].PhysicalResourceId" --output text 2>/dev/null)"; then
+      for owned_function in $owned_functions; do
+        existing_reservation="$(aws lambda get-function-concurrency --function-name "$owned_function" --region "$deployment_region" --query ReservedConcurrentExecutions --output text)"
+        if [[ "$existing_reservation" != "None" ]]; then
+          owned_reservations=$((owned_reservations + existing_reservation))
+        fi
+      done
+    fi
+  done
+fi
+if [[ "$concurrency_mode" == "reserved" ]] && (( unreserved + owned_reservations < 108 )); then
+  echo "Deployment needs room for reserved concurrency 5/2/1 and AWS's 100 unreserved units. Request/await a Lambda quota increase first; no database has been provisioned." >&2
+  exit 1
+fi
+if [[ "$concurrency_mode" == "shared" ]] && (( unreserved < 10 )); then
+  echo "Shared development concurrency requires an unreserved pool limit of at least 10. Increase the pool quota or release reservations; no database has been provisioned." >&2
+  exit 1
+fi
+echo "Lambda concurrency mode: $concurrency_mode. Database login-role connection limits remain 5/2."
+if [[ "$stage" == "dev" ]]; then
+  pnpm exec tsx scripts/voice-environment.ts check --allow-existing-dev-secret
+else
+  pnpm exec tsx scripts/voice-environment.ts check
+fi
 
 echo "Running deployment checks."
+./scripts/build-migrations.sh
 pnpm run infra:check
 
 echo "Reviewing the full CloudFormation diff."
-pnpm exec cdk diff "$stack_name" --context "stage=$stage"
+database_stack="UnfancyMoneyTrackerDatabase-$stage"
+# A previous template may contain provider credentials in removed environment
+# variables. Keep the full diff private and emit resource actions only.
+diff_file="$(mktemp "${TMPDIR:-/tmp}/unfancy-cdk-diff.XXXXXX")"
+trap 'rm -f "$diff_file"' EXIT
+if ! pnpm exec cdk diff "$database_stack" "$stack_name" "${cdk_context[@]}" >"$diff_file" 2>&1; then
+  echo "CloudFormation diff failed; no resources were deployed." >&2
+  exit 1
+fi
+node --input-type=module - "$diff_file" <<'JS'
+import { readFileSync } from 'node:fs';
+const lines=readFileSync(process.argv[2],'utf8').replace(/\u001b\[[0-9;]*m/g,'').split('\n');
+for (const line of lines) if (/^(Stack |\[[+~\-]\] AWS::|Number of stacks with differences:)/.test(line)) console.log(line);
+JS
 
 deployment_options=()
 if [[ "${CDK_IMPORT_EXISTING_RESOURCES:-}" == "1" ]]; then
   deployment_options+=(--import-existing-resources)
 fi
 
+# Database provisioning and Flyway run while the existing API handlers remain available.
+pnpm exec cdk deploy "$database_stack" --exclusively "${cdk_context[@]}" --require-approval never --outputs-file ".cdk-database-outputs.$stage.json"
+migration_function="$(aws cloudformation describe-stacks --stack-name "$database_stack" --region "$deployment_region" --query 'Stacks[0].Outputs[?OutputKey==`MigrationFunctionName`].OutputValue | [0]' --output text)"
+aws lambda invoke --function-name "$migration_function" --region "$deployment_region" --cli-binary-format raw-in-base64-out --payload '{"operation":"migrate"}' ".migration-result.$stage.json" >/dev/null
+node --input-type=module - "$stage" <<'JS'
+import { readFileSync } from 'node:fs';
+const result=JSON.parse(readFileSync(`.migration-result.${process.argv[2]}.json`,'utf8'));
+if (result.ok!==true || result.roleConnectionLimitsVerified!==true) {
+  const stage=['request','ca_load','database_credentials','flyway_configuration','flyway_validation','flyway_migration','database_connect','role_credentials','role_configuration','role_verification'].includes(result.stage)?result.stage:'unknown';
+  const code=['migration_failed','invalid_request'].includes(result.code)?result.code:'unknown';
+  console.error(`Migration gate failed (code=${code}, stage=${stage}); existing handlers have not been released.`);
+  process.exit(1);
+}
+JS
+# Removing the two DynamoDB tables is the authorized development cloud reset.
 pnpm exec cdk deploy "$stack_name" \
-  --context "stage=$stage" \
+  "${cdk_context[@]}" \
   --outputs-file "$outputs_file" \
-  --require-approval broadening ${deployment_options[@]+"${deployment_options[@]}"}
+  --exclusively --require-approval never ${deployment_options[@]+"${deployment_options[@]}"}
 
 if [[ "$stage" == "dev" ]]; then
-  pnpm exec tsx scripts/voice-environment.ts dev
+  pnpm exec tsx scripts/voice-environment.ts dev --reuse-existing
 fi
 
 stack_status="$(
@@ -196,6 +262,7 @@ if [[ "$stage" == "dev" ]]; then
   pool_id="$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$deployment_region" --query "Stacks[0].Outputs[?OutputKey=='CognitoUserPoolId'].OutputValue | [0]" --output text)"
   client_id="$(aws cloudformation describe-stacks --stack-name "$stack_name" --region "$deployment_region" --query "Stacks[0].Outputs[?OutputKey=='CognitoClientId'].OutputValue | [0]" --output text)"
   COGNITO_USER_POOL_ID="$pool_id" COGNITO_CLIENT_ID="$client_id" AWS_REGION="$deployment_region" pnpm exec tsx scripts/check-voice-auth.ts "$api_url"
+  COGNITO_USER_POOL_ID="$pool_id" COGNITO_CLIENT_ID="$client_id" AWS_REGION="$deployment_region" pnpm exec tsx scripts/check-sync.ts "$api_url"
 fi
 
 echo "Deployment and smoke tests succeeded. Stack outputs are in $outputs_file."

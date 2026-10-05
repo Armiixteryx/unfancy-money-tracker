@@ -6,7 +6,9 @@ import { createEmptyDataset } from "../../../platform/persistence/datasetPersist
 import { categoryLabel, i18n } from "../../../localization/i18n";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { SettingsScreen } from "./SettingsScreen";
+import { SyncSettings } from "../../sync/SyncSettings";
 
+vi.mock("../../sync/SyncSettings", () => ({ SyncSettings: () => null }));
 const surface = vi.hoisted(() => ({ width: 400, os: "web" }));
 vi.mock("../../auth/AuthProvider", () => ({ useAuth: () => ({ identity: "synthetic@example.invalid", epoch: 0, open: vi.fn(), signOut: vi.fn() }) }));
 vi.mock("react-native", () => ({
@@ -52,6 +54,7 @@ describe("protected categories in Settings", () => {
     surface.os = os;
     surface.width = width;
     await act(async () => { tree = create(<I18nextProvider i18n={i18n}><SettingsScreen /></I18nextProvider>); });
+    expect(tree!.root.findAllByType(SyncSettings)).toHaveLength(1);
     await act(async () => { button("Categories").props.onPress(); });
     for (const language of ["en", "es"] as const) {
       await act(async () => { await i18n.changeLanguage(language); });

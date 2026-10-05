@@ -1,3 +1,4 @@
+import { emptySyncState } from "../../features/sync/state";
 import type { Dataset } from "../../domain/types";
 import { isCurrencyCode, normalizeSelectedCurrencies, type CurrencyCode } from "../../domain/currency";
 import { createUuid } from "../identifiers/createUuid";
@@ -168,5 +169,17 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
 
   if (version <= 6) migrated = migrateV6ToV7(migrated);
 
+  if (version <= 7) {
+    // Keep every record and the migration backup; only keyed built-ins change identity.
+    const ids = new Map<string,string>();
+    if (Array.isArray(migrated.categories)) migrated.categories = migrated.categories.map(category => {
+      if (!isRecord(category) || !category.isSystem || typeof category.defaultCategoryKey !== "string" || typeof category.kind !== "string" || typeof category.id !== "string") return category;
+      const id = `${category.kind}-${category.defaultCategoryKey}`;
+      ids.set(category.id,id); return { ...category,id };
+    });
+    for (const key of ["transactions","budgets"]) if (Array.isArray(migrated[key])) migrated[key] = migrated[key].map(record => isRecord(record) && typeof record.categoryId === "string" ? { ...record,categoryId:ids.get(record.categoryId) ?? record.categoryId } : record);
+    migrated.schemaVersion = 8;
+    migrated.sync = emptySyncState();
+  }
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }

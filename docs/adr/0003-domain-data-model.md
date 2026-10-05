@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
+
 Accepted.
 
 ## Context

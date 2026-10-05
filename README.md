@@ -1,6 +1,6 @@
 # Unfancy Money Tracker
 
-Unfancy Money Tracker is an anonymous, local-only Expo app for manually tracking income, expenses, category budgets, and descriptive reports. Financial data stays in the encrypted local dataset on the device or browser. The retained AWS/SAM/DynamoDB sync backend is dormant and is not called by the app.
+Unfancy Money Tracker is a local-first Expo app for income, expenses, category budgets, and descriptive reports. Optional Cognito login enables voice; a separate Settings opt-in enables personal cross-device sync. Financial records persist in encrypted MMKV/IndexedDB locally, with portable PostgreSQL 18.6 and Flyway Community 13.9.0 for cloud sync. Production deployment remains deferred.
 
 ## Quick start
 
@@ -10,6 +10,7 @@ This project pins pnpm through Corepack. If pnpm is not already available, run
 ```sh
 pnpm install
 pnpm run local:verify
+pnpm run local:start
 pnpm run android
 pnpm run start
 ```
@@ -27,3 +28,5 @@ pnpm run verify:web:deployment -- https://<your-amplify-domain>
 ```
 
 The check requests only public route and asset URLs; use the URL for the deployment you intend to verify and do not commit private URLs or credentials.
+
+See the [PostgreSQL rollout and portability runbook](docs/development/postgresql-sync.md) for migrations, dev reset, database roles, verification, and dump/restore.
