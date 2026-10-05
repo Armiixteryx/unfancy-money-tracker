@@ -2,6 +2,8 @@
 
 Visual concepts for the core user stories in Unfancy Money Tracker. Each story is explored as a mobile and browser experience before implementation.
 
+These images are historical explorations of the previous visual direction. The current design source is [the editorial redesign](../editorial-redesign.md); retain their product flows and apply the current typography, surfaces, and controls.
+
 The cross-screen consistency pass is documented in [system-review.md](system-review.md).
 
 ## Concept checklist

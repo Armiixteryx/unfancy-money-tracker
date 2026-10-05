@@ -1,14 +1,9 @@
+import { isWebRail, layout } from "../../ui/designTokens";
+import { AppText as Text } from "../../ui/AppText";
 import { translateMessage } from "../../localization/i18n";
 import { i18n } from "../../localization/i18n";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Snackbar } from "../../ui/Snackbar";
 import { useAppTheme } from "../../ui/theme";
 import type { VoicePhase } from "./VoiceProvider";
@@ -41,13 +36,15 @@ export function VoiceFeedback({
 }: VoiceFeedbackProps) {
   useTranslation();
   const { colors } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const desktop = isWebRail(Platform.OS, width);
   const button = (label: string, onPress: () => void) => (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={styles.button}
     >
-      <Text style={{ color: colors.primary, fontWeight: "700" }}>{label}</Text>
+      <Text style={{ color: colors.primary, fontWeight: "500" }}>{label}</Text>
     </Pressable>
   );
   const status =
@@ -72,7 +69,7 @@ export function VoiceFeedback({
             collapsable: false,
           })}
       pointerEvents="box-none"
-      style={styles.overlay}
+      style={[styles.overlay, { left: desktop ? layout.railWidth + 16 : 16, bottom: desktop ? 24 : 88 }]}
     >
       {saved ? (
         <Snackbar
@@ -137,7 +134,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   panel: {
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     padding: 12,
     maxWidth: 650,
@@ -146,8 +143,8 @@ const styles = StyleSheet.create({
   },
   actions: { flexDirection: "row", flexWrap: "wrap" },
   button: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: 48,
+    minWidth: 48,
     justifyContent: "center",
     paddingHorizontal: 12,
   },

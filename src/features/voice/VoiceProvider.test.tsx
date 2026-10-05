@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("react-native", () => ({
   Platform: { OS: "web" },
+  useWindowDimensions: () => ({ width: 390 }),
   View: "View",
   Text: "Text",
   Pressable: "Pressable",

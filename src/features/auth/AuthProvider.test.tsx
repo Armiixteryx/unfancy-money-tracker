@@ -2,7 +2,8 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./AuthProvider";
 const state = vi.hoisted(() => ({ marker: null as string | null, snapshot: null as string | null, recovery: null as string | null, identity: null as string | null, failMarker: false, financialMounts: 0, signOut: vi.fn() }));
-vi.mock("react-native", () => ({ ActivityIndicator: "progress", Modal: "modal", Pressable: "button", Text: "text", View: "view" }));
+vi.mock("react-native", () => ({
+  StyleSheet: { create: (value: unknown) => value }, ActivityIndicator: "progress", Modal: "modal", Pressable: "button", Text: "text", View: "view" }));
 vi.mock("../../platform/auth/client", () => ({ authClient: { restore: async () => state.identity, signOut: state.signOut } }));
 vi.mock("../../platform/persistence", () => ({ createPersistenceAdapter: (namespace: string) => ({ readSnapshot: async () => namespace === "introduction" ? state.marker : state.snapshot, readRecoverySnapshot: async () => state.recovery, writeSnapshot: async (value: string) => { if (state.failMarker) throw new Error("storage"); state.marker = value; } }) }));
 vi.mock("./AuthForm", () => ({ AuthForm: "form" }));

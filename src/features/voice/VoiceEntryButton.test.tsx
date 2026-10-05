@@ -10,6 +10,7 @@ const voice = vi.hoisted(() => ({
   stop: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("react-native", () => ({
+  StyleSheet: { create: (value: unknown) => value },
   View: "div",
   Text: "span",
   Pressable: "button",

@@ -27,19 +27,19 @@ export type ThemeColors = {
 };
 
 export const lightColors: ThemeColors = {
-  canvas: "#F7F5F0", surface: "#FFFFFF", surfaceRaised: "#F8FAFC", text: "#102A43", muted: "#526D82",
-  border: "#D9E2EC", divider: "#EEF2F5", primary: "#102A43", onPrimary: "#FFFFFF", positive: "#0F7A3A",
-  negative: "#C93636", accent: "#2F80ED", placeholder: "#6F8498", track: "#EDF1F5", positiveSubtle: "#E9F7EF",
-  negativeSubtle: "#FFF2F0", infoSubtle: "#EAF0F8", warning: "#9A6700", warningSubtle: "#FFF7E6",
-  pro: "#6D4AFF", proSubtle: "#F1EDFF"
+  canvas: "#EFECEA", surface: "#FFFFFF", surfaceRaised: "#F7F5F2", text: "#102A43", muted: "#59666C",
+  border: "#DCD9D6", divider: "#EEECE8", primary: "#102A43", onPrimary: "#FFFFFF", positive: "#0F7A3A",
+  negative: "#C93636", accent: "#0F7A3A", placeholder: "#667178", track: "#EEECE8", positiveSubtle: "#EDF6EF",
+  negativeSubtle: "#FFF2F0", infoSubtle: "#F1F3F3", warning: "#886000", warningSubtle: "#FFF7E6",
+  pro: "#102A43", proSubtle: "#F1F3F3"
 };
 
 export const darkColors: ThemeColors = {
   canvas: "#0B1220", surface: "#111C2E", surfaceRaised: "#172944", text: "#F4F1EA", muted: "#A8B4C3",
-  border: "#2A3A50", divider: "#213047", primary: "#69A7FF", onPrimary: "#08111F", positive: "#4BC87A",
-  negative: "#FF7B72", accent: "#69A7FF", placeholder: "#7F91A6", track: "#243247", positiveSubtle: "#142C24",
+  border: "#2A3A50", divider: "#213047", primary: "#4BC87A", onPrimary: "#08111F", positive: "#4BC87A",
+  negative: "#FF7B72", accent: "#4BC87A", placeholder: "#A8B4C3", track: "#243247", positiveSubtle: "#142C24",
   negativeSubtle: "#321D22", infoSubtle: "#14263D", warning: "#F0C36A", warningSubtle: "#332817",
-  pro: "#B9A2FF", proSubtle: "#251F3F"
+  pro: "#F4F1EA", proSubtle: "#172944"
 };
 
 export function resolveTheme(preference: Theme, systemScheme: "light" | "dark" | null | undefined): ResolvedTheme {

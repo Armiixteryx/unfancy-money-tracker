@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { typography } from "./designTokens";
+import { AppText as Text } from "./AppText";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { useThemedStyles, type ThemeColors } from "./theme";
 
@@ -27,7 +29,7 @@ export function AppBrand({ accessibilityElementsHidden = false, style }: AppBran
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { alignItems: "center", flexDirection: "row", gap: 10 },
-  mark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 10, color: colors.onPrimary, fontSize: 18, fontWeight: "900", height: 34, lineHeight: 34, textAlign: "center", width: 34 },
-  name: { color: colors.text, fontSize: 16, fontWeight: "900" },
-  subtitle: { color: colors.muted, fontSize: 11, fontWeight: "700", marginTop: 2 }
+  mark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, color: colors.onPrimary, fontSize: 18, fontWeight: "500", height: 40, lineHeight: 40, textAlign: "center", width: 40 },
+  name: { ...typography.heading, color: colors.text, fontSize: 24, lineHeight: 28 },
+  subtitle: { color: colors.muted, fontSize: 12, fontWeight: "500", marginTop: 2 }
 });

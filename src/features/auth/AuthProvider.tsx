@@ -1,8 +1,9 @@
+import { AppText as Text } from "../../ui/AppText";
 import { useTranslation } from "react-i18next";
 import { invalidateAuthentication } from "../../platform/auth/lifecycle";
 import { detectIntroduction } from "../../platform/auth/introduction";
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from "react";
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, View } from "react-native";
 import { authClient } from "../../platform/auth/client";
 import { createPersistenceAdapter } from "../../platform/persistence";
 import { AuthForm } from "./AuthForm";

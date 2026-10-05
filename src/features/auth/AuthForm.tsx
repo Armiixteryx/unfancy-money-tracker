@@ -1,9 +1,14 @@
+import { typography } from "../../ui/designTokens";
+import { Button } from "../../ui/controls";
+import { AppBrand } from "../../ui/AppBrand";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { AppText as Text, AppTextInput as TextInput } from "../../ui/AppText";
 import { SensitiveContent } from "../../platform/analytics/SensitiveContent";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { authClient } from "../../platform/auth/client";
 import { useAppTheme } from "../../ui/theme";
@@ -34,13 +39,14 @@ export function AuthForm({ onComplete, onCancel }: { onComplete: () => Promise<v
     finally { setBusy(false); }
   };
   const titles = { login: label("Sign in", "Iniciar sesión"), register: label("Create account", "Crear cuenta"), confirm: label("Confirm email", "Confirmar correo"), recover: label("Recover password", "Recuperar contraseña"), reset: label("Reset password", "Restablecer contraseña") };
-  const button = (text: string, action: () => void) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy, busy }} disabled={busy} onPress={action} style={{ minHeight: 48, justifyContent: "center", padding: 12 }}><Text style={{ color: colors.primary, fontWeight: "700" }}>{text}</Text></Pressable>;
-  return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24, backgroundColor: colors.canvas }}><SensitiveContent><View style={{ width: "100%", maxWidth: 480, alignSelf: "center", gap: 12 }}>
-    <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 28, fontWeight: "700" }}>{titles[mode]}</Text>
+  const button = (text: string, action: () => void, variant: "primary" | "secondary" | "ghost" = "secondary") => <Button label={text} variant={variant} accessibilityState={{ busy }} disabled={busy} onPress={action} />;
+  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24, backgroundColor: colors.canvas }}><SensitiveContent><View style={{ width: "100%", maxWidth: 480, alignSelf: "center", gap: 16, backgroundColor: colors.surface, padding: 24, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+    <AppBrand accessibilityElementsHidden />
+    <Text accessibilityRole="header" style={{ ...typography.heading, color: colors.text, fontSize: 32, lineHeight: 40 }}>{titles[mode]}</Text>
     <Text style={{ color: colors.muted }}>{label("Login is optional. Your records stay on this device. Sign in to use voice entry.", "La sesión es opcional. Tus registros permanecen en este dispositivo. Inicia sesión para usar la voz.")}</Text>
     {(["email", ...(passwordRequired ? ["password"] : []), ...(codeRequired ? ["code"] : [])] as ("email" | "password" | "code")[]).map(name => {
       const text = name === "email" ? label("Email", "Correo electrónico") : name === "password" ? label("Password", "Contraseña") : label("Confirmation code", "Código de confirmación");
-      return <View key={name} style={{ gap: 4 }}><Text style={{ color: colors.text }}>{text}</Text><Controller control={control} name={name} render={({ field }) => <TextInput ref={field.ref} autoFocus={name === "email"} accessibilityLabel={text} accessibilityHint={errors[name]?.message} editable={!busy} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} secureTextEntry={name === "password"} autoCapitalize="none" autoCorrect={false} keyboardType={name === "email" ? "email-address" : name === "code" ? "number-pad" : "default"} style={{ color: colors.text, borderColor: colors.border, borderWidth: 1, borderRadius: 12, padding: 12, minHeight: 48 }} />} />{errors[name] ? <Text accessibilityRole="alert" style={{ color: colors.negative }}>{errors[name]?.message}</Text> : null}</View>;
+      return <View key={name} style={{ gap: 4 }}><Text style={{ color: colors.text }}>{text}</Text><Controller control={control} name={name} render={({ field }) => <TextInput ref={field.ref} autoFocus={name === "email"} accessibilityLabel={text} accessibilityHint={errors[name]?.message} editable={!busy} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} secureTextEntry={name === "password"} autoCapitalize="none" autoCorrect={false} keyboardType={name === "email" ? "email-address" : name === "code" ? "number-pad" : "default"} style={{ color: colors.text, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 12, minHeight: 48 }} />} />{errors[name] ? <Text accessibilityRole="alert" style={{ color: colors.negative }}>{errors[name]?.message}</Text> : null}</View>;
     })}
     {mode === "register" || mode === "reset" ? <Text style={{ color: colors.muted }}>{label("Use 12+ characters, uppercase, lowercase, a number and a symbol.", "Usa 12 o más caracteres, mayúscula, minúscula, número y símbolo.")}</Text> : null}
     {notice ? <Text accessibilityLiveRegion="polite" style={{ color: colors.text }}>{notice}</Text> : null}
@@ -51,9 +57,9 @@ export function AuthForm({ onComplete, onCancel }: { onComplete: () => Promise<v
       if (mode === "confirm") { await authClient.confirm(values.email, values.code); change("login"); setNotice(label("Email confirmed. Sign in to continue.", "Correo confirmado. Inicia sesión para continuar.")); }
       if (mode === "recover") { await authClient.recover(values.email); change("reset"); setNotice(label("If a code can be sent, check your email.", "Si se puede enviar un código, revisa tu correo.")); }
       if (mode === "reset") { await authClient.reset(values.email, values.code, values.password); change("login"); setNotice(label("Password updated. Sign in to continue.", "Contraseña actualizada. Inicia sesión para continuar.")); }
-    })))}
+    })), "primary")}
     {mode === "login" ? <>{button(titles.register, () => change("register"))}{button(titles.recover, () => change("recover"))}</> : button(titles.login, () => change("login"))}
     {mode === "confirm" ? button(label("Resend code", "Reenviar código"), () => void run(async () => { await authClient.resend(getValues("email")); setNotice(label("If a code can be sent, check your email.", "Si se puede enviar un código, revisa tu correo.")); })) : null}
-    {button(onCancel ? label("Cancel", "Cancelar") : label("Skip login", "Omitir inicio de sesión"), () => onCancel ? onCancel() : void run(onComplete))}
-  </View></SensitiveContent></ScrollView>;
+    {button(onCancel ? label("Cancel", "Cancelar") : label("Skip login", "Omitir inicio de sesión"), () => onCancel ? onCancel() : void run(onComplete), "ghost")}
+  </View></SensitiveContent></ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }

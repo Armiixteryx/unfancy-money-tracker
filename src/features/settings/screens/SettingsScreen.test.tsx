@@ -1,3 +1,4 @@
+import { AppText } from "../../../ui/AppText";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nextProvider } from "react-i18next";
@@ -32,7 +33,7 @@ function button(label: string) {
   return tree!.root.findAllByType("button").find(node => node.findAllByType("text").some(text => text.children.join("") === label))!;
 }
 function row(label: string) {
-  return tree!.root.findAllByType("text").find(node => node.children.join("") === label)!.parent!.parent!;
+  return tree!.root.findAllByType(AppText).find(node => node.props.children === label)!.parent!.parent!;
 }
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -66,7 +67,7 @@ describe("protected categories in Settings", () => {
     }
     await act(async () => { button(i18n.t($ => $.ui.dashboardIncome)).props.onPress(); });
     // Income appears both as the type chip and the category name.
-    const protectedRows = tree!.root.findAllByType("text").filter(node => node.children.join("") === i18n.t($ => $.ui.settingsProtectedSystemCategory));
+    const protectedRows = tree!.root.findAllByType(AppText).filter(node => node.props.children === i18n.t($ => $.ui.settingsProtectedSystemCategory));
     expect(protectedRows).toHaveLength(2);
     for (const helper of protectedRows) expect(helper.parent!.parent!.findAllByType("button")).toHaveLength(0);
   });

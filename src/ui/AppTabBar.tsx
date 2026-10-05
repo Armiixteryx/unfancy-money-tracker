@@ -1,6 +1,9 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { isWebRail, layout } from "./designTokens";
+import { AppText as Text } from "./AppText";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { useAppTheme, useThemedStyles, type ThemeColors } from "./theme";
 import { AppBrand } from "./AppBrand";
@@ -65,8 +68,9 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
 function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.mobileContainer}>
+    <View accessibilityRole="tablist" style={[styles.mobileContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const label = labelForRoute({ route, descriptors });
@@ -92,7 +96,7 @@ function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 export function AppTabBar(props: BottomTabBarProps) {
   const { width } = useWindowDimensions();
-  const isDesktopWeb = Platform.OS === "web" && width >= 768;
+  const isDesktopWeb = isWebRail(Platform.OS, width);
 
   return isDesktopWeb ? <WebSideNav {...props} /> : <MobileTabBar {...props} />;
 }
@@ -109,17 +113,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingTop: 28,
     position: "absolute",
     top: 0,
-    width: 232
+    width: layout.railWidth
   },
   brandBlock: { marginBottom: 36, paddingHorizontal: 10 },
   webItems: { gap: 6 },
-  webItem: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 12, minHeight: 48, paddingHorizontal: 14 },
+  webItem: { alignItems: "center", borderRadius: layout.pillRadius, flexDirection: "row", gap: 12, minHeight: 48, paddingHorizontal: 14 },
   webItemActive: { backgroundColor: colors.positiveSubtle },
-  webLabel: { color: colors.muted, fontSize: 14, fontWeight: "700" },
+  webLabel: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   webLabelActive: { color: colors.text },
-  mobileContainer: { alignItems: "stretch", backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", height: 76, justifyContent: "space-around", paddingTop: 8 },
+  mobileContainer: { alignItems: "stretch", backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", minHeight: 76, justifyContent: "space-around", paddingTop: 8 },
   mobileItem: { alignItems: "center", flex: 1, minWidth: 0, paddingHorizontal: 2, gap: 6, justifyContent: "center", minHeight: 56 },
-  mobileItemActive: { backgroundColor: colors.positiveSubtle, borderRadius: 12, marginBottom: 6, marginHorizontal: 4 },
-  mobileLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", textAlign: "center", maxWidth: "100%" },
-  mobileLabelActive: { color: colors.text }
+  mobileItemActive: { backgroundColor: colors.positiveSubtle, borderRadius: 12, marginHorizontal: 2 },
+  mobileLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", textAlign: "center", maxWidth: "100%" },
+  mobileLabelActive: { color: colors.positive }
 });

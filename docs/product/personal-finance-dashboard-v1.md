@@ -98,21 +98,21 @@ The same five labels are used on mobile bottom navigation and the browser left r
 
 ## UI direction
 
-Use a calm, modern fintech system: warm off-white surfaces, deep navy typography, emerald for positive states, coral for overspending, restrained sky-blue chart accents, soft gray borders, rounded cards, and accessible contrast.
+Use a warm editorial fintech system inspired by the Monarch Refero style reference, retaining Unfancy’s navy and emerald identity. Light mode uses a linen canvas, white cards, and warm gray hairline borders; dark mode uses navy surfaces and high-contrast warm text. Use Fraunces Regular for page and section headings, Inter for UI copy and tabular financial amounts, pill controls, 12px card corners, 8px input corners, and restrained elevation. Navy is the light-mode primary action; emerald supplies selection, positive states, charts, and the accessible dark-mode primary action. Coral indicates errors and overspending. See [editorial redesign](editorial-redesign.md) and ADR 0021.
 
 ### Mobile
 
-- Bottom tabs: Overview, Activity, Plans, Insights, Settings.
-- Dashboard answers “How am I doing this month?” in the first viewport: remaining budget is primary; income and expenses are supporting metrics.
+- Bottom tabs: Dashboard, Transactions, Budgets, Reports, Settings.
+- Dashboard answers “How am I doing this month?” in the first viewport: remaining budget is primary; income and expenses are supporting metrics. Remaining budget retains the existing monthly limits minus monthly expense calculation per original currency, includes budget-only currencies, and is not presented as a combined converted total. Without a limit, show “No budget set” with a create-budget action.
 - Show recent activity, category spending, and only the most relevant budget attention below the summary.
 - Keep the add-transaction action persistently easy to reach.
 
 ### Browser
 
-- Compact left navigation and a header action for adding a transaction.
+- Compact left navigation from 1024px and a header action for adding a transaction. Below that width, use bottom tabs.
 - Preserve dashboard hierarchy while using the wider layout for a side-by-side spending trend, category breakdown, recent activity, and budget attention.
 - Do not duplicate mobile navigation patterns merely to fill space.
-- Use a persistent split-pane workspace for Transactions: the list remains visible while the selected transaction or new-transaction form occupies the detail pane. Mobile uses a full-screen transaction form.
+- Use a persistent split-pane workspace for Transactions: the list remains visible while the selected transaction or new-transaction form occupies the detail pane. Web from 1200px uses the split pane. Smaller browser widths and all native sizes use a full-screen form.
 
 ## Product rules and edge cases
 

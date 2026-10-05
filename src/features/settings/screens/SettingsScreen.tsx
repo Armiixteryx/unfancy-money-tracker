@@ -1,3 +1,5 @@
+import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { SensitiveContent } from "../../../platform/analytics/SensitiveContent";
 import { useAuth } from "../../auth/AuthProvider";
 import type { Message } from "../../../localization/notices";
@@ -7,7 +9,7 @@ import { categoryLabel } from "../../../localization/i18n";
 import { i18n } from "../../../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
@@ -25,7 +27,7 @@ export function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
-  const isMobile = Platform.OS !== "web" || width < 768;
+  const isMobile = !isWebWorkspace(Platform.OS, width);
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const setPreferences = useLocalDatasetStore((state) => state.setPreferences);
   const resetLocalData = useLocalDatasetStore((state) => state.resetLocalData);
@@ -60,7 +62,7 @@ export function SettingsScreen() {
 
   return (
     <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)}>
-      <SensitiveContent><View style={styles.card}><Text style={{ color: colors.text, fontWeight: "700" }}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
+      <SensitiveContent><View style={styles.card}><Text style={{ color: colors.text, fontWeight: "500" }}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
       {saveError ? <Pressable accessibilityRole="button" onPress={() => void retryLocalSave()} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.notices.retrySave)}</Text></Pressable> : null}
       {message ? <View accessibilityLiveRegion="polite" style={styles.successBanner}><Text style={styles.successBannerText}>{translateMessage(message, false)}</Text><Pressable accessibilityLabel={i18n.t($ => $.ui.settingsDismissConfirmation)} accessibilityRole="button" hitSlop={8} onPress={() => setMessage(null)} style={styles.dismissBannerButton}><Ionicons color={colors.positive} name="close" size={20} /></Pressable></View> : null}
@@ -212,87 +214,87 @@ function CategoryManager({ onMessage }: { onMessage: (message: Message) => void 
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   grid: { gap: 16, minWidth: 0, width: "100%" },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 18, padding: 24 },
-  categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 18, padding: 20 },
+  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 18, padding: 24 },
+  categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 18, padding: 20 },
   sectionHeader: { gap: 5 },
-  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
-  sectionDescription: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "800" },
-  helper: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  sectionTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+  sectionDescription: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  label: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  helper: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  choiceChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: 13 },
+  choiceChip: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 13 },
   choiceChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   choiceChipDisabled: { opacity: 0.55 },
-  choiceText: { color: colors.muted, fontSize: 13, fontWeight: "800" },
+  choiceText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   choiceTextActive: { color: colors.onPrimary },
   statusRow: { alignItems: "flex-start", flexDirection: "row", gap: 10 },
-  statusDot: { borderRadius: 999, height: 10, marginTop: 5, width: 10 },
+  statusDot: { borderRadius: 12, height: 10, marginTop: 5, width: 10 },
   statusDotGood: { backgroundColor: colors.positive },
   statusDotMuted: { backgroundColor: colors.muted },
   statusDotBad: { backgroundColor: colors.negative },
   statusCopy: { flex: 1, gap: 3 },
-  statusTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  statusTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
   infoBox: { backgroundColor: colors.infoSubtle, borderRadius: 12, gap: 4, padding: 13 },
-  infoTitle: { color: colors.text, fontSize: 13, fontWeight: "800" },
-  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
-  successBanner: { alignItems: "center", backgroundColor: colors.positiveSubtle, borderRadius: 10, flexDirection: "row", gap: 8, paddingLeft: 12, paddingVertical: 8 },
+  infoTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
+  successBanner: { alignItems: "center", backgroundColor: colors.positiveSubtle, borderRadius: 12, flexDirection: "row", gap: 8, paddingLeft: 12, paddingVertical: 8 },
   successBannerText: { color: colors.positive, flex: 1, fontSize: 14, paddingVertical: 4 },
-  dismissBannerButton: { alignItems: "center", justifyContent: "center", minHeight: 36, minWidth: 36 },
+  dismissBannerButton: { alignItems: "center", justifyContent: "center", minHeight: 48, minWidth: 36 },
   toggleRow: { alignItems: "center", flexDirection: "row", gap: 11 },
-  toggle: { backgroundColor: colors.border, borderRadius: 999, height: 26, justifyContent: "center", padding: 3, width: 46 },
+  toggle: { backgroundColor: colors.border, borderRadius: 9999, height: 26, justifyContent: "center", padding: 3, width: 46 },
   toggleOn: { backgroundColor: colors.positive },
-  toggleKnob: { backgroundColor: colors.surface, borderRadius: 999, height: 20, width: 20 },
+  toggleKnob: { backgroundColor: colors.surface, borderRadius: 9999, height: 20, width: 20 },
   toggleKnobOn: { alignSelf: "flex-end" },
-  dangerBox: { backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, gap: 10, padding: 14 },
-  dangerTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  dangerBox: { backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 12, borderWidth: 1, gap: 10, padding: 14 },
+  dangerTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, justifyContent: "center", minHeight: 46, paddingHorizontal: 15 },
-  primaryText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
-  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: 14 },
-  secondaryText: { color: colors.text, fontSize: 13, fontWeight: "800" },
-  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 10, justifyContent: "center", minHeight: 42, paddingHorizontal: 13 },
-  dangerText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
-  outlineDanger: { alignItems: "center", alignSelf: "flex-start", borderColor: colors.negative, borderRadius: 10, borderWidth: 1, justifyContent: "center", minHeight: 42, paddingHorizontal: 13 },
-  outlineDangerText: { color: colors.negative, fontSize: 13, fontWeight: "800" },
-  proBox: { backgroundColor: colors.proSubtle, borderColor: colors.pro, borderRadius: 14, gap: 8, padding: 16 },
-  proBadge: { color: colors.pro, fontSize: 11, fontWeight: "900", letterSpacing: 0.8 },
-  proTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
+  primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, justifyContent: "center", minHeight: 48, paddingHorizontal: 15 },
+  primaryText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
+  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
+  secondaryText: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 9999, justifyContent: "center", minHeight: 48, paddingHorizontal: 13 },
+  dangerText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
+  outlineDanger: { alignItems: "center", alignSelf: "flex-start", borderColor: colors.negative, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 13 },
+  outlineDangerText: { color: colors.negative, fontSize: 14, fontWeight: "500" },
+  proBox: { backgroundColor: colors.proSubtle, borderColor: colors.pro, borderRadius: 12, gap: 8, padding: 16 },
+  proBadge: { color: colors.pro, fontSize: 11, fontWeight: "500", letterSpacing: 0.8 },
+  proTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
   addCategoryRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryInput: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, color: colors.text, flex: 1, minHeight: 46, minWidth: 180, paddingHorizontal: 13 },
+  categoryInput: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, flex: 1, minHeight: 48, minWidth: 180, paddingHorizontal: 13 },
   categoryList: { gap: 10 },
   categoryRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, paddingVertical: 12 },
   categoryCopy: { flex: 1, gap: 3, minWidth: 150 },
-  categoryName: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  categoryName: { color: colors.text, fontSize: 14, fontWeight: "500" },
   categoryActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  tinyButton: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, justifyContent: "center", minHeight: 36, paddingHorizontal: 10 },
-  tinyButtonText: { color: colors.text, fontSize: 12, fontWeight: "800" },
-  textButton: { justifyContent: "center", minHeight: 36, paddingHorizontal: 7 },
-  textButtonText: { color: colors.muted, fontSize: 12, fontWeight: "800" },
-  dangerTextSmall: { color: colors.negative, fontSize: 12, fontWeight: "800" },
+  tinyButton: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 10 },
+  tinyButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  textButton: { justifyContent: "center", minHeight: 48, paddingHorizontal: 7 },
+  textButtonText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
+  dangerTextSmall: { color: colors.negative, fontSize: 14, fontWeight: "500" },
   editRow: { alignItems: "center", flexDirection: "row", gap: 6 },
-  editInput: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, minHeight: 36, paddingHorizontal: 9, width: 140 },
-  categoryConfirm: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderRadius: 10, flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 8, width: "100%" },
+  editInput: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, minHeight: 48, paddingHorizontal: 9, width: 140 },
+  categoryConfirm: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderRadius: 12, flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 8, width: "100%" },
   mobileIndex: { gap: 24 },
   mobileGroupWrap: { gap: 8 },
-  mobileGroupTitle: { color: colors.muted, fontSize: 12, fontWeight: "800", letterSpacing: 0.6, paddingHorizontal: 4, textTransform: "uppercase" },
-  mobileGroup: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  mobileGroupTitle: { color: colors.muted, fontSize: 14, fontWeight: "500", letterSpacing: 0.6, paddingHorizontal: 4, textTransform: "uppercase" },
+  mobileGroup: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
   mobileRow: { alignItems: "center", flexDirection: "row", gap: 12, minHeight: 72, paddingHorizontal: 16, paddingVertical: 12 },
   mobileRowBorder: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
-  mobileIcon: { alignItems: "center", borderRadius: 10, height: 38, justifyContent: "center", width: 38 },
+  mobileIcon: { alignItems: "center", borderRadius: 12, height: 38, justifyContent: "center", width: 38 },
   mobileRowCopy: { flex: 1, gap: 2 },
-  mobileRowTitle: { color: colors.text, fontSize: 16, fontWeight: "700" },
-  mobileRowDescription: { color: colors.muted, fontSize: 12, lineHeight: 17 },
-  mobileBack: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, minHeight: 44, paddingRight: 12 },
-  mobileBackText: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  mobileRowTitle: { color: colors.text, fontSize: 16, fontWeight: "500" },
+  mobileRowDescription: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  mobileBack: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, minHeight: 48, paddingRight: 12 },
+  mobileBackText: { color: colors.text, fontSize: 14, fontWeight: "500" },
   desktopWorkspace: { alignItems: "flex-start", flexDirection: "row", gap: 24 },
-  desktopSidebar: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 22, padding: 14, width: 280 },
+  desktopSidebar: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 22, padding: 14, width: 240 },
   desktopNavGroup: { gap: 5 },
-  desktopNavLabel: { color: colors.muted, fontSize: 11, fontWeight: "900", letterSpacing: 0.7, paddingBottom: 4, paddingHorizontal: 10, textTransform: "uppercase" },
+  desktopNavLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", letterSpacing: 0.7, paddingBottom: 4, paddingHorizontal: 10, textTransform: "uppercase" },
   desktopNavRow: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 11, paddingVertical: 9 },
   desktopNavRowActive: { backgroundColor: colors.positiveSubtle },
   desktopNavCopy: { flex: 1, gap: 2 },
-  desktopNavTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  desktopNavTitleActive: { color: colors.positive, fontWeight: "800" },
+  desktopNavTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  desktopNavTitleActive: { color: colors.positive, fontWeight: "500" },
   desktopNavDescription: { color: colors.muted, fontSize: 11 },
   desktopDetail: { flex: 1, minWidth: 0 }
 });

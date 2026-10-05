@@ -1,3 +1,5 @@
+import { typography } from "../../../ui/designTokens";
+import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { normalizeAmountDraft } from "../../../localization/amountInput";
 import { errorToken, DomainError } from "../../../domain/errors";
 import { currencyPrecision } from "../../../domain/currency";
@@ -9,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { normalizeSelectedCurrencies, type CurrencyCode } from "../../../domain/currency";
 import type { Budget, Category } from "../../../domain/types";
@@ -94,7 +96,7 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.eyebrow}>{budget ? i18n.t($ => $.ui.budgetsUpdateAMonthlyLimit) : i18n.t($ => $.ui.budgetsNewMonthlyLimit)}</Text>
           <Text accessibilityRole="header" style={styles.title}>{budget ? i18n.t($ => $.ui.budgetsEditBudget) : i18n.t($ => $.ui.budgetsCreateBudget)}</Text>
         </View>
@@ -116,11 +118,11 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
         </FieldLabel>
 
         <FieldLabel label={i18n.t($ => $.ui.budgetsMonthlyLimit)} error={formState.errors.amount?.message === "invalid_amount_draft" ? `invalid_amount_draft:${amountDraft(currencyPrecision(watch("currency")) === 0 ? "12" : "12.5", amountRegion)}` : formState.errors.amount?.message}>
-          <Controller control={control} name="amount" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel={i18n.t($ => $.ui.budgetsMonthlyBudgetAmount)} autoCorrect={false} keyboardType="decimal-pad" onBlur={onBlur} onChangeText={onChange} placeholder={amountDraft(currencyPrecision(watch("currency")) === 0 ? "0" : "0.00", amountRegion)} placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
+          <Controller control={control} name="amount" render={({ field: { onBlur, onChange, value, ref } }) => <TextInput ref={ref} accessibilityLabel={i18n.t($ => $.ui.budgetsMonthlyBudgetAmount)} autoCorrect={false} keyboardType="decimal-pad" onBlur={onBlur} onChangeText={onChange} placeholder={amountDraft(currencyPrecision(watch("currency")) === 0 ? "0" : "0.00", amountRegion)} placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
         </FieldLabel>
 
         <FieldLabel label={i18n.t($ => $.ui.budgetsMonth)} error={formState.errors.month?.message}>
-          <Controller control={control} name="month" render={({ field: { onBlur, onChange, value } }) => <TextInput accessibilityLabel={i18n.t($ => $.ui.budgetsBudgetMonthInYyyyMmFormat)} autoCorrect={false} onBlur={onBlur} onChangeText={onChange} placeholder="YYYY-MM" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
+          <Controller control={control} name="month" render={({ field: { onBlur, onChange, value, ref } }) => <TextInput ref={ref} accessibilityLabel={i18n.t($ => $.ui.budgetsBudgetMonthInYyyyMmFormat)} autoCorrect={false} onBlur={onBlur} onChangeText={onChange} placeholder="YYYY-MM" placeholderTextColor={colors.placeholder} style={styles.input} value={value} />} />
         </FieldLabel>
 
         <FieldLabel label={i18n.t($ => $.ui.transactionsCurrency)} error={formState.errors.currency?.message}>
@@ -152,28 +154,28 @@ function FieldLabel({ label, error, children }: { label: string; error?: string;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minHeight: 500, padding: 20 },
+  container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minHeight: 0, padding: 20 },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
-  eyebrow: { color: colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 4 },
-  title: { color: colors.text, fontSize: 22, fontWeight: "800" },
-  closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 999, borderWidth: 1, height: 36, justifyContent: "center", width: 36 },
+  eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "500", marginBottom: 4 },
+  title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+  closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
   closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
   fields: { gap: 18, paddingBottom: 8 },
   field: { gap: 7 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "800" },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
+  label: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  chip: { minHeight: 48, justifyContent: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   selectedChip: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  chipText: { color: colors.text, fontSize: 14, fontWeight: "500" },
   selectedChipText: { color: colors.onPrimary },
   currencyRow: { flexDirection: "row", gap: 8 },
-  helper: { color: colors.muted, fontSize: 13 },
-  fieldError: { color: colors.negative, fontSize: 13 },
-  error: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
-  saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, justifyContent: "center", minHeight: 50 },
+  helper: { color: colors.muted, fontSize: 14 },
+  fieldError: { color: colors.negative, fontSize: 14 },
+  error: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
+  saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, justifyContent: "center", minHeight: 50 },
   disabledSaveButton: { opacity: 0.5 },
-  saveText: { color: colors.onPrimary, fontSize: 15, fontWeight: "800" },
-  cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 42 },
-  cancelText: { color: colors.muted, fontSize: 14, fontWeight: "700" }
+  saveText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
+  cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 48 },
+  cancelText: { color: colors.muted, fontSize: 14, fontWeight: "500" }
 });

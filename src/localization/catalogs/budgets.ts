@@ -45,7 +45,10 @@ export const budgetsEn = {
   "budgetsSpent": "Spent",
   "budgetsLimit": "Limit",
   "budgetsOtherCurrencySpendingIsShownSeparatelyUntil": "Other-currency spending is shown separately until an exchange rate is available.",
-  "budgetsEdit": "Edit"
+  "budgetsEdit": "Edit",
+  budgetsPercentUsed: "{{percent}} percent of budget used",
+  budgetsAmountOver: "{{amount}} over the limit",
+  budgetsAmountRemaining: "{{amount}} remaining",
 } as const;
 export const budgetsEs: Record<keyof typeof budgetsEn, string> = {
   "budgetsUpdateAMonthlyLimit": "Actualizar un límite mensual",
@@ -94,5 +97,8 @@ export const budgetsEs: Record<keyof typeof budgetsEn, string> = {
   "budgetsSpent": "Gastado",
   "budgetsLimit": "Límite",
   "budgetsOtherCurrencySpendingIsShownSeparatelyUntil": "Los gastos en otras monedas se muestran por separado hasta que haya una tasa de cambio.",
-  "budgetsEdit": "Editar"
+  "budgetsEdit": "Editar",
+  budgetsPercentUsed: "{{percent}} por ciento del presupuesto usado",
+  budgetsAmountOver: "{{amount}} por encima del límite",
+  budgetsAmountRemaining: "{{amount}} restantes",
 };

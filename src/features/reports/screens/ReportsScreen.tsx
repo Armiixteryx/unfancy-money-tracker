@@ -1,10 +1,12 @@
+import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { AppText as Text } from "../../../ui/AppText";
 import { formatMonth } from "../../../localization/region";
 import { categoryLabel } from "../../../localization/i18n";
 import { i18n } from "../../../localization/i18n";
 import { useTranslation } from "react-i18next";
 import Decimal from "decimal.js";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { reportObservation, categoryReport, convertMonthAggregate, currentCalendarMonth, formatMoneyForDisplay, monthlyReport, type ReportPeriod } from "../../../domain";
 import { AppScreen, EmptyState } from "../../../ui/AppScreen";
@@ -16,6 +18,8 @@ import { useExchangeRates, rateRequestKey } from "../../exchange-rates/hooks/use
 export function ReportsScreen() {
   useTranslation();
   const styles = useThemedStyles(createStyles);
+  const { width } = useWindowDimensions();
+  const wide = isWebWorkspace(Platform.OS, width);
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<ReportPeriod>("6m");
@@ -47,7 +51,7 @@ export function ReportsScreen() {
           <View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsMonthlyExpenses)}</Text><Text style={styles.cardHint}>{i18n.t($ => $.ui.reportsLast)} {count} {i18n.t($ => $.ui.reportsMonthsOriginalCurrencies)}</Text></View><Text style={styles.cardHint}>{formatMonthLabelSafe(month)}</Text></View>
           <View style={styles.chart}>{points.map((point) => <View key={point.month} style={styles.chartRow}><Text style={styles.chartLabel}>{formatMonth(point.month)}</Text><View style={styles.bars}>{point.aggregates.length === 0 ? <Text style={styles.noActivity}>{i18n.t($ => $.ui.reportsNoActivity)}</Text> : point.aggregates.map((aggregate) => <View key={aggregate.currency} style={styles.currencyBarRow}><Text style={styles.currencyLabel}>{aggregate.currency}</Text><View style={styles.track}><View style={[styles.expenseBar, { width: `${maxExpenses.isZero() ? 0 : Decimal(aggregate.expenses.amount).dividedBy(maxExpenses).times(100).toNumber()}%` }]} /></View><Text style={styles.barValue}>{formatMoneyForDisplay(aggregate.expenses)}</Text></View>)}</View></View>)}</View>
         </View>
-        <View style={styles.grid}>
+        <View style={[styles.grid, wide && styles.wideGrid]}>
           <View style={styles.card}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsCategoryBreakdown)}</Text><Text style={styles.cardHint}>{formatMonthLabelSafe(month)}</Text></View></View>{categories.length === 0 ? <Text style={styles.muted}>{i18n.t($ => $.ui.dashboardNoExpenseActivityThisMonth)}</Text> : <CategoryList categories={categories} />}</View>
           <View style={styles.card}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}>{i18n.t($ => $.ui.reportsWhatHappened)}</Text><Text style={styles.cardHint}>{i18n.t($ => $.ui.reportsAFactualActivityNote)}</Text></View></View><Text style={styles.observation}>{localizedObservation(points[points.length - 1] ?? { month, aggregates: [] })}</Text><Text style={styles.muted}>{i18n.t($ => $.ui.reportsThisSummaryDescribesRecordedActivityItDoes)}</Text></View>
         </View>
@@ -74,45 +78,46 @@ function CategoryList({ categories }: { categories: ReturnType<typeof categoryRe
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between" },
-  toolbarTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
-  toolbarHint: { color: colors.muted, fontSize: 13, marginTop: 4 },
+  toolbarTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+  toolbarHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
   periods: { flexDirection: "row", gap: 8 },
-  periodChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, minHeight: 40, justifyContent: "center", paddingHorizontal: 14 },
+  periodChip: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 14 },
   activePeriod: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { color: colors.muted, fontSize: 12, fontWeight: "800" },
+  periodText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   activePeriodText: { color: colors.onPrimary },
-  emptyCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1 },
-  notice: { backgroundColor: colors.infoSubtle, borderColor: colors.border, borderRadius: 14, borderWidth: 1, gap: 4, padding: 14 },
-  noticeTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
-  noticeText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  baseCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, padding: 20 },
+  emptyCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1 },
+  notice: { backgroundColor: colors.infoSubtle, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 4, padding: 14 },
+  noticeTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  noticeText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  baseCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 14, padding: 20 },
   baseRows: { gap: 10 },
   baseRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, minHeight: 40 },
-  baseRowLabel: { color: colors.text, fontSize: 13, fontWeight: "800", minWidth: 78 },
-  baseRowValue: { color: colors.muted, fontSize: 12, fontWeight: "700" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, gap: 16, minWidth: 300, padding: 20 },
+  baseRowLabel: { color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 78 },
+  baseRowValue: { color: colors.muted, fontSize: 14, fontWeight: "500" },
+  grid: { gap: 16 },
+  wideGrid: { flexDirection: "row" },
+  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, gap: 16, minWidth: 0, padding: 20 },
   cardHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  cardTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
-  cardHint: { color: colors.muted, fontSize: 12, marginTop: 4 },
+  cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+  cardHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
   chart: { gap: 15 },
-  chartRow: { alignItems: "flex-start", flexDirection: "row", gap: 12, minHeight: 28 },
-  chartLabel: { color: colors.muted, fontSize: 12, fontWeight: "700", width: 76 },
-  bars: { flex: 1, gap: 7 },
-  currencyBarRow: { alignItems: "center", flexDirection: "row", gap: 8 },
-  currencyLabel: { color: colors.muted, fontSize: 11, fontWeight: "800", width: 30 },
-  track: { backgroundColor: colors.track, borderRadius: 999, flex: 1, height: 10, overflow: "hidden" },
-  expenseBar: { backgroundColor: colors.accent, borderRadius: 999, height: 10, minWidth: 3 },
-  barValue: { color: colors.text, fontSize: 12, fontWeight: "800", minWidth: 76, textAlign: "right" },
-  noActivity: { color: colors.muted, fontSize: 12 },
+  chartRow: { alignItems: "stretch", flexDirection: "column", gap: 12, minHeight: 28 },
+  chartLabel: { color: colors.muted, fontSize: 14, fontWeight: "500", minWidth: 76 },
+  bars: { width: "100%", gap: 7 },
+  currencyBarRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  currencyLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", width: 30 },
+  track: { backgroundColor: colors.track, borderRadius: 9999, flex: 1, height: 10, overflow: "hidden" },
+  expenseBar: { backgroundColor: colors.accent, borderRadius: 9999, height: 10, minWidth: 3 },
+  barValue: { ...typography.amount, maxWidth: "60%", color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 76, textAlign: "right" },
+  noActivity: { color: colors.muted, fontSize: 14 },
   categoryList: { gap: 15 },
-  categoryRow: { alignItems: "center", flexDirection: "row", gap: 10 },
-  categoryCopy: { minWidth: 102, width: 102 },
-  categoryName: { color: colors.text, fontSize: 13, fontWeight: "800" },
+  categoryRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  categoryCopy: { minWidth: 60, flex: 1 },
+  categoryName: { color: colors.text, fontSize: 14, fontWeight: "500" },
   categoryMeta: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  categoryBarTrack: { backgroundColor: colors.track, borderRadius: 999, flex: 1, height: 8, overflow: "hidden" },
-  categoryBar: { backgroundColor: colors.accent, borderRadius: 999, height: 8, minWidth: 3 },
-  categoryAmount: { color: colors.text, fontSize: 12, fontWeight: "800", minWidth: 70, textAlign: "right" },
-  observation: { color: colors.text, fontSize: 17, fontWeight: "800", lineHeight: 25 },
-  muted: { color: colors.muted, fontSize: 13, lineHeight: 19 }
+  categoryBarTrack: { backgroundColor: colors.track, borderRadius: 9999, flex: 1, height: 8, overflow: "hidden" },
+  categoryBar: { backgroundColor: colors.accent, borderRadius: 9999, height: 8, minWidth: 3 },
+  categoryAmount: { ...typography.amount, maxWidth: "60%", color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 70, textAlign: "right" },
+  observation: { color: colors.text, fontSize: 17, fontWeight: "500", lineHeight: 25 },
+  muted: { color: colors.muted, fontSize: 14, lineHeight: 20 }
 });

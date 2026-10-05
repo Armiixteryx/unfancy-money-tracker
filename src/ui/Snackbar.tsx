@@ -1,15 +1,9 @@
+import { AppText as Text } from "./AppText";
 import { i18n } from "../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
-import {
-  AccessibilityInfo,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, View } from "react-native";
 
 import { useThemedStyles, type ThemeColors } from "./theme";
 
@@ -103,17 +97,17 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: "center",
       backgroundColor: colors.surfaceRaised,
       borderColor: colors.border,
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
-      elevation: 5,
+      elevation: 2,
       flexDirection: "row",
       gap: 10,
       maxWidth: 560,
       minHeight: 56,
       paddingHorizontal: 16,
-      shadowColor: "#000000",
+      shadowColor: colors.text,
       shadowOffset: { height: 3, width: 0 },
-      shadowOpacity: 0.16,
+      shadowOpacity: 0.06,
       shadowRadius: 8,
       width: "100%",
     },
@@ -122,15 +116,15 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.text,
       flex: 1,
       fontSize: 14,
-      fontWeight: "700",
+      fontWeight: "500",
       lineHeight: 20,
     },
     dismiss: {
       alignItems: "center",
       borderRadius: 999,
       justifyContent: "center",
-      minHeight: 44,
-      minWidth: 44,
+      minHeight: 48,
+      minWidth: 48,
     },
     dismissIcon: { color: colors.muted },
   });
