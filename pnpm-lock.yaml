@@ -180,6 +180,9 @@ importers:
         specifier: ^5.0.8
         version: 5.0.14(@types/react@19.1.17)(immer@11.1.21)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
     devDependencies:
+      '@babel/plugin-transform-react-jsx':
+        specifier: 7.29.7
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
       '@types/aws-lambda':
         specifier: ^8.10.152
         version: 8.10.162

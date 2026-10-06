@@ -104,6 +104,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@babel/plugin-transform-react-jsx": "7.29.7",
     "@types/aws-lambda": "^8.10.152",
     "@types/node": "^22.15.0",
     "@types/pg": "^8.23.1",
