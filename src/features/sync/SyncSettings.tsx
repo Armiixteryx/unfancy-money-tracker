@@ -6,6 +6,7 @@ import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
 import { useAppTheme } from "../../ui/theme";
 import { SensitiveContent } from "../../platform/analytics/SensitiveContent";
 import { categoryLabel } from "../../localization/i18n";
+import type { Category } from "../../domain/types";
 import {
   transactionSchema,
   budgetSchema,
@@ -327,6 +328,8 @@ export function SyncSettings() {
                           : versionSummary(
                               selected.recordType,
                               selected.localPayload,
+                              dataset.categories,
+                              text("Category unavailable", "Categoría no disponible"),
                             )}
                       </Text>
                       <Text selectable style={{ color: colors.text }}>
@@ -336,6 +339,8 @@ export function SyncSettings() {
                           : versionSummary(
                               selected.recordType,
                               selected.cloudPayload,
+                              dataset.categories,
+                              text("Category unavailable", "Categoría no disponible"),
                             )}
                       </Text>
                       {button(
@@ -377,11 +382,20 @@ export function SyncSettings() {
 function versionSummary(
   type: SyncConflict["recordType"],
   payload: unknown,
+  categories: readonly Category[],
+  missingCategoryLabel: string,
 ): string {
   if (type === "transaction") {
     const record = transactionSchema.safeParse(payload);
-    if (record.success)
-      return `${record.data.description} · ${formatMoney(record.data)} · ${formatCalendarDate(record.data.date)}`;
+    if (record.success) {
+      const category = categories.find(
+        (candidate) => candidate.id === record.data.categoryId,
+      );
+      const categoryName = category
+        ? categoryLabel(category)
+        : missingCategoryLabel;
+      return `${record.data.description} · ${formatMoney(record.data)} · ${formatCalendarDate(record.data.date)} · ${categoryName}`;
+    }
   } else if (type === "budget") {
     const record = budgetSchema.safeParse(payload);
     if (record.success)
