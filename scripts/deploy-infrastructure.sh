@@ -156,6 +156,10 @@ pnpm exec cdk deploy "$stack_name" \
 
 if [[ "$stage" == "dev" ]]; then
   pnpm exec tsx scripts/voice-environment.ts dev --reuse-existing
+else
+  # Populate only the newly created production secret from explicitly supplied
+  # and validated local credentials after the service stack exists.
+  pnpm exec tsx scripts/voice-environment.ts prod
 fi
 
 stack_status="$(

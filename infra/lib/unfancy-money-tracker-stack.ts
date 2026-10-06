@@ -70,7 +70,7 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     }
     const voiceSecret = new secretsmanager.Secret(this, "VoiceSecret", {
       secretName: `UnfancyMoneyTracker-${props.deploymentStage}/voice`,
-      description: "Backend-only voice provider credentials; populated by the development deployment script",
+      description: "Backend-only voice provider credentials; populated by the approved stage deployment script",
       removalPolicy: cdk.RemovalPolicy.RETAIN
     });
     const voiceFunction = this.createLambda("VoiceExpenseFunction", "src/server/handlers/voiceExpense.ts", {

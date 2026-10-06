@@ -71,7 +71,12 @@ function expectedTarget(environment: NodeJS.ProcessEnv) {
     environment.CDK_DEFAULT_REGION ??
     environment.AWS_REGION ??
     environment.AWS_DEFAULT_REGION;
-  if (!account || !/^\d{12}$/.test(account) || !region) return undefined;
+  if (
+    !account ||
+    !/^\d{12}$/.test(account) ||
+    !region ||
+    !/^[a-z]{2,4}(?:-[a-z]+)+-\d$/.test(region)
+  ) return undefined;
   return { account, region };
 }
 
@@ -163,7 +168,24 @@ export async function runVoiceEnvironment(
     return;
   }
 
-  if (stage !== "dev") throw new Error("Production voice deployment remains deferred.");
+  if (stage === "prod") {
+    if (dependencies.environment.ALLOW_PROD_DEPLOY !== "1") {
+      throw new Error("Production voice credential setup requires ALLOW_PROD_DEPLOY=1.");
+    }
+    if (flags.length > 0) throw new Error("Unsupported voice environment option.");
+    if (credentials.kind === "invalid") throw new Error("Voice credentials are invalid.");
+    if (credentials.kind === "absent") throw new Error("Voice credentials are unavailable.");
+    const target = expectedTarget(dependencies.environment);
+    if (!target) throw new Error("The production AWS target is unavailable.");
+    await dependencies.putSecret(
+      "UnfancyMoneyTracker-prod/voice",
+      target.region,
+      credentials.credentials,
+    );
+    dependencies.log("Updated production voice credentials in Secrets Manager.");
+    return;
+  }
+  if (stage !== "dev") throw new Error("Unsupported voice deployment stage.");
   if (flags.length > 1 || (flags.length === 1 && flags[0] !== "--reuse-existing")) {
     throw new Error("Unsupported voice environment option.");
   }
