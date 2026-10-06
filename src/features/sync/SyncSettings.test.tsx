@@ -28,6 +28,7 @@ vi.mock("react-native", () => ({
   Modal: "modal",
   ScrollView: "scroll",
   Platform: { OS: "web" },
+  StyleSheet: { flatten: (style: unknown) => style },
 }));
 let tree: ReactTestRenderer | undefined;
 function button(label: string) {

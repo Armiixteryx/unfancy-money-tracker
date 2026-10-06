@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
+import { AppText as Text } from "../../ui/AppText";
+import { layout, typography } from "../../ui/designTokens";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthProvider";
 import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
@@ -81,10 +83,10 @@ export function SyncSettings() {
       disabled={disabled}
       onPress={action}
       style={{
-        minHeight: 44,
+        minHeight: layout.touchTarget,
         justifyContent: "center",
         padding: 12,
-        borderRadius: 10,
+        borderRadius: layout.pillRadius,
         borderWidth: 1,
         borderColor: colors.border,
         marginTop: 8,
@@ -129,13 +131,13 @@ export function SyncSettings() {
         style={{
           backgroundColor: colors.surface,
           padding: 20,
-          borderRadius: 16,
+          borderRadius: layout.cardRadius,
           borderWidth: 1,
           borderColor: colors.border,
           marginBottom: 16,
         }}
       >
-        <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+        <Text style={{ ...typography.heading, color: colors.text }}>
           {text("Cloud sync", "Sincronización en la nube")}
         </Text>
         <Text
@@ -281,7 +283,7 @@ export function SyncSettings() {
                 style={{
                   backgroundColor: colors.surface,
                   padding: 20,
-                  borderRadius: 16,
+                  borderRadius: layout.cardRadius,
                   maxHeight: "85%",
                 }}
               >
