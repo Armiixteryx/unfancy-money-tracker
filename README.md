@@ -1,6 +1,6 @@
 # Unfancy Money Tracker
 
-Unfancy Money Tracker is a local-first Expo app for income, expenses, category budgets, and descriptive reports. Optional Cognito login enables voice; a separate Settings opt-in enables personal cross-device sync. Financial records persist in encrypted MMKV/IndexedDB locally, with portable PostgreSQL 18.6 and Flyway Community 13.9.0 for cloud sync. Production rollout was authorized October 5, 2026; see the PostgreSQL runbook for release status.
+Unfancy Money Tracker is a local-first Expo app for income, expenses, category budgets, and descriptive reports. Optional Cognito login enables voice; a separate Settings opt-in enables personal cross-device sync. Financial records persist in encrypted MMKV/IndexedDB locally, with portable PostgreSQL 18.6 and Flyway Community 13.9.0 for cloud sync. Production was deployed October 5, 2026 with one-day automated backups. The website is hosted at https://main.d127yvlpbgr7e4.amplifyapp.com with existing password protection; see the PostgreSQL runbook for release evidence.
 
 ## Quick start
 
