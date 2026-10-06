@@ -41,7 +41,7 @@ describe("portable PostgreSQL boundary",() => {
   });
   it("protects production database and scopes invocation and secrets",() => {
     const { database,services }=templates("prod");
-    database.hasResource("AWS::RDS::DBInstance",{ DeletionPolicy:"Snapshot",Properties:Match.objectLike({ DeletionProtection:true,BackupRetentionPeriod:7 }) });
+    database.hasResource("AWS::RDS::DBInstance",{ DeletionPolicy:"Snapshot",Properties:Match.objectLike({ DeletionProtection:true,BackupRetentionPeriod:1 }) });
     database.hasResourceProperties("AWS::Lambda::Function",{ Runtime:"java21",ReservedConcurrentExecutions:1 });
     services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:5 });
     services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:2 });

@@ -23,9 +23,9 @@ export class PostgresStack extends cdk.Stack {
   ) {
     super(scope, id, props);
     const production = props.deploymentStage === "prod";
-    // AWS rejected seven-day retention for this development account. The user
-    // approved a one-day recovery window; production retains seven days.
-    const backupRetentionDays = production ? 7 : 1;
+    // AWS rejected seven-day retention on this account in both stages.
+    // The owner approved one-day automated backups for production on October 5, 2026.
+    const backupRetentionDays = 1;
     if (production && props.developmentConcurrencyMode === "shared") {
       throw new Error("Shared concurrency is only supported in development");
     }

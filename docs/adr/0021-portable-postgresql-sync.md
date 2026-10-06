@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Supersedes ADR 0015 and the sync suspension in ADR 0016. Updates ADRs 0001, 0003–0007, 0010–0011, 0017–0018, and 0020. Production deployment remains gated by ADR 0014.
+Accepted. Supersedes ADR 0015 and the sync suspension in ADR 0016. Updates ADRs 0001, 0003–0007, 0010–0011, 0017–0018, and 0020. Production deployment was explicitly authorized October 5, 2026 and retains the separate deployment gate; ADR 0014 continues to defer retail preview.
 
 ## Context
 
@@ -10,7 +10,7 @@ One personal Cognito login needs one cloud dataset that can sync across devices 
 
 ## Decision
 
-Use RDS PostgreSQL **18.6**, pinned after checking `describe-db-engine-versions` in `us-east-1`, with `db.t3.micro` (x86), Single-AZ, 20 GiB gp3, encryption, and private networking. AWS rejected seven-day automated backup retention for the development account; the user approved one day for development, which the deployed dev database accepted. Production retains seven days. Do not disable backups if AWS rejects the one-day development setting. Docker uses the same patch. AWS does not offer `db.t4g.micro` for PostgreSQL 18.6 in `us-east-1`; `db.t3.micro` is the compatible micro instance and stays close to the original monthly estimate. Production remains deferred. Provision the database in a separate stack before updating the existing service stack; keep Cognito, pool/client, API, and existing function construct identities.
+Use RDS PostgreSQL **18.6**, pinned after checking `describe-db-engine-versions` in `us-east-1`, with `db.t3.micro` (x86), Single-AZ, 20 GiB gp3, encryption, and private networking. AWS rejected seven-day automated backup retention for the development account; the user approved one day for development, which the deployed dev database accepted. The owner approved one-day production automated backups on October 5, 2026 after AWS also rejected seven days for production. Do not disable backups if AWS rejects the one-day development setting. Docker uses the same patch. AWS does not offer `db.t4g.micro` for PostgreSQL 18.6 in `us-east-1`; `db.t3.micro` is the compatible micro instance and stays close to the original monthly estimate. Production deployment was authorized October 5, 2026. Provision the database in a separate stack before updating the existing service stack; keep Cognito, pool/client, API, and existing function construct identities.
 
 Store datasets, categories, transactions, budgets, currency preferences, and exchange rates in normalized SQL tables. `NUMERIC` values cross the API as canonical strings; dates stay date-only. Retain immutable change history, deletion metadata, and content-hashed retry acknowledgments without TTL. Every accepted mutation locks its owned dataset row, updates domain tables, allocates revisions, appends history, and saves its acknowledgment inside one PostgreSQL transaction. Revisions, rather than device clocks, order commits. Device edit and server commit timestamps are separate. Pull is paginated; push never returns or advances a pull cursor.
 
@@ -31,7 +31,7 @@ The development cutover starts fresh: remove the old DynamoDB tables after Postg
 ## Consequences
 
 - The `db.t3.micro` plus 20 GiB gp3 baseline is approximately **$15.44/month** at 730 hours (AWS Price List on-demand: $0.018/hour plus $0.115/GB-month). This excludes the Secrets Manager endpoint, Lambda, logging, tax, and other infrastructure. The larger `db.t4g.small` alternative is approximately $25.66/month; its Graviton micro size is not orderable for this engine/version/region. Burstable-size estimates exclude any surplus CPU-credit charges; recheck orderability and pricing before future deployments.
-- Development backup retention is explicitly one day under the approved development-only recovery-window exception; the deployed dev database accepted it. Production remains seven days. If AWS rejects one day in a future account, stop and choose an account-plan or retention option before retrying; never set zero automatically.
+- Development backup retention is explicitly one day under the approved recovery-window exception; the deployed dev database accepted it. Production also retains one day under the October 5, 2026 owner-approved account-plan exception. If AWS rejects one day in a future account, stop and choose an account-plan or retention option before retrying; never set zero automatically.
 - The endpoint and two-function rate design are deliberate portfolio cost/complexity choices. Single-AZ has no standby failover.
 - A dataset lock favors correctness at this traffic level; scale concurrency only with connection/capacity measurements.
 - A development-only shared-concurrency fallback remains available for an account with a low Lambda quota. The current account's live limit is 1,000, so development uses reserved concurrency 5/2/1 by default. Shared mode omits per-function reservations and can throttle competing sync, rates, voice, or migration work; select it explicitly with `DEV_LAMBDA_CONCURRENCY_MODE=shared` (CDK `devConcurrencyMode=shared`). V003 and credential provisioning retain role limits of 5/2. See the [quota-fallback troubleshooting runbook](../development/postgresql-sync.md#development-fallback-for-low-quota-accounts) before enabling it.
