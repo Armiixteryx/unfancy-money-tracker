@@ -4,15 +4,16 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: { sans: ["Inter_400Regular"], display: ["Fraunces_400Regular"] },
       colors: {
-        canvas: "#F7F5F0",
+        canvas: "#EFECEA",
         surface: "#FFFFFF",
         navy: "#102A43",
-        muted: "#627D98",
-        border: "#D9E2EC",
-        emerald: "#149447",
-        coral: "#D64545",
-        sky: "#2F80ED"
+        muted: "#59666C",
+        border: "#DCD9D6",
+        emerald: "#0F7A3A",
+        coral: "#C93636",
+        sky: "#0F7A3A"
       }
     }
   },

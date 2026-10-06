@@ -1,8 +1,9 @@
+import { AppText as Text } from "../../ui/AppText";
 import { useAuth } from "../auth/AuthProvider";
 import { i18n } from "../../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useAppTheme } from "../../ui/theme";
 import { useVoice } from "./VoiceProvider";
 export function VoiceEntryButton() {
@@ -36,7 +37,7 @@ export function VoiceEntryButton() {
           onPressOut={() => void stop()}
           style={{
             backgroundColor: colors.primary,
-            borderRadius: 12,
+            borderRadius: 9999,
             minHeight: 48,
             minWidth: 48,
             alignItems: "center",
@@ -47,7 +48,7 @@ export function VoiceEntryButton() {
           }}
         >
           <Ionicons name="mic" color={colors.onPrimary} size={20} />
-          <Text style={{ color: colors.onPrimary, fontWeight: "700" }}>
+          <Text style={{ color: colors.onPrimary, fontWeight: "500" }}>
             {phase === "recording" ? i18n.t($ => $.ui.voiceRecording) : i18n.t($ => $.ui.voiceHoldToRecordExpense)}
           </Text>
         </Pressable>
@@ -62,12 +63,12 @@ export function VoiceEntryButton() {
             paddingHorizontal: 12,
           }}
         >
-          <Text style={{ color: colors.primary, fontWeight: "700" }}>
+          <Text style={{ color: colors.primary, fontWeight: "500" }}>
             {phase === "recording" ? i18n.t($ => $.ui.voiceStopAndSubmit) : i18n.t($ => $.ui.voiceStartRecording)}
           </Text>
         </Pressable>
       </View>
-      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+      <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>
         {i18n.t($ => $.ui.voiceVoiceAudioIsSentToVercelSpacexai)}
       </Text>
     </View>

@@ -1,7 +1,8 @@
+import { AppText as Text } from "./AppText";
 import { i18n } from "../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "./theme";
@@ -28,6 +29,6 @@ export function FirstRunWarning() {
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   banner: { alignItems: "center", backgroundColor: colors.warningSubtle, borderBottomColor: colors.warning, borderBottomWidth: 1, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  message: { color: colors.text, flex: 1, fontSize: 13, fontWeight: "700", lineHeight: 19 },
+  message: { color: colors.text, flex: 1, fontSize: 14, fontWeight: "500", lineHeight: 20 },
   dismiss: { alignItems: "center", justifyContent: "center", minHeight: 40, minWidth: 40 }
 });

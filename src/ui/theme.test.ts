@@ -33,6 +33,12 @@ describe("app theme", () => {
 
   it.each([lightColors, darkColors])("keeps essential text and status colors at AA contrast", (colors) => {
     expect(contrastRatio(colors.text, colors.surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.text, colors.canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.muted, colors.canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.positive, colors.positiveSubtle)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.negative, colors.negativeSubtle)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.warning, colors.warningSubtle)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.onPrimary, colors.negative)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.muted, colors.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.positive, colors.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.negative, colors.surface)).toBeGreaterThanOrEqual(4.5);

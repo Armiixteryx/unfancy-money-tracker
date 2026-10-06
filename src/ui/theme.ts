@@ -2,6 +2,7 @@ import { createContext, createElement, useContext, useEffect, useMemo, type Prop
 import { Platform, useColorScheme } from "react-native";
 import * as SystemUI from "expo-system-ui";
 
+import { TextColorContext } from "./designTokens";
 import type { Theme } from "../domain/types";
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 import { darkColors, lightColors, resolveTheme, type ResolvedTheme, type ThemeColors } from "./themeTokens";
@@ -33,7 +34,7 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
     }
   }, [colors, resolvedTheme]);
 
-  return createElement(ThemeContext.Provider, { value }, children);
+  return createElement(ThemeContext.Provider, { value }, createElement(TextColorContext.Provider, { value: colors.text }, children));
 }
 
 export function useAppTheme(): AppTheme {

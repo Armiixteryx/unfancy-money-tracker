@@ -8,6 +8,7 @@ import { VoiceProvider } from "../features/voice/VoiceProvider";
 import { DatasetHydrationGate } from "./DatasetHydrationGate";
 import { AnalyticsProvider } from "./AnalyticsProvider";
 import { AppThemeProvider } from "../ui/theme";
+import { AppFonts } from "../ui/AppFonts";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +23,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <LocalizationProvider><AnalyticsProvider>
-        <AppThemeProvider>
+        <AppThemeProvider><AppFonts>
           <AuthProvider><SyncProvider><DatasetHydrationGate><VoiceProvider>{children}</VoiceProvider></DatasetHydrationGate></SyncProvider></AuthProvider>
-        </AppThemeProvider>
+        </AppFonts></AppThemeProvider>
       </AnalyticsProvider></LocalizationProvider>
     </QueryClientProvider>
   );

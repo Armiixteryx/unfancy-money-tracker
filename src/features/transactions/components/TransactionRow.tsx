@@ -1,8 +1,10 @@
+import { typography } from "../../../ui/designTokens";
+import { AppText as Text } from "../../../ui/AppText";
 import { formatCalendarDate } from "../../../localization/region";
 import { categoryLabel } from "../../../localization/i18n";
 import { i18n } from "../../../localization/i18n";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { formatMoneyForDisplay } from "../../../domain/money";
 import type { Category, Transaction } from "../../../domain/types";
@@ -73,25 +75,25 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   row: { borderBottomColor: colors.divider, borderBottomWidth: 1, paddingVertical: 10 },
   rowContent: { alignItems: "center", flexDirection: "row", minHeight: 54 },
   main: { alignItems: "center", flex: 1, flexDirection: "row", gap: 12, minHeight: 54 },
-  icon: { alignItems: "center", borderRadius: 999, height: 38, justifyContent: "center", width: 38 },
+  icon: { alignItems: "center", borderRadius: 12, height: 38, justifyContent: "center", width: 38 },
   incomeIcon: { backgroundColor: colors.positiveSubtle },
-  expenseIcon: { backgroundColor: colors.negativeSubtle },
-  iconText: { color: colors.text, fontSize: 20, fontWeight: "800" },
+  expenseIcon: { backgroundColor: colors.infoSubtle },
+  iconText: { color: colors.text, fontSize: 20, fontWeight: "500" },
   copy: { flex: 1, gap: 4, minWidth: 0 },
-  description: { color: colors.text, fontSize: 15, fontWeight: "800" },
-  meta: { color: colors.muted, fontSize: 12 },
-  amount: { fontSize: 14, fontWeight: "800", textAlign: "right" },
+  description: { color: colors.text, fontSize: 15, fontWeight: "500" },
+  meta: { color: colors.muted, fontSize: 14 },
+  amount: { ...typography.amount, fontSize: 14, fontWeight: "500", textAlign: "right" },
   incomeAmount: { color: colors.positive },
-  expenseAmount: { color: colors.negative },
-  deleteButton: { alignItems: "center", borderRadius: 999, height: 36, justifyContent: "center", marginLeft: 8, width: 36 },
+  expenseAmount: { color: colors.text },
+  deleteButton: { alignItems: "center", borderRadius: 9999, height: 48, justifyContent: "center", marginLeft: 8, width: 48 },
   deleteText: { color: colors.muted, fontSize: 22 },
-  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between", marginTop: 10, padding: 16 },
+  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 12, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between", marginTop: 10, padding: 16 },
   confirmationCopy: { flex: 1, gap: 4, minWidth: 180 },
-  confirmationTitle: { color: colors.text, fontSize: 15, fontWeight: "800" },
-  confirmationText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  confirmationTitle: { color: colors.text, fontSize: 15, fontWeight: "500" },
+  confirmationText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   confirmationActions: { flexDirection: "row", gap: 8 },
-  cancelSmallButton: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
-  cancelSmallText: { color: colors.text, fontSize: 13, fontWeight: "700" },
-  deleteConfirmButton: { backgroundColor: colors.negative, borderRadius: 10, minHeight: 42, justifyContent: "center", paddingHorizontal: 13 },
-  deleteConfirmText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" }
+  cancelSmallButton: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 13 },
+  cancelSmallText: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  deleteConfirmButton: { backgroundColor: colors.negative, borderRadius: 9999, minHeight: 48, justifyContent: "center", paddingHorizontal: 13 },
+  deleteConfirmText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" }
 });

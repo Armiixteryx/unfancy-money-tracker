@@ -9,10 +9,13 @@ import { TransactionsScreen } from "./TransactionsScreen";
 const navigation = vi.hoisted(() => ({
   params: {} as { edit?: string; new?: string },
   width: 1200,
+  os: "web",
   setParams: vi.fn(),
 }));
 vi.mock("react-native", () => ({
   Modal: "dialog",
+  KeyboardAvoidingView: "div",
+  Platform: { get OS() { return navigation.os; } },
   Pressable: "button",
   ScrollView: "div",
   Text: "span",
@@ -21,6 +24,7 @@ vi.mock("react-native", () => ({
   StyleSheet: { create: (value: unknown) => value },
   useWindowDimensions: () => ({ width: navigation.width }),
 }));
+vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: "div" }));
 vi.mock("expo-router", () => ({
   useLocalSearchParams: () => navigation.params,
   useRouter: () => ({ setParams: navigation.setParams }),
@@ -66,6 +70,7 @@ beforeEach(() => {
   ).IS_REACT_ACT_ENVIRONMENT = true;
   navigation.params = { edit: transaction.id };
   navigation.width = 1200;
+  navigation.os = "web";
   navigation.setParams.mockReset();
   navigation.setParams.mockImplementation((params) =>
     Object.assign(navigation.params, params),
@@ -79,7 +84,7 @@ afterEach(async () => {
   await act(async () => tree.unmount());
 });
 describe("voice Edit route", () => {
-  it.each([400, 1200])(
+  it.each([400, 1024, 1200])(
     "opens the existing form at width %s and consumes Edit once",
     async (width) => {
       navigation.width = width;
@@ -91,7 +96,7 @@ describe("voice Edit route", () => {
       );
       expect(navigation.setParams).toHaveBeenCalledOnce();
       expect(navigation.params.edit).toBeUndefined();
-      if (width < 900)
+      if (width < 1200)
         expect(tree.root.findByType(Modal).props.visible).toBe(true);
       else expect(tree.root.findAllByType(Modal)).toHaveLength(0);
       await act(async () => {
@@ -106,6 +111,13 @@ describe("voice Edit route", () => {
       expect(navigation.setParams).toHaveBeenCalledOnce();
     },
   );
+  it.each(["ios", "android"])("uses the full-screen form on a wide %s tablet", async (platform) => {
+    navigation.width = 1440;
+    navigation.os = platform;
+    await act(async () => { tree = create(<TransactionsScreen />); });
+    expect(tree.root.findByType(Modal).props.visible).toBe(true);
+    expect(tree.root.findByType(TransactionForm).props.transaction.id).toBe(transaction.id);
+  });
   it("handles a record deleted before Edit or while the form is open", async () => {
     await act(async () => {
       tree = create(<TransactionsScreen />);

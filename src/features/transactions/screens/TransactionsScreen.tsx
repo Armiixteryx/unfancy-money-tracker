@@ -1,18 +1,13 @@
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Button } from "../../../ui/controls";
+import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { translateMessage } from "../../../localization/i18n";
 import { categoryLabel } from "../../../localization/i18n";
 import { i18n } from "../../../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View
-} from "react-native";
+import { KeyboardAvoidingView, Platform, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { VoiceEntryButton } from "../../voice/VoiceEntryButton";
@@ -50,7 +45,7 @@ export function TransactionsScreen() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [deleteSnackbarMessage, setDeleteSnackbarMessage] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
-  const isBrowserWorkspace = width >= 900;
+  const isBrowserWorkspace = isWebWorkspace(Platform.OS, width);
   const transactions = useMemo(() => dataset?.transactions ?? [], [dataset]);
   const categories = useMemo(() => dataset?.categories.slice().sort((left, right) => left.name.localeCompare(right.name)) ?? [], [dataset?.categories]);
   const currencies = useMemo(() => [...new Set(transactions.map((transaction) => transaction.currency))].sort(), [transactions]);
@@ -140,6 +135,7 @@ export function TransactionsScreen() {
       eyebrow={i18n.t($ => $.ui.transactionsYourLocalRecords)}
       overlay={deleteSnackbarMessage ? <Snackbar message={deleteSnackbarMessage} onDismiss={() => setDeleteSnackbarMessage(null)} /> : null}
       title={i18n.t($ => $.ui.navigationTransactions)}
+      actions={<Button label={i18n.t($ => $.ui.dashboardAddTransaction)} onPress={openNew} />}
     >
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
@@ -153,12 +149,8 @@ export function TransactionsScreen() {
             value={transactionFilters.query ?? ""}
           />
         </View>
-        <Pressable accessibilityRole="button" onPress={openNew} style={styles.addButton}>
-          <Text style={styles.addButtonText}>{i18n.t($ => $.ui.dashboardAddTransaction)}</Text>
-        </Pressable>
-      </View>
 
-      <VoiceEntryButton />
+      </View>
 
       <View style={styles.filterRow}>
         <FilterChip label={i18n.t($ => $.ui.transactionsAll)} active={!transactionFilters.type || transactionFilters.type === "all"} onPress={() => setTransactionFilters({ type: "all" })} />
@@ -206,12 +198,14 @@ export function TransactionsScreen() {
             ))
           )}
         </View>
-        {isBrowserWorkspace ? form : null}
+        {isBrowserWorkspace && form ? <View style={styles.formPane}>{form}</View> : null}
       </View>
+
+      <VoiceEntryButton />
 
       {!isBrowserWorkspace ? (
         <Modal animationType="slide" onRequestClose={() => setFormState(null)} visible={Boolean(form)}>
-          <View style={styles.mobileModal}>{form}</View>
+          <SafeAreaView style={styles.mobileModal}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>{form}</KeyboardAvoidingView></SafeAreaView>
         </Modal>
       ) : null}
     </AppScreen>
@@ -226,34 +220,35 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
-  searchWrap: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flexDirection: "row", flex: 1, maxWidth: 560, minHeight: 48, paddingHorizontal: 12 },
+  searchWrap: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, flexDirection: "row", flex: 1, maxWidth: 640, minHeight: 48, paddingHorizontal: 12 },
   searchIcon: { color: colors.muted, fontSize: 22, marginRight: 8 },
   searchInput: { color: colors.text, flex: 1, fontSize: 15, minHeight: 44 },
-  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
-  addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "800" },
+  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
+  addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
   filterRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  advancedFilters: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 14, borderWidth: 1, gap: 14, padding: 14 },
+  advancedFilters: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 14, padding: 14 },
   filterGroup: { gap: 8 },
-  filterLabel: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  filterLabel: { color: colors.text, fontSize: 14, fontWeight: "500" },
   filterScroll: { gap: 8, paddingRight: 8 },
   dateFilters: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   dateField: { flex: 1, gap: 8, minWidth: 180 },
-  filterChip: { borderColor: colors.border, borderRadius: 999, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 9 },
+  filterChip: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 13, paddingVertical: 9 },
   activeFilterChip: { backgroundColor: colors.infoSubtle, borderColor: colors.border },
-  filterText: { color: colors.muted, fontSize: 13, fontWeight: "700" },
+  filterText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   activeFilterText: { color: colors.text },
-  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 10, color: colors.negative, fontSize: 14, padding: 12 },
-  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 10, color: colors.positive, fontSize: 14, padding: 12 },
+  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
+  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 12, color: colors.positive, fontSize: 14, padding: 12 },
   workspace: { gap: 18 },
+  formPane: { flex: 1, minWidth: 0, maxWidth: 420, height: 720 },
   browserWorkspace: { flexDirection: "row", alignItems: "flex-start" },
-  listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
+  listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
   listHeader: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 },
-  cardTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
-  resultCount: { color: colors.muted, fontSize: 13 },
+  cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+  resultCount: { color: colors.muted, fontSize: 14 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
-  emptyAction: { backgroundColor: colors.positive, borderRadius: 12, marginTop: 24, minHeight: 46, justifyContent: "center", paddingHorizontal: 16 },
+  emptyAction: { backgroundColor: colors.positive, borderRadius: 9999, marginTop: 24, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
   noMatch: { alignItems: "center", padding: 42 },
-  noMatchTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
+  noMatchTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
   noMatchText: { color: colors.muted, fontSize: 14, marginTop: 7 },
   mobileModal: { backgroundColor: colors.canvas, flex: 1, padding: 16 }
 });

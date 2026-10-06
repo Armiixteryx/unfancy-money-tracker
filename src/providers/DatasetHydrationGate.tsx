@@ -1,7 +1,9 @@
+import { typography } from "../ui/designTokens";
+import { AppText as Text } from "../ui/AppText";
 import { i18n } from "../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState, type PropsWithChildren } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../ui/theme";
@@ -82,15 +84,15 @@ export function DatasetHydrationGate({ children }: PropsWithChildren) {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   centered: { alignItems: "center", backgroundColor: colors.canvas, flex: 1, justifyContent: "center", padding: 32 },
   activityIndicator: { marginTop: 24 },
-  recoveryIcon: { backgroundColor: colors.negative, borderRadius: 999, height: 48, opacity: 0.85, width: 48 },
-  title: { color: colors.text, fontSize: 22, fontWeight: "800", textAlign: "center" },
+  recoveryIcon: { backgroundColor: colors.negative, borderRadius: 12, height: 48, opacity: 0.85, width: 48 },
+  title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400", textAlign: "center" },
   description: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: 10, maxWidth: 520, textAlign: "center" },
   actions: { alignItems: "center", gap: 12, marginTop: 24, width: "100%" },
-  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 12, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
-  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
-  dangerButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700" },
-  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 14, borderWidth: 1, gap: 12, maxWidth: 520, padding: 16, width: "100%" },
+  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: "500" },
+  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 9999, minHeight: 48, justifyContent: "center", paddingHorizontal: 18 },
+  dangerButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
+  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 12, borderWidth: 1, gap: 12, maxWidth: 520, padding: 16, width: "100%" },
   confirmationText: { color: colors.text, fontSize: 14, textAlign: "center" },
   confirmationActions: { flexDirection: "row", gap: 10 }
 });
