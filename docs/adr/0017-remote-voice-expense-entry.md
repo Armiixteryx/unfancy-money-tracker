@@ -4,7 +4,7 @@
 
 Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
 
-Accepted. AWS development backend deployed October 3, 2026; production remains deferred. Amplify main targets AWS dev; live recognition validation is delegated to the user.
+Accepted. AWS development backend deployed October 3, 2026; production backend deployed October 5, 2026 with owner authorization. Amplify main is being released against production. Live recognition validation remains delegated to the user; provider-rate-limit testing exclusions remain in force.
 
 ## Context
 

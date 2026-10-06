@@ -30,6 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     locales: { en: "./src/localization/native/en.json", es: "./src/localization/native/es.json" },
     plugins: [
+      ...(isProduction ? ["./plugins/with-android-release-signing.cjs"] : []),
       "./plugins/with-ios-scene.cjs",
       "./plugins/with-ios-pod-minimum.cjs",
       ["expo-localization", { supportedLocales: ["en", "es"] }],
