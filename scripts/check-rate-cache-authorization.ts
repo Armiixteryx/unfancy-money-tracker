@@ -1,4 +1,4 @@
-// Synthetic-only AWS dev check. Suppresses rate records and AWS error details.
+// Synthetic-only AWS authorization check. Suppresses rate records and AWS error details.
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,14 +8,14 @@ import {
   awsCliServiceErrorCode,
   findRateCacheFunctionName,
   isUnsignedInvokeHttpDenied,
-  parseAwsDevRateCacheSettings,
+  parseAwsRateCacheSettings,
   unsignedInvokeErrorCode,
 } from "./rate-cache-smoke-contract";
 
 const region = "us-east-1";
-const stackName = "UnfancyMoneyTracker-dev";
 const cacheKey = "latest:USD:COP";
 let stage = "configuration";
+let deploymentStage: "dev" | "prod" = "dev";
 let unsignedErrorCode: string | undefined;
 let unsignedHttpStatus: number | undefined;
 let publicRateHttpStatus: number | undefined;
@@ -71,17 +71,20 @@ function assert(condition: unknown, message: string): asserts condition {
 async function main() {
   const cliArguments = process.argv.slice(2).filter((argument) => argument !== "--");
   assert(
-    cliArguments.length === 1 && cliArguments[0] === "--aws-dev",
-    "Run this check explicitly with --aws-dev.",
+    cliArguments.length === 1 &&
+      (cliArguments[0] === "--aws-dev" || cliArguments[0] === "--aws-prod"),
+    "Run this check explicitly with --aws-dev or --aws-prod.",
   );
-  stage = "development stack lookup";
+  deploymentStage = cliArguments[0] === "--aws-prod" ? "prod" : "dev";
+  const stackName = `UnfancyMoneyTracker-${deploymentStage}`;
+  stage = `${deploymentStage} stack lookup`;
   const stack = runAwsJson([
     "cloudformation",
     "describe-stacks",
     "--stack-name",
     stackName,
   ]);
-  const { apiUrl } = parseAwsDevRateCacheSettings(stack);
+  const { apiUrl } = parseAwsRateCacheSettings(stack, deploymentStage);
   stage = "private function lookup";
   const resources = runAwsJson([
     "cloudformation",
@@ -89,7 +92,7 @@ async function main() {
     "--stack-name",
     stackName,
   ]);
-  const functionName = findRateCacheFunctionName(resources);
+  const functionName = findRateCacheFunctionName(resources, deploymentStage);
 
   stage = "public rate request";
   const rateResponse = await fetch(`${apiUrl}rates?base=USD&quote=COP`, {
@@ -171,7 +174,7 @@ main().catch((error: unknown) => {
   ].filter(Boolean);
   const diagnostic = details.length ? ` (${details.join(", ")})` : "";
   process.stderr.write(
-    `AWS dev rate-cache authorization smoke failed at ${stage}${diagnostic}.\n`,
+    `AWS ${deploymentStage} rate-cache authorization smoke failed at ${stage}${diagnostic}.\n`,
   );
   process.exitCode = 1;
 });

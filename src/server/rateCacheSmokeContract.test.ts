@@ -5,6 +5,7 @@ import {
   isUnsignedInvokeHttpDenied,
   isUnsignedInvokeDenied,
   parseAwsDevRateCacheSettings,
+  parseAwsProdRateCacheSettings,
 } from "../../scripts/rate-cache-smoke-contract";
 
 describe("AWS dev rate-cache smoke contract", () => {
@@ -45,7 +46,7 @@ describe("AWS dev rate-cache smoke contract", () => {
         StackResourceSummaries: [
           {
             LogicalResourceId: "RateCacheFunctionA1B2C3",
-            PhysicalResourceId: "UnfancyMoneyTracker-dev-RateCacheFunction-123",
+            PhysicalResourceId: "UnfancyMoneyTracker-dev-RateCacheFunctionEE42AFD6-123",
             ResourceType: "AWS::Lambda::Function",
           },
           {
@@ -55,10 +56,60 @@ describe("AWS dev rate-cache smoke contract", () => {
           },
         ],
       }),
-    ).toBe("UnfancyMoneyTracker-dev-RateCacheFunction-123");
+    ).toBe("UnfancyMoneyTracker-dev-RateCacheFunctionEE42AFD6-123");
     expect(() =>
       findRateCacheFunctionName({ StackResourceSummaries: [] }),
     ).toThrow("AWS development rate-cache function is unavailable.");
+  });
+
+  it("resolves production CloudFormation function names and rejects dev functions", () => {
+    const resources = { StackResourceSummaries: [{
+      LogicalResourceId: "RateCacheFunctionEE42AFD6",
+      PhysicalResourceId: "UnfancyMoneyTracker-prod-RateCacheFunctionEE42AFD6-SYNTHETIC",
+      ResourceType: "AWS::Lambda::Function",
+    }] };
+    expect(findRateCacheFunctionName(resources, "prod")).toBe(resources.StackResourceSummaries[0].PhysicalResourceId);
+    expect(() => findRateCacheFunctionName(resources, "dev")).toThrow("AWS development rate-cache function is unavailable.");
+  });
+
+  it("rejects a dev stack as a production target", () => {
+    expect(() =>
+      parseAwsProdRateCacheSettings({
+        Stacks: [
+          {
+            StackName: "UnfancyMoneyTracker-dev",
+            StackStatus: "UPDATE_COMPLETE",
+            Outputs: [
+              {
+                OutputKey: "ApiUrl",
+                OutputValue:
+                  "https://abc123.execute-api.us-east-1.amazonaws.com/",
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow("AWS production stack is not ready.");
+  });
+
+  it("accepts a ready production stack with the expected HTTPS API shape", () => {
+    expect(
+      parseAwsProdRateCacheSettings({
+        Stacks: [
+          {
+            StackName: "UnfancyMoneyTracker-prod",
+            StackStatus: "CREATE_COMPLETE",
+            Outputs: [
+              {
+                OutputKey: "ApiUrl",
+                OutputValue:
+                  "https://abc123.execute-api.us-east-1.amazonaws.com/",
+              },
+            ],
+          },
+        ],
+      }).apiUrl,
+    ).toBe("https://abc123.execute-api.us-east-1.amazonaws.com/");
   });
 
   it("counts only the Lambda AccessDeniedException as unsigned denial", () => {

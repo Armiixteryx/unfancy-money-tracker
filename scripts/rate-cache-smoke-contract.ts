@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-const awsDevStackSchema = z.object({
+const awsStackSchema = z.object({
   Stacks: z.array(
     z.object({
-      StackName: z.literal("UnfancyMoneyTracker-dev"),
+      StackName: z.string(),
       StackStatus: z.string(),
       Outputs: z.array(
         z.object({ OutputKey: z.string(), OutputValue: z.string() }),
@@ -22,11 +22,22 @@ const stackResourcesSchema = z.object({
   ),
 });
 
-export function parseAwsDevRateCacheSettings(value: unknown) {
-  const parsed = awsDevStackSchema.parse(value);
+export type RateCacheSmokeStage = "dev" | "prod";
+
+export function parseAwsRateCacheSettings(
+  value: unknown,
+  stage: RateCacheSmokeStage,
+) {
+  const parsed = awsStackSchema.parse(value);
   const stack = parsed.Stacks[0];
-  if (!stack || !["CREATE_COMPLETE", "UPDATE_COMPLETE"].includes(stack.StackStatus))
-    throw new Error("AWS development stack is not ready.");
+  const label = stage === "dev" ? "development" : "production";
+  const stackName = `UnfancyMoneyTracker-${stage}`;
+  if (
+    !stack ||
+    stack.StackName !== stackName ||
+    !["CREATE_COMPLETE", "UPDATE_COMPLETE"].includes(stack.StackStatus)
+  )
+    throw new Error(`AWS ${label} stack is not ready.`);
   const apiUrl = stack.Outputs.find(
     (output) => output.OutputKey === "ApiUrl",
   )?.OutputValue;
@@ -34,21 +45,41 @@ export function parseAwsDevRateCacheSettings(value: unknown) {
   if (
     !parsedApiUrl ||
     parsedApiUrl.protocol !== "https:" ||
-    !parsedApiUrl.hostname.endsWith(".execute-api.us-east-1.amazonaws.com")
+    !/^[a-z0-9]+\.execute-api\.us-east-1\.amazonaws\.com$/.test(parsedApiUrl.hostname) ||
+    parsedApiUrl.username ||
+    parsedApiUrl.password ||
+    parsedApiUrl.port ||
+    (parsedApiUrl.pathname !== "/" && parsedApiUrl.pathname !== "") ||
+    parsedApiUrl.search ||
+    parsedApiUrl.hash
   )
-    throw new Error("AWS development API did not match the expected target.");
+    throw new Error(`AWS ${label} API did not match the expected target.`);
   return { apiUrl: parsedApiUrl.toString() };
 }
 
-export function findRateCacheFunctionName(value: unknown): string {
+export function parseAwsDevRateCacheSettings(value: unknown) {
+  return parseAwsRateCacheSettings(value, "dev");
+}
+
+export function parseAwsProdRateCacheSettings(value: unknown) {
+  return parseAwsRateCacheSettings(value, "prod");
+}
+
+export function findRateCacheFunctionName(
+  value: unknown,
+  stage: RateCacheSmokeStage = "dev",
+): string {
   const parsed = stackResourcesSchema.parse(value);
+  const label = stage === "dev" ? "development" : "production";
+  const prefix = `UnfancyMoneyTracker-${stage}-RateCacheFunction`;
   const matches = parsed.StackResourceSummaries.filter(
     (resource) =>
       resource.ResourceType === "AWS::Lambda::Function" &&
-      resource.LogicalResourceId.startsWith("RateCacheFunction"),
+      resource.LogicalResourceId.startsWith("RateCacheFunction") &&
+      resource.PhysicalResourceId?.startsWith(prefix),
   );
   if (matches.length !== 1 || !matches[0]?.PhysicalResourceId)
-    throw new Error("AWS development rate-cache function is unavailable.");
+    throw new Error(`AWS ${label} rate-cache function is unavailable.`);
   return matches[0].PhysicalResourceId;
 }
 
