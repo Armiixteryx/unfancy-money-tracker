@@ -68,7 +68,7 @@ describe("AWS dev rate-cache smoke contract", () => {
       PhysicalResourceId: "UnfancyMoneyTracker-prod-RateCacheFunctionEE42AFD6-SYNTHETIC",
       ResourceType: "AWS::Lambda::Function",
     }] };
-    expect(findRateCacheFunctionName(resources, "prod")).toBe(resources.StackResourceSummaries[0].PhysicalResourceId);
+    expect(findRateCacheFunctionName(resources, "prod")).toBe("UnfancyMoneyTracker-prod-RateCacheFunctionEE42AFD6-SYNTHETIC");
     expect(() => findRateCacheFunctionName(resources, "dev")).toThrow("AWS development rate-cache function is unavailable.");
   });
 
