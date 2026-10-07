@@ -137,3 +137,11 @@ After the exact binding backup was restored, the watch again displayed Queue: 0 
 The updated debug Wear APK was installed on the physical SM_L300. The test copied the exact encrypted watch binding to an app-private temporary file, removed the binding, force-stopped and relaunched the watch app, then captured the screen and accessibility hierarchy. The screen showed the Unfancy title, phone icon, and “Install or open the phone app, then sign in to enable voice.” The hierarchy contained no queue count or recording control. The encrypted binding was restored from the temporary copy, the temporary copy was removed, and the app returned to its prior bound screen with Queue: 0 / 10 and Record expense enabled. The watch queue was unchanged.
 
 The custom `am instrument` runner failed to attach before executing its checks, so this was a manual physical UI probe. The phone companion is absent on this device; delivery of an empty binding from an actual phone sign-out was not exercised.
+
+### Local/remote Wear history reconciliation — October 7, 2026
+
+Local commits `c53896f` (durable Wear voice recovery) and `cc13263` (signed-in setup gate) diverged from remote `main` at `50c0829`. A merge preview reported 30 conflicting files, mostly independently added Wear files. The remote implementation already contains the setup gate and recovery queue, extended with ADR 0024 tracker targeting and the API 30 recorder/release-lint fixes.
+
+The reconciliation preserves both local commits as ancestors and uses the remote versions of the conflicting files. Before this evidence entry, the entire resolved tracked tree matched `50c0829` exactly; no additional runtime behavior is introduced. Preserve this ancestry with a merge commit when integrating the reconciliation PR. Squashing or rebasing the PR would omit the original local commit identities and would not reconcile an existing checkout that still points at them.
+
+Validation: all 439 application tests across 70 files, TypeScript, and ESLint passed. `pnpm run wear:build :wear:lintRelease` also passed (Wear debug assembly, phone/watch JVM tests, and Wear release lint). Device discovery found a physical Android phone and an iPad; no new paired-device acceptance run was performed for this history-only reconciliation. Existing device evidence and outstanding release acceptance gates above remain applicable.
