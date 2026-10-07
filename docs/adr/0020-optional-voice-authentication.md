@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0024](0024-shared-family-trackers.md) for independent shared trackers, membership permissions, tracker-scoped persistence/voice, and compatibility. The personal-tracker behavior below remains applicable; single-dataset assumptions are historical for shared use.
+
 Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
 
 Accepted. Supersedes ADR 0006's client account lifecycle. Cloud sync was restored by ADR 0021, and production deployment was authorized and completed October 5, 2026.

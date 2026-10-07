@@ -16,6 +16,20 @@ import {
   type SyncRecordType,
 } from "../contracts/sync";
 import {
+  sharedPullRequestSchema,
+  sharedPullResponseSchema,
+  sharedPushRequestSchema,
+  sharedPushResponseSchema,
+  sharedResolveRequestSchema,
+  trackerScopeSchema,
+  type SharedPullResponse,
+  type SharedPushResponse,
+  type SharedResolveRequest,
+  type SharedPullRequest,
+  type SharedPushRequest,
+  type TrackerScope,
+} from "../contracts/trackers";
+import {
   DatasetAccessError,
   InvalidSyncPayloadError,
   type SyncRepository,
@@ -26,6 +40,12 @@ type Metadata = {
   deleted: boolean;
   edited_at: Date;
   committed_at: Date;
+};
+type MutationSender = { subject: string; membershipId: string | null };
+type SharedAccess = {
+  role: "admin" | "member";
+  email: string;
+  archived: boolean;
 };
 const tables = {
   category: "categories",
@@ -64,10 +84,92 @@ export class PostgresSyncRepository implements SyncRepository {
   }
   private async lock(client: PoolClient, owner: string, dataset: string) {
     const result = await client.query(
-      "SELECT revision FROM datasets WHERE id=$1 AND owner_subject=$2 FOR UPDATE",
+      "SELECT revision FROM datasets WHERE id=$1 AND owner_subject=$2 AND tracker_kind='personal' FOR UPDATE",
       [dataset, owner],
     );
     if (!result.rowCount) throw new DatasetAccessError();
+  }
+  private async lockSharedAccess(
+    client: PoolClient,
+    actor: string,
+    rawScope: TrackerScope,
+    mode: "UPDATE" | "SHARE" = "UPDATE",
+  ): Promise<SharedAccess> {
+    const scope = trackerScopeSchema.parse(rawScope);
+    const dataset = await client.query<{ archived_at: Date | null }>(
+      `SELECT archived_at FROM datasets WHERE id=$1 AND tracker_kind='shared' FOR ${mode}`,
+      [scope.datasetId],
+    );
+    if (!dataset.rowCount) throw new Error("membership_revoked");
+    // Membership edits serialize through the dataset lock. Querying afterward
+    // prevents a join taken before a lock wait from authorizing stale rights.
+    const membership = await client.query<{
+      role: "admin" | "member";
+      email: string;
+    }>(
+      `SELECT role,email FROM tracker_memberships WHERE dataset_id=$1
+       AND subject=$2 AND membership_id=$3 AND revoked_at IS NULL`,
+      [scope.datasetId, actor, scope.membershipId],
+    );
+    const row = membership.rows[0];
+    if (!row) throw new Error("membership_revoked");
+    return {
+      role: row.role,
+      email: row.email,
+      archived: dataset.rows[0]!.archived_at !== null,
+    };
+  }
+
+  private async canChangeSharedRecord(
+    client: PoolClient,
+    actor: string,
+    role: SharedAccess["role"],
+    dataset: string,
+    change: SyncChange,
+  ): Promise<boolean> {
+    if (change.recordType !== "transaction") return role === "admin";
+    if (role === "admin") return true;
+    const owner = await client.query<{ creator_subject: string }>(
+      `SELECT creator_subject FROM transaction_authorship
+       WHERE dataset_id=$1 AND transaction_id=$2`,
+      [dataset, change.recordId],
+    );
+    if (owner.rows[0]) return owner.rows[0].creator_subject === actor;
+    const current = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS(SELECT 1 FROM transactions WHERE dataset_id=$1 AND id=$2) AS exists`,
+      [dataset, change.recordId],
+    );
+    // A member can create a fresh record only. An existing legacy/imported
+    // record without trusted creator metadata remains admin-managed.
+    return !current.rows[0]?.exists && !change.tombstone;
+  }
+
+  private async readAttributions(
+    client: PoolClient,
+    dataset: string,
+    changes: readonly SyncChange[],
+    includeIds?: ReadonlySet<string>,
+  ) {
+    const ids = [...new Set(
+      changes
+        .filter((change) => change.recordType === "transaction")
+        .map((change) => change.recordId)
+        .filter((id) => !includeIds || includeIds.has(id)),
+    )];
+    if (!ids.length) return [];
+    const rows = await client.query<{
+      transaction_id: string;
+      creator_subject: string;
+      creator_email: string;
+    }>(
+      `SELECT transaction_id,creator_subject,creator_email FROM transaction_authorship
+       WHERE dataset_id=$1 AND transaction_id=ANY($2::uuid[])`,
+      [dataset, ids],
+    );
+    return rows.rows.map((row) => ({
+      transactionId: row.transaction_id,
+      creator: { subject: row.creator_subject, email: row.creator_email },
+    }));
   }
   async bootstrap(owner: string): Promise<BootstrapResponse> {
     const result = await this.pool.query<{ id: string; revision: string }>(
@@ -98,6 +200,119 @@ export class PostgresSyncRepository implements SyncRepository {
       return { acknowledgedChanges, conflicts };
     });
   }
+
+  async pushShared(
+    actor: string,
+    request: SharedPushRequest,
+  ): Promise<SharedPushResponse> {
+    const parsed = sharedPushRequestSchema.parse(request);
+    const scope = { datasetId: parsed.datasetId, membershipId: parsed.membershipId };
+    return this.transaction(async (client) => {
+      const access = await this.lockSharedAccess(client, actor, scope);
+      const sender = { subject: actor, membershipId: parsed.membershipId };
+      const acknowledgedChanges: AcknowledgedChange[] = [];
+      const conflicts: SyncConflict[] = [];
+      const rejectedChanges: SharedPushResponse["rejectedChanges"] = [];
+      const attributedIds = new Set<string>();
+
+      for (const raw of parsed.changes) {
+        const change = syncChangeSchema.parse(raw);
+        const hash = createHash("sha256")
+          .update(canonicalJson(change))
+          .digest("hex");
+        await this.rememberRequest(
+          client,
+          parsed.datasetId,
+          change.mutationId,
+          hash,
+          sender,
+        );
+        const prior = (
+          await client.query<{
+            request_hash: string;
+            acknowledgment: AcknowledgedChange;
+          }>(
+            `SELECT request_hash,acknowledgment FROM mutation_acknowledgments
+             WHERE dataset_id=$1 AND mutation_id=$2`,
+            [parsed.datasetId, change.mutationId],
+          )
+        ).rows[0];
+        if (prior) {
+          if (prior.request_hash !== hash) throw new InvalidSyncPayloadError();
+          acknowledgedChanges.push(prior.acknowledgment);
+          if (change.recordType === "transaction")
+            attributedIds.add(change.recordId);
+          continue;
+        }
+        if (access.archived) {
+          rejectedChanges.push({ mutationId: change.mutationId, code: "tracker_archived" });
+          continue;
+        }
+        if (
+          !(await this.canChangeSharedRecord(
+            client,
+            actor,
+            access.role,
+            parsed.datasetId,
+            change,
+          ))
+        ) {
+          rejectedChanges.push({ mutationId: change.mutationId, code: "permission_denied" });
+          continue;
+        }
+
+        const previous = await this.current(
+          client,
+          parsed.datasetId,
+          change.recordType,
+          change.recordId,
+        );
+        const hasAuthorship =
+          change.recordType === "transaction" &&
+          ((await client.query(
+            `SELECT 1 FROM transaction_authorship WHERE dataset_id=$1 AND transaction_id=$2`,
+            [parsed.datasetId, change.recordId],
+          )).rowCount ?? 0) > 0;
+        const result = await this.apply(
+          client,
+          parsed.datasetId,
+          change,
+          hash,
+          sender,
+        );
+        if ("conflict" in result) {
+          conflicts.push(result.conflict);
+          if (change.recordType === "transaction")
+            attributedIds.add(change.recordId);
+          continue;
+        }
+        acknowledgedChanges.push(result.acknowledgment);
+        if (change.recordType === "transaction") {
+          attributedIds.add(change.recordId);
+          if (!change.tombstone && !hasAuthorship && !previous.payload) {
+            await client.query(
+              `INSERT INTO transaction_authorship
+               (dataset_id,transaction_id,creator_subject,creator_email,creator_membership_id)
+               VALUES($1,$2,$3,$4,$5) ON CONFLICT(dataset_id,transaction_id) DO NOTHING`,
+              [parsed.datasetId, change.recordId, actor, access.email, parsed.membershipId],
+            );
+          }
+        }
+      }
+      return sharedPushResponseSchema.parse({
+        acknowledgedChanges,
+        conflicts,
+        rejectedChanges,
+        attribution: await this.readAttributions(
+          client,
+          parsed.datasetId,
+          parsed.changes,
+          attributedIds,
+        ),
+      });
+    });
+  }
+
   async pull(
     owner: string,
     dataset: string,
@@ -130,6 +345,45 @@ export class PostgresSyncRepository implements SyncRepository {
         : cursor,
       hasMore: result.rows.length > limit,
     };
+  }
+
+  async pullShared(
+    actor: string,
+    request: SharedPullRequest,
+  ): Promise<SharedPullResponse> {
+    const parsed = sharedPullRequestSchema.parse(request);
+    if (
+      !/^\d+$/.test(parsed.cursor) ||
+      BigInt(parsed.cursor) > BigInt(Number.MAX_SAFE_INTEGER) ||
+      (parsed.limit ?? 100) < 1 ||
+      (parsed.limit ?? 100) > 200
+    )
+      throw new InvalidSyncPayloadError();
+    const limit = parsed.limit ?? 100;
+    return this.transaction(async (client) => {
+      await this.lockSharedAccess(
+        client,
+        actor,
+        { datasetId: parsed.datasetId, membershipId: parsed.membershipId },
+        "SHARE",
+      );
+      const result = await client.query<{ change: SyncChange }>(
+        `SELECT change FROM sync_changes WHERE dataset_id=$1 AND revision>$2
+         ORDER BY revision LIMIT $3`,
+        [parsed.datasetId, parsed.cursor, limit + 1],
+      );
+      const changes = result.rows
+        .slice(0, limit)
+        .map((row) => syncChangeSchema.parse(row.change));
+      return sharedPullResponseSchema.parse({
+        changes,
+        cursor: changes.length
+          ? String(changes[changes.length - 1]!.revision)
+          : parsed.cursor,
+        hasMore: result.rows.length > limit,
+        attribution: await this.readAttributions(client, parsed.datasetId, changes),
+      });
+    });
   }
   private async current(
     client: PoolClient,
@@ -198,13 +452,14 @@ export class PostgresSyncRepository implements SyncRepository {
     dataset: string,
     change: SyncChange,
     requestHash?: string,
+    sender?: MutationSender,
   ): Promise<
     { acknowledgment: AcknowledgedChange } | { conflict: SyncConflict }
   > {
     const hash =
       requestHash ??
       createHash("sha256").update(canonicalJson(change)).digest("hex");
-    await this.rememberRequest(client, dataset, change.mutationId, hash);
+    await this.rememberRequest(client, dataset, change.mutationId, hash, sender);
     const repeated = (
       await client.query<{
         request_hash: string;
@@ -505,6 +760,231 @@ export class PostgresSyncRepository implements SyncRepository {
       );
     }
   }
+
+  async resolveConflictShared(
+    actor: string,
+    request: SharedResolveRequest,
+  ): Promise<SharedPushResponse> {
+    const parsed = sharedResolveRequestSchema.parse(request);
+    const { membershipId, ...financialRequest } = parsed;
+    const sender = { subject: actor, membershipId };
+    const hash = createHash("sha256")
+      .update(canonicalJson(financialRequest))
+      .digest("hex");
+    return this.transaction(async (client) => {
+      const access = await this.lockSharedAccess(client, actor, {
+        datasetId: parsed.datasetId,
+        membershipId,
+      });
+      await this.rememberRequest(
+        client,
+        parsed.datasetId,
+        parsed.mutationId,
+        hash,
+        sender,
+      );
+      const prior = (
+        await client.query<{
+          acknowledgment: AcknowledgedChange;
+          request_hash: string;
+        }>(
+          `SELECT acknowledgment,request_hash FROM mutation_acknowledgments
+           WHERE dataset_id=$1 AND mutation_id=$2`,
+          [parsed.datasetId, parsed.mutationId],
+        )
+      ).rows[0];
+      if (prior) {
+        if (prior.request_hash !== hash) throw new InvalidSyncPayloadError();
+        const response = {
+          acknowledgedChanges: [prior.acknowledgment],
+          conflicts: [],
+          rejectedChanges: [],
+          attribution: await this.readAttributions(
+            client,
+            parsed.datasetId,
+            [
+              {
+                recordType: parsed.conflict.recordType,
+                recordId: parsed.conflict.recordId,
+              } as SyncChange,
+            ],
+          ),
+        };
+        return sharedPushResponseSchema.parse(response);
+      }
+      if (access.archived)
+        return sharedPushResponseSchema.parse({
+          acknowledgedChanges: [],
+          conflicts: [],
+          rejectedChanges: [{ mutationId: parsed.mutationId, code: "tracker_archived" }],
+          attribution: [],
+        });
+
+      const conflict = parsed.conflict;
+      const change = syncChangeSchema.parse({
+        mutationId: parsed.mutationId,
+        recordType: conflict.recordType,
+        recordId: conflict.recordId,
+        operation: conflict.localDeleted ? "delete" : "upsert",
+        tombstone: conflict.localDeleted,
+        payload: conflict.localPayload,
+        baseRevision:
+          conflict.reason === "duplicate_budget"
+            ? conflict.localRevision
+            : conflict.cloudRevision,
+        editedAt: parsed.editedAt,
+        revision: 0,
+        committedAt: null,
+      });
+      if (
+        !(await this.canChangeSharedRecord(
+          client,
+          actor,
+          access.role,
+          parsed.datasetId,
+          change,
+        ))
+      )
+        return sharedPushResponseSchema.parse({
+          acknowledgedChanges: [],
+          conflicts: [],
+          rejectedChanges: [{ mutationId: parsed.mutationId, code: "permission_denied" }],
+          attribution: [],
+        });
+
+      const current = await this.current(
+        client,
+        parsed.datasetId,
+        conflict.recordType,
+        conflict.cloudRecordId,
+      );
+      if (conflict.reason === "duplicate_budget") {
+        if (
+          conflict.recordType !== "budget" ||
+          conflict.recordId === conflict.cloudRecordId ||
+          conflict.localDeleted
+        )
+          throw new InvalidSyncPayloadError();
+      } else if (conflict.recordId !== conflict.cloudRecordId)
+        throw new InvalidSyncPayloadError();
+
+      if (Number(current.metadata?.revision ?? 0) !== conflict.cloudRevision)
+        return sharedPushResponseSchema.parse({
+          acknowledgedChanges: [],
+          conflicts: [
+            {
+              ...this.conflict(change, current, conflict.cloudRecordId),
+              categoryDeletionId: conflict.categoryDeletionId,
+            },
+          ],
+          rejectedChanges: [],
+          attribution: await this.readAttributions(
+            client,
+            parsed.datasetId,
+            [change],
+          ),
+        });
+
+      if (conflict.reason === "duplicate_budget") {
+        const local = await this.current(
+          client,
+          parsed.datasetId,
+          "budget",
+          conflict.recordId,
+        );
+        if (Number(local.metadata?.revision ?? 0) !== conflict.localRevision)
+          return sharedPushResponseSchema.parse({
+            acknowledgedChanges: [],
+            conflicts: [this.conflict(change, local)],
+            rejectedChanges: [],
+            attribution: [],
+          });
+        if (
+          conflict.categoryDeletionId &&
+          ((local.payload as Budget | null)?.categoryId !==
+            conflict.categoryDeletionId ||
+            (change.payload as Budget).categoryId !== "expense-uncategorized")
+        )
+          throw new InvalidSyncPayloadError();
+        if (parsed.choice === "keep_local") {
+          await this.writeRecord(
+            client,
+            parsed.datasetId,
+            {
+              ...change,
+              recordId: conflict.cloudRecordId,
+              tombstone: true,
+              operation: "delete",
+              payload: null,
+            },
+            current.payload,
+          );
+          await this.append(client, parsed.datasetId, {
+            ...change,
+            mutationId: v7(),
+            recordId: conflict.cloudRecordId,
+            tombstone: true,
+            operation: "delete",
+            payload: null,
+          });
+        } else {
+          change.payload = conflict.categoryDeletionId ? null : local.payload;
+          change.tombstone = conflict.categoryDeletionId
+            ? true
+            : (local.metadata?.deleted ?? true);
+          change.operation = change.tombstone ? "delete" : "upsert";
+        }
+        await this.writeRecord(client, parsed.datasetId, change, local.payload);
+        const acknowledgment = await this.append(client, parsed.datasetId, change);
+        await client.query(
+          "INSERT INTO mutation_acknowledgments VALUES($1,$2,$3,$4)",
+          [parsed.datasetId, parsed.mutationId, hash, JSON.stringify(acknowledgment)],
+        );
+        return sharedPushResponseSchema.parse({
+          acknowledgedChanges: [acknowledgment],
+          conflicts: [],
+          rejectedChanges: [],
+          attribution: [],
+        });
+      }
+      if (parsed.choice === "keep_cloud") {
+        change.payload = current.payload;
+        change.tombstone = current.metadata?.deleted ?? true;
+        change.operation = change.tombstone ? "delete" : "upsert";
+      }
+      const result = await this.apply(
+        client,
+        parsed.datasetId,
+        syncChangeSchema.parse(change),
+        hash,
+        sender,
+      );
+      if (
+        !("conflict" in result) &&
+        change.recordType === "transaction" &&
+        !change.tombstone &&
+        !current.payload
+      ) {
+        await client.query(
+          `INSERT INTO transaction_authorship
+           (dataset_id,transaction_id,creator_subject,creator_email,creator_membership_id)
+           VALUES($1,$2,$3,$4,$5) ON CONFLICT(dataset_id,transaction_id) DO NOTHING`,
+          [parsed.datasetId, change.recordId, actor, access.email, membershipId],
+        );
+      }
+      return sharedPushResponseSchema.parse({
+        acknowledgedChanges: "conflict" in result ? [] : [result.acknowledgment],
+        conflicts: "conflict" in result ? [result.conflict] : [],
+        rejectedChanges: [],
+        attribution: await this.readAttributions(
+          client,
+          parsed.datasetId,
+          [change],
+        ),
+      });
+    });
+  }
+
   async resolveConflict(
     owner: string,
     request: ResolveConflictRequest,
@@ -666,20 +1146,32 @@ export class PostgresSyncRepository implements SyncRepository {
     dataset: string,
     mutationId: string,
     hash: string,
+    sender?: MutationSender,
   ) {
     const previous = (
-      await client.query<{ request_hash: string }>(
-        "SELECT request_hash FROM mutation_requests WHERE dataset_id=$1 AND mutation_id=$2",
+      await client.query<{
+        request_hash: string;
+        sender_subject: string | null;
+        membership_id: string | null;
+      }>(
+        "SELECT request_hash,sender_subject,membership_id FROM mutation_requests WHERE dataset_id=$1 AND mutation_id=$2",
         [dataset, mutationId],
       )
     ).rows[0];
     if (previous) {
       if (previous.request_hash !== hash) throw new InvalidSyncPayloadError();
+      if (
+        sender &&
+        (previous.sender_subject !== sender.subject ||
+          previous.membership_id !== sender.membershipId)
+      )
+        throw new InvalidSyncPayloadError();
       return;
     }
     await client.query(
-      "INSERT INTO mutation_requests(dataset_id,mutation_id,request_hash) VALUES($1,$2,$3)",
-      [dataset, mutationId, hash],
+      `INSERT INTO mutation_requests(dataset_id,mutation_id,request_hash,sender_subject,membership_id)
+       VALUES($1,$2,$3,$4,$5)`,
+      [dataset, mutationId, hash, sender?.subject ?? null, sender?.membershipId ?? null],
     );
   }
 }

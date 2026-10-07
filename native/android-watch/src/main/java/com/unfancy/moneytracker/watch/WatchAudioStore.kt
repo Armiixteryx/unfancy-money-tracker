@@ -19,7 +19,10 @@ import javax.crypto.spec.PSource
 internal data class WatchAudioRequest(
   val requestId: String, val accountId: String, val recordedAt: String, val mimeType: String,
   val status: String, val durationMs: Long? = null, val errorCode: String? = null, val sourceNodeId: String = "",
+  val trackerId: String? = null, val membershipId: String? = null, val generation: Long? = null,
+  val localDate: String? = null, val protocolVersion: Int = 1,
 )
+internal data class PhoneWatchTarget(val datasetId: String, val name: String, val membershipId: String?, val generation: Long, val kind: String)
 
 internal interface WatchAudioDisk {
   fun read(name: String): ByteArray?
@@ -71,6 +74,16 @@ internal class WatchAudioStore(private val disk: WatchAudioDisk, private val key
   fun read(id: String): ByteArray = synchronized(PROCESS_LOCK) {
     require(UUID_V7.matches(id)) { "invalid_request_id" }
     decrypt(disk.read(audioName(id)) ?: error("audio_missing"), keys.get(audioAlias(id)))
+  }
+  fun bindLegacyPersonalTarget(id: String, accountId: String, target: PhoneWatchTarget): Boolean = synchronized(PROCESS_LOCK) {
+    if (boundAccount() != accountId || target.kind != "personal" || target.membershipId != null) return@synchronized false
+    val a = records(); val item = objectFor(a, id) ?: return@synchronized false
+    if (item.optString("accountId") != accountId) return@synchronized false
+    val existingTracker = item.takeIf { !it.isNull("trackerId") }?.optString("trackerId")
+    if (!existingTracker.isNullOrBlank()) return@synchronized existingTracker == target.datasetId
+    item.put("trackerId", target.datasetId).put("generation", target.generation)
+      .put("membershipId", JSONObject.NULL).put("protocolVersion", 2)
+    saveRecords(a); true
   }
   fun claimPending(id: String, accountId: String): Boolean = synchronized(PROCESS_LOCK) {
     val a = records(); val o = objectFor(a, id) ?: return@synchronized false
@@ -136,7 +149,35 @@ internal class WatchAudioStore(private val disk: WatchAudioDisk, private val key
   private fun saveBinding(j: JSONObject) = disk.writeAtomic("binding", encrypt(j.toString().toByteArray(Charsets.UTF_8), keys.get(METADATA_KEY)))
   fun boundAccount(): String? = synchronized(PROCESS_LOCK) { binding().optString("accountId").takeIf { it.isNotBlank() } }
   fun boundNode(): String? = synchronized(PROCESS_LOCK) { binding().optString("nodeId").takeIf { it.isNotBlank() } }
-  fun bind(accountId: String?, nodeId: String? = boundNode()) { synchronized(PROCESS_LOCK) { val j = binding(); if (accountId == null) j.remove("accountId") else j.put("accountId", accountId); if (nodeId == null) j.remove("nodeId") else j.put("nodeId", nodeId); saveBinding(j) } }
+  fun targets(): List<PhoneWatchTarget> = synchronized(PROCESS_LOCK) {
+    val bytes = disk.read("targets") ?: return@synchronized emptyList()
+    val clear = decrypt(bytes, keys.get(METADATA_KEY))
+    val rows = JSONArray(String(clear, Charsets.UTF_8))
+    (0 until rows.length()).map { index ->
+      val row = rows.getJSONObject(index)
+      PhoneWatchTarget(row.getString("datasetId"), row.getString("name"),
+        if (row.isNull("membershipId")) null else row.getString("membershipId"), row.getLong("generation"), row.getString("kind"))
+    }
+  }
+  fun setTargets(targets: List<PhoneWatchTarget>) = synchronized(PROCESS_LOCK) {
+    val rows = JSONArray().apply { targets.forEach { target ->
+      put(JSONObject().put("datasetId", target.datasetId).put("name", target.name)
+        .put("membershipId", target.membershipId ?: JSONObject.NULL).put("generation", target.generation).put("kind", target.kind))
+    } }
+    disk.writeAtomic("targets", encrypt(rows.toString().toByteArray(Charsets.UTF_8), keys.get(METADATA_KEY)))
+  }
+  fun bind(accountId: String?, nodeId: String? = boundNode()) { synchronized(PROCESS_LOCK) {
+    val j = binding()
+    val previousAccount = j.optString("accountId").takeIf { it.isNotBlank() }
+    if (previousAccount != accountId) {
+      // A catalog is scoped to the signed-in subject. Never send the prior
+      // account's tracker names or IDs as setup for a newly bound account.
+      disk.writeAtomic("targets", encrypt("[]".toByteArray(Charsets.UTF_8), keys.get(METADATA_KEY)))
+    }
+    if (accountId == null) j.remove("accountId") else j.put("accountId", accountId)
+    if (nodeId == null) j.remove("nodeId") else j.put("nodeId", nodeId)
+    saveBinding(j)
+  } }
   fun pinNode(nodeId: String) { synchronized(PROCESS_LOCK) { val j = binding(); j.put("nodeId", nodeId); saveBinding(j) } }
 
   fun setupPublicKey(nodeId: String): String? = synchronized(PROCESS_LOCK) {
@@ -169,7 +210,9 @@ internal class WatchAudioStore(private val disk: WatchAudioDisk, private val key
   }
 
   private fun toJson(r: WatchAudioRequest) = JSONObject().put("requestId", r.requestId).put("accountId", r.accountId).put("recordedAt", r.recordedAt).put("mimeType", r.mimeType).put("status", r.status).put("durationMs", r.durationMs ?: JSONObject.NULL).put("errorCode", r.errorCode ?: JSONObject.NULL).put("sourceNodeId", r.sourceNodeId)
-  private fun fromJson(o: JSONObject) = WatchAudioRequest(o.getString("requestId"), o.getString("accountId"), o.getString("recordedAt"), o.getString("mimeType"), o.getString("status"), if (o.isNull("durationMs")) null else o.optLong("durationMs"), if (o.isNull("errorCode")) null else o.optString("errorCode"), o.optString("sourceNodeId"))
+    .put("trackerId", r.trackerId ?: JSONObject.NULL).put("membershipId", r.membershipId ?: JSONObject.NULL)
+    .put("generation", r.generation ?: JSONObject.NULL).put("localDate", r.localDate ?: JSONObject.NULL).put("protocolVersion", r.protocolVersion)
+  private fun fromJson(o: JSONObject) = WatchAudioRequest(o.getString("requestId"), o.getString("accountId"), o.getString("recordedAt"), o.getString("mimeType"), o.getString("status"), if (o.isNull("durationMs")) null else o.optLong("durationMs"), if (o.isNull("errorCode")) null else o.optString("errorCode"), o.optString("sourceNodeId"), if (o.isNull("trackerId")) null else o.optString("trackerId"), if (o.isNull("membershipId")) null else o.optString("membershipId"), if (o.isNull("generation")) null else o.optLong("generation"), if (o.isNull("localDate")) null else o.optString("localDate"), o.optInt("protocolVersion", 1))
 
   companion object {
     private const val METADATA_KEY = "unfancy_watch_metadata_v1"
@@ -183,17 +226,18 @@ internal class AndroidWatchAudioDisk(context: Context) : WatchAudioDisk {
   private fun file(name: String): File = when (name) {
     "metadata" -> File(root, "metadata.enc")
     "binding" -> File(root, "binding.enc")
+    "targets" -> File(root, "targets.enc")
     else -> File(root, name.replace(':', '-') + ".enc")
   }
   private fun atomicFile(name: String) = android.util.AtomicFile(file(name))
   override fun read(name: String): ByteArray? {
-    if (name != "metadata" && name != "binding") return file(name).takeIf { it.exists() }?.readBytes()
+    if (name != "metadata" && name != "binding" && name != "targets") return file(name).takeIf { it.exists() }?.readBytes()
     val atomic = atomicFile(name)
     if (!atomic.baseFile.exists() && !File(atomic.baseFile.path + ".bak").exists()) return null
     return atomic.openRead().use { it.readBytes() }
   }
   override fun writeAtomic(name: String, bytes: ByteArray) {
-    if (name == "metadata" || name == "binding") {
+    if (name == "metadata" || name == "binding" || name == "targets") {
       val atomic = atomicFile(name); val stream = atomic.startWrite()
       try { stream.write(bytes); atomic.finishWrite(stream) } catch (e: Exception) { atomic.failWrite(stream); throw e }
     } else {

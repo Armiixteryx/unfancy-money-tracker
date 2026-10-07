@@ -22,10 +22,14 @@ import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 import { watchAudioBridge, type WatchRecording } from "../../watch/bridge";
 import { getAuthenticatedAccountId } from "../../../platform/auth/client";
+import { TrackerManagement } from "../../trackers/TrackerManagement";
+import { useActiveTrackerSummary } from "../../trackers/store";
 
 export function SettingsScreen() {
   const { t, i18n: language } = useTranslation();
   const auth = useAuth();
+  const activeTracker = useActiveTrackerSummary();
+  const canManageTracker = activeTracker.kind === "personal" || activeTracker.role === "admin";
   const [accountError, setAccountError] = useState(false);
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
@@ -66,6 +70,7 @@ export function SettingsScreen() {
   return (
     <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)}>
       <SensitiveContent><View style={styles.card}><Text style={{ color: colors.text, fontWeight: "500" }}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
+      <TrackerManagement />
       <SyncSettings />
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
       {saveError ? <Pressable accessibilityRole="button" onPress={() => void retryLocalSave()} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.notices.retrySave)}</Text></Pressable> : null}
@@ -88,7 +93,7 @@ export function SettingsScreen() {
           <View style={styles.chips}>{SUPPORTED_CURRENCIES.map((currency) => {
             const selected = dataset.preferences.selectedCurrencies.includes(currency);
             const isBase = dataset.preferences.baseCurrency === currency;
-            return <ChoiceChip active={selected} disabled={isBase} key={currency} label={currency} onPress={() => {
+            return <ChoiceChip active={selected} disabled={isBase || !canManageTracker} key={currency} label={currency} onPress={() => {
               const next = selected
                 ? dataset.preferences.selectedCurrencies.filter((candidate) => candidate !== currency)
                 : [...dataset.preferences.selectedCurrencies, currency];
@@ -97,7 +102,8 @@ export function SettingsScreen() {
           })}</View>
           <Text style={styles.label}>{i18n.t($ => $.ui.settingsBaseCurrency)}</Text>
           <Text style={styles.helper}>{i18n.t($ => $.ui.settingsUsedForFutureAggregateConversionAndNew)}</Text>
-          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, { code: "baseCurrencySaved", currency })} />)}</View>
+          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} disabled={!canManageTracker} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, { code: "baseCurrencySaved", currency })} />)}</View>
+          {!canManageTracker ? <Text style={styles.helper}>{language.resolvedLanguage === "es" ? "Solo los administradores cambian las monedas del conjunto." : "Only admins can change tracker currencies."}</Text> : null}
           <Text style={styles.label}>{i18n.t($ => $.ui.settingsTheme)}</Text>
           <View style={styles.chips}>{(["system", "light", "dark"] as const).map((theme) => <ChoiceChip active={dataset.preferences.theme === theme} key={theme} label={i18n.t($ => $.notices[theme])} onPress={() => void updatePreference({ theme }, i18n.t($ => $.ui.settingsThemePreferenceSavedLocally))} />)}</View>
         </View> : null}
@@ -112,9 +118,9 @@ export function SettingsScreen() {
         {activeSection === "privacy" ?
         <View style={styles.card}>
           <SectionHeader title={i18n.t($ => $.ui.settingsLocalDataAndPrivacy)} description={i18n.t($ => $.ui.settingsYourTrackerIsAnonymousAndKeepsFinancial)} />
-          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{i18n.t($ => $.ui.settingsLocalOnlyDataset)}</Text><Text style={styles.helper}>{formatNumber(dataset.transactions.length)} {i18n.t($ => $.ui.settingsTransactions)} {formatNumber(dataset.budgets.length)} {i18n.t($ => $.ui.settingsBudgets)} {formatNumber(dataset.categories.length)} {i18n.t($ => $.ui.settingsCategories)}</Text></View></View>
+          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{activeTracker.kind === "shared" ? (language.resolvedLanguage === "es" ? "Conjunto compartido" : "Shared tracker") : i18n.t($ => $.ui.settingsLocalOnlyDataset)}</Text><Text style={styles.helper}>{formatNumber(dataset.transactions.length)} {i18n.t($ => $.ui.settingsTransactions)} {formatNumber(dataset.budgets.length)} {i18n.t($ => $.ui.settingsBudgets)} {formatNumber(dataset.categories.length)} {i18n.t($ => $.ui.settingsCategories)}</Text></View></View>
           <Pressable accessibilityRole="button" accessibilityState={{ checked: dataset.preferences.analyticsConsent }} onPress={() => void updatePreference({ analyticsConsent: !dataset.preferences.analyticsConsent }, dataset.preferences.analyticsConsent ? i18n.t($ => $.ui.settingsAnalyticsDisabled) : i18n.t($ => $.ui.settingsAnalyticsEnabledWithPrivacyControls))} style={styles.toggleRow}><View style={[styles.toggle, dataset.preferences.analyticsConsent && styles.toggleOn]}><View style={[styles.toggleKnob, dataset.preferences.analyticsConsent && styles.toggleKnobOn]} /></View><View style={styles.statusCopy}><Text style={styles.statusTitle}>{i18n.t($ => $.ui.settingsOptionalAnalytics)}</Text><Text style={styles.helper}>{dataset.preferences.analyticsConsent ? i18n.t($ => $.ui.settingsEnabledFinancialValuesAndUserEnteredText) : i18n.t($ => $.ui.settingsDisabledByDefaultNoProductAnalyticsIs)}</Text></View></Pressable>
-          {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>{i18n.t($ => $.ui.settingsResetThisLocalCopy)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsThisRemovesLocalTransactionsBudgetsCategoriesAnd)}</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable>}
+          {activeTracker.kind === "personal" ? (confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>{i18n.t($ => $.ui.settingsResetThisLocalCopy)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsThisRemovesLocalTransactionsBudgetsCategoriesAnd)}</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable>) : null}
         </View> : null}
 
         {activeSection === "export" ?
@@ -126,7 +132,7 @@ export function SettingsScreen() {
         {activeSection === "watch" ? <FailedWatchRecordings identity={auth.identity} epoch={auth.epoch} /> : null}
       </View> : null}
 
-      {activeSection === "categories" ? <CategoryManager onMessage={setMessage} /> : null}
+        {activeSection === "categories" ? (activeTracker.kind === "personal" || activeTracker.role === "admin" ? <CategoryManager onMessage={setMessage} /> : <Text style={styles.helper}>{language.resolvedLanguage === "es" ? "Solo los administradores pueden gestionar categorías." : "Only tracker admins can manage categories."}</Text>) : null}
         </View>
       </View>
     </AppScreen>

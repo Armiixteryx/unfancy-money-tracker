@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, type PropsWithChildren }
 import { createPostHogAnalyticsClient } from "../platform/analytics";
 import type { AnalyticsClient } from "../platform/analytics";
 import { PostHogProviderWrapper } from "../platform/analytics/PostHogProviderWrapper";
-import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
+import { useDevicePreferences } from "../features/trackers/store";
 
 const noopAnalytics: AnalyticsClient = {
   initialize: async () => undefined,
@@ -15,7 +15,7 @@ const AnalyticsContext = createContext<AnalyticsClient>(noopAnalytics);
 
 export function AnalyticsProvider({ children }: PropsWithChildren) {
   const client = useMemo(() => createPostHogAnalyticsClient(), []);
-  const analyticsConsent = useLocalDatasetStore((state) => state.dataset?.preferences.analyticsConsent);
+  const analyticsConsent = useDevicePreferences(preferences => preferences.analyticsConsent);
   useEffect(() => {
     void client.initialize();
   }, [client]);

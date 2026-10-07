@@ -18,12 +18,17 @@ import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
+import { useActiveTrackerSummary } from "../../trackers/store";
+import { useAuth } from "../../auth/AuthProvider";
+import { canManageTrackerSettings, canManageTrackerTransaction } from "../../../domain/trackerPermissions";
 
 export function DashboardScreen() {
   useTranslation();
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const dataset = useLocalDatasetStore((state) => state.dataset);
+  const auth = useAuth();
+  const activeTracker = useActiveTrackerSummary();
   const analytics = useAnalytics();
   const month = currentCalendarMonth();
   const { width } = useWindowDimensions();
@@ -43,6 +48,13 @@ export function DashboardScreen() {
   useEffect(() => { void analytics.capture("dashboard_viewed", { surface: "dashboard", actionResult: "success" }); }, [analytics]);
 
   if (!dataset) return null;
+
+  const canManageSettings = canManageTrackerSettings(dataset, auth.subject);
+  const openTransaction = (id: string) => {
+    const canEdit = activeTracker.kind === "personal" || canManageTrackerTransaction(dataset, id, auth.subject);
+    const params = canEdit ? `edit=${id}&tracker=${dataset.datasetId}` : `tracker=${dataset.datasetId}`;
+    router.push(`/transactions?${params}`);
+  };
 
   const rateLabel = rateQueries.isLoading ? i18n.t($ => $.ui.dashboardLoadingRates)
     : convertedMonth.unavailableCurrencies.length > 0 ? i18n.t($ => $.ui.dashboardPartialView)
@@ -64,14 +76,14 @@ export function DashboardScreen() {
                 {item.remaining ? formatMoneyForDisplay(item.remaining) : i18n.t($ => $.ui.dashboardNoBudgetSet)}
               </Text>
               {item.remaining?.amount.startsWith("-") ? <Status tone="negative" label={i18n.t($ => $.ui.budgetsOverBudget)} /> : null}
-              {!item.budget ? <Button variant="ghost" label={i18n.t($ => $.ui.budgetsCreateBudget)} onPress={() => router.push("/budgets?new=1")} style={styles.budgetAction} /> : null}
+              {!item.budget && canManageSettings ? <Button variant="ghost" label={i18n.t($ => $.ui.budgetsCreateBudget)} onPress={() => router.push("/budgets?new=1")} style={styles.budgetAction} /> : null}
               <View style={styles.supportingTotals}>
                 <View style={styles.supportingMetric}><Text variant="caption" style={styles.muted}>{i18n.t($ => $.ui.dashboardIncome)}</Text><Text variant="amount" style={styles.income}>{formatMoneyForDisplay(item.income)}</Text></View>
                 <View style={styles.supportingMetric}><Text variant="caption" style={styles.muted}>{i18n.t($ => $.ui.dashboardExpenses)}</Text><Text variant="amount">{formatMoneyForDisplay(item.expenses)}</Text></View>
               </View>
             </View>
           ))}
-          {summary.length === 0 ? <View style={styles.noBudget}><Text style={styles.remainingAmount}>{i18n.t($ => $.ui.dashboardNoBudgetSet)}</Text><Button variant="secondary" label={i18n.t($ => $.ui.budgetsCreateBudget)} onPress={() => router.push("/budgets?new=1")} /></View> : null}
+          {summary.length === 0 ? <View style={styles.noBudget}><Text style={styles.remainingAmount}>{i18n.t($ => $.ui.dashboardNoBudgetSet)}</Text>{canManageSettings ? <Button variant="secondary" label={i18n.t($ => $.ui.budgetsCreateBudget)} onPress={() => router.push("/budgets?new=1")} /> : null}</View> : null}
         </View>
       </Card>
 
@@ -98,8 +110,8 @@ export function DashboardScreen() {
           <Card style={styles.detailCard}>
             <View style={styles.cardHeader}><Text accessibilityRole="header" variant="heading">{i18n.t($ => $.ui.dashboardRecentActivity)}</Text><Button variant="ghost" label={i18n.t($ => $.ui.dashboardSeeAll)} onPress={() => router.push("/transactions")} /></View>
             {dataset.transactions.slice().sort((left, right) => right.date.localeCompare(left.date)).slice(0, 5).map((transaction) => (
-              <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.editRecord, { description: transaction.description })} onPress={() => router.push(`/transactions?edit=${transaction.id}`)} key={transaction.id} style={styles.activityRow}>
-                <View style={styles.activityCopy}><Text numberOfLines={1}>{transaction.description}</Text><Text variant="caption" style={styles.muted}>{formatCalendarDate(transaction.date)}</Text></View>
+              <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => activeTracker.kind === "personal" || canManageTrackerTransaction(dataset, transaction.id, auth.subject) ? $.notices.editRecord : $.notices.viewRecord, { description: transaction.description })} onPress={() => openTransaction(transaction.id)} key={transaction.id} style={styles.activityRow}>
+                <View style={styles.activityCopy}><Text numberOfLines={1}>{transaction.description}</Text><Text variant="caption" style={styles.muted}>{formatCalendarDate(transaction.date)}</Text>{activeTracker.kind === "shared" && transaction.creator ? <Text variant="caption" style={styles.muted}>{transaction.creator.email}</Text> : null}</View>
                 <Text variant="amount" style={[styles.activityAmount, transaction.type === "income" && styles.income]}>{transaction.type === "income" ? "+" : "−"}{formatMoneyForDisplay({ amount: transaction.amount, currency: transaction.currency })}</Text>
               </Pressable>
             ))}

@@ -20,13 +20,16 @@ import { TransactionForm, type TransactionFormResult } from "../components/Trans
 import { TransactionRow } from "../components/TransactionRow";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
+import { useActiveTrackerSummary, selectTracker } from "../../trackers/store";
+import { useAuth } from "../../auth/AuthProvider";
+import { canCreateTrackerTransaction, canManageTrackerTransaction } from "../../../domain/trackerPermissions";
 
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 export function TransactionsScreen() {
   useTranslation();
   const router = useRouter();
-  const { edit, new: newParam } = useLocalSearchParams<{ edit?: string; new?: string }>();
+  const { edit, new: newParam, tracker } = useLocalSearchParams<{ edit?: string; new?: string; tracker?: string }>();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -39,6 +42,8 @@ export function TransactionsScreen() {
   const deleteTransaction = useLocalDatasetStore((state) => state.deleteTransaction);
   const saveError = useLocalDatasetStore((state) => state.saveError);
   const analytics = useAnalytics();
+  const auth = useAuth();
+  const activeTracker = useActiveTrackerSummary();
   const [formState, setFormState] = useState<FormState>(null);
   const [pendingSaveId, setPendingSaveId] = useState<string | undefined>();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -56,14 +61,20 @@ export function TransactionsScreen() {
   const selectedTransaction = formState?.mode === "edit" ? transactions.find((transaction) => transaction.id === formState.id) : undefined;
 
   useEffect(() => {
+    if (tracker && tracker !== activeTracker.datasetId) {
+      void selectTracker(tracker).then(selected => { if (!selected) setActionMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable)); });
+      return;
+    }
     if (!dataset || (!edit && !newParam)) return;
     setPendingSaveId(undefined);
     if (edit) {
-      if (dataset.transactions.some((record) => record.id === edit)) setFormState({ mode: "edit", id: edit });
-      else setActionMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable));
+      if (dataset.transactions.some((record) => record.id === edit)) {
+        if (canManageTrackerTransaction(dataset, edit, auth.subject)) setFormState({ mode: "edit", id: edit });
+        else setActionMessage(i18n.t($ => $.ui.transactionsCannotEditAnotherMembersEntry));
+      } else setActionMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable));
     } else setFormState({ mode: "new" });
-    router.setParams({ edit: undefined, new: undefined });
-  }, [dataset, edit, newParam, router]);
+    router.setParams({ edit: undefined, new: undefined, tracker: undefined });
+  }, [activeTracker.datasetId, auth.subject, dataset, edit, newParam, router, tracker]);
 
   useEffect(() => {
     if (dataset && formState?.mode === "edit" && !selectedTransaction) {
@@ -117,6 +128,7 @@ export function TransactionsScreen() {
   if (!dataset) return null;
 
   const hasActiveFilters = Boolean(transactionFilters.query?.trim() || transactionFilters.type || transactionFilters.categoryId || transactionFilters.currency || transactionFilters.fromDate || transactionFilters.toDate);
+  const canCreate = canCreateTrackerTransaction(dataset, auth.subject);
 
   const form = formState && (formState.mode === "new" || selectedTransaction) ? (
     <TransactionForm
@@ -135,7 +147,7 @@ export function TransactionsScreen() {
       eyebrow={i18n.t($ => $.ui.transactionsYourLocalRecords)}
       overlay={deleteSnackbarMessage ? <Snackbar message={deleteSnackbarMessage} onDismiss={() => setDeleteSnackbarMessage(null)} /> : null}
       title={i18n.t($ => $.ui.navigationTransactions)}
-      actions={<Button label={i18n.t($ => $.ui.dashboardAddTransaction)} onPress={openNew} />}
+      actions={<Button disabled={!canCreate} label={i18n.t($ => $.ui.dashboardAddTransaction)} onPress={openNew} />}
     >
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
@@ -194,6 +206,8 @@ export function TransactionsScreen() {
                 onDelete={() => beginDelete(transaction.id)}
                 onPress={() => openEdit(transaction.id)}
                 transaction={transaction}
+                canManage={canManageTrackerTransaction(dataset, transaction.id, auth.subject)}
+                showCreator={activeTracker.kind === "shared"}
               />
             ))
           )}

@@ -19,6 +19,12 @@ internal data class Recording(
     val durationMs: Long,
     val mimeType: String,
     val audio: ByteArray,
+    /** Absent only for pre-v2 recordings; migration always resolves this to the personal tracker. */
+    val trackerId: String? = null,
+    val membershipId: String? = null,
+    val generation: Long? = null,
+    val localDate: String? = null,
+    val protocolVersion: Int = 1,
 )
 
 internal interface DurableQueueFile {
@@ -71,7 +77,12 @@ internal class EncryptedQueue(
                 val row = rows.getJSONObject(i)
                 Recording(row.getString("requestId"), row.getString("accountId"), row.getString("phoneNodeId"),
                     row.getString("recordedAt"), row.getLong("durationMs"), row.getString("mimeType"),
-                    java.util.Base64.getDecoder().decode(row.getString("audio")))
+                    java.util.Base64.getDecoder().decode(row.getString("audio")),
+                    row.takeIf { !it.isNull("trackerId") }?.optString("trackerId")?.takeIf { it.isNotBlank() },
+                    row.takeIf { !it.isNull("membershipId") }?.optString("membershipId")?.takeIf { it.isNotBlank() },
+                    row.optLong("generation", -1L).takeIf { it >= 0 },
+                    row.takeIf { !it.isNull("localDate") }?.optString("localDate")?.takeIf { it.isNotBlank() },
+                    row.optInt("protocolVersion", 1))
             }
             } catch (_: Exception) {
                 // Keep the encrypted source intact for recovery and fail closed.
@@ -94,6 +105,20 @@ internal class EncryptedQueue(
         write(current.filterNot { it.requestId == requestId })
     }
 
+    /** Durably pin pre-v2 clips to the originating account's personal tracker. */
+    fun migrateLegacyToPersonal(accountId: String, phoneNodeId: String, trackerId: String, generation: Long,
+                                membershipId: String? = null): Boolean = synchronized(QUEUE_LOCK) {
+        val current = list()
+        if (unreadable) return@synchronized false
+        val updated = current.map { row ->
+            if (row.accountId == accountId && row.phoneNodeId == phoneNodeId && row.trackerId == null && row.protocolVersion < 2)
+                row.copy(trackerId = trackerId, membershipId = membershipId, generation = generation, protocolVersion = 2)
+            else row
+        }
+        if (updated == current) return@synchronized true
+        write(updated)
+    }
+
     fun size(): Int = list().size
     fun available(): Boolean { list(); return !unreadable }
 
@@ -102,7 +127,12 @@ internal class EncryptedQueue(
         rows.forEach { row ->
             json.put(JSONObject().put("requestId", row.requestId).put("accountId", row.accountId)
                 .put("phoneNodeId", row.phoneNodeId).put("recordedAt", row.recordedAt).put("durationMs", row.durationMs)
-                .put("mimeType", row.mimeType).put("audio", java.util.Base64.getEncoder().encodeToString(row.audio)))
+                .put("mimeType", row.mimeType).put("audio", java.util.Base64.getEncoder().encodeToString(row.audio))
+                .put("protocolVersion", row.protocolVersion)
+                .put("trackerId", row.trackerId ?: JSONObject.NULL)
+                .put("membershipId", row.membershipId ?: JSONObject.NULL)
+                .put("generation", row.generation ?: JSONObject.NULL)
+                .put("localDate", row.localDate ?: JSONObject.NULL))
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key)

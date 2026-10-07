@@ -4,7 +4,7 @@ import * as SystemUI from "expo-system-ui";
 
 import { TextColorContext } from "./designTokens";
 import type { Theme } from "../domain/types";
-import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
+import { useDevicePreferences } from "../features/trackers/store";
 import { darkColors, lightColors, resolveTheme, type ResolvedTheme, type ThemeColors } from "./themeTokens";
 
 export { darkColors, lightColors, resolveTheme } from "./themeTokens";
@@ -19,7 +19,7 @@ type AppTheme = {
 const ThemeContext = createContext<AppTheme>({ preference: "system", resolvedTheme: "light", colors: lightColors });
 
 export function AppThemeProvider({ children }: PropsWithChildren) {
-  const preference = useLocalDatasetStore((state) => state.dataset?.preferences.theme ?? "system");
+  const preference = useDevicePreferences((state) => state.theme);
   const systemScheme = useColorScheme();
   const resolvedTheme = resolveTheme(preference, systemScheme);
   const colors = resolvedTheme === "dark" ? darkColors : lightColors;

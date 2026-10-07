@@ -12,6 +12,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 export type DeploymentStage = "dev" | "prod";
@@ -57,12 +58,29 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     const database=props.postgres;
     if (isProduction && database.sharedDevelopmentConcurrency) throw new Error("Production requires reserved concurrency");
     const privateOptions={ vpc:database.vpc,vpcSubnets:{ subnetType:ec2.SubnetType.PRIVATE_ISOLATED },securityGroups:[database.workerSecurityGroup] };
-    const connection={ PGHOST:database.database.dbInstanceEndpointAddress,PGDATABASE:"unfancy",PG_CA_FILE:"/var/task/rds-global-bundle.pem",APP_ENV:props.deploymentStage };
+    const connection={ PGHOST:database.database.dbInstanceEndpointAddress,PGDATABASE:"unfancy",PG_CA_FILE:"/var/task/rds-global-bundle.pem",APP_ENV:props.deploymentStage,COGNITO_USER_POOL_ID:userPool.userPoolId,COGNITO_CLIENT_ID:userPoolClient.userPoolClientId };
     const syncFunction=this.createLambda("SyncFunction","src/server/handlers/sync.ts",{ ...connection,DB_SECRET_ARN:database.syncSecret.secretArn },{ ...privateOptions,reservedConcurrentExecutions:database.sharedDevelopmentConcurrency ? undefined : 5 });
     const cacheFunction=this.createLambda("RateCacheFunction","src/server/handlers/rateCache.ts",{ ...connection,DB_SECRET_ARN:database.rateSecret.secretArn },{ ...privateOptions,reservedConcurrentExecutions:database.sharedDevelopmentConcurrency ? undefined : 2 });
     database.syncSecret.grantRead(syncFunction); database.rateSecret.grantRead(cacheFunction);
     const exchangeRateFunction=this.createLambda("ExchangeRateFunction","src/server/handlers/exchangeRates.ts",{ APP_ENV:props.deploymentStage,RATE_CACHE_FUNCTION_NAME:cacheFunction.functionName });
     cacheFunction.grantInvoke(exchangeRateFunction);
+    const publicAppOrigin = this.node.tryGetContext(isProduction ? "publicAppOriginProd" : "publicAppOriginDev")
+      ?? process.env[isProduction ? "PUBLIC_APP_ORIGIN_PROD" : "PUBLIC_APP_ORIGIN_DEV"];
+    const trackerRelayEnvironment: Record<string,string> = {
+      APP_ENV: props.deploymentStage,
+      COGNITO_USER_POOL_ID: userPool.userPoolId,
+      COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+      SYNC_WORKER_FUNCTION_NAME: syncFunction.functionName,
+      ...(publicAppOrigin
+        ? { PUBLIC_APP_ORIGIN: String(publicAppOrigin) }
+        : {}),
+    };
+    const trackerRelayFunction = this.createLambda("TrackerRelayFunction", "src/server/handlers/trackerRelay.ts", trackerRelayEnvironment, { reservedConcurrentExecutions: database.sharedDevelopmentConcurrency ? undefined : isProduction ? 5 : 3 });
+    syncFunction.grantInvoke(trackerRelayFunction);
+    trackerRelayFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["cognito-idp:AdminGetUser", "cognito-idp:ListUsers"],
+      resources: [userPool.userPoolArn],
+    }));
     for (const [name,worker] of [["Sync",syncFunction],["RateCache",cacheFunction]] as const) {
       new cloudwatch.Alarm(this,`${name}ErrorsAlarm`,{ metric:worker.metricErrors(),threshold:1,evaluationPeriods:1 });
       new cloudwatch.Alarm(this,`${name}ThrottlesAlarm`,{ metric:worker.metricThrottles(),threshold:1,evaluationPeriods:1 });
@@ -76,8 +94,10 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
     const voiceFunction = this.createLambda("VoiceExpenseFunction", "src/server/handlers/voiceExpense.ts", {
       COGNITO_USER_POOL_ID: userPool.userPoolId, COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
       APP_ENV: props.deploymentStage, VOICE_SECRET_ARN: voiceSecret.secretArn,
+      SYNC_WORKER_FUNCTION_NAME: syncFunction.functionName,
       VOICE_CATEGORY_CONFIDENCE: "0.70", VOICE_CURRENCY_CONFIDENCE: "0.80"
     });
+    syncFunction.grantInvoke(voiceFunction);
     voiceSecret.grantRead(voiceFunction);
 
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
@@ -89,8 +109,13 @@ export class UnfancyMoneyTrackerStack extends cdk.Stack {
       corsPreflight: { allowHeaders: ["authorization", "content-type"], allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST], allowOrigins: ["*"] }
     });
     const syncIntegration = new integrations.HttpLambdaIntegration("SyncIntegration", syncFunction);
-    for (const route of ["/sync/push", "/sync/pull", "/sync/conflicts/resolve", "/sync/bootstrap"]) {
+    for (const route of ["/sync/push", "/sync/pull", "/sync/conflicts/resolve", "/sync/bootstrap", "/sync/v2/push", "/sync/v2/pull", "/sync/v2/conflicts/resolve"]) {
       api.addRoutes({ path: route, methods: [apigwv2.HttpMethod.POST], integration: syncIntegration, authorizationScopes:["aws.cognito.signin.user.admin"] });
+    }
+    const trackerRoutes = ["list", "create", "rename", "archive", "restore", "leave", "members", "role", "remove", "invite", "revoke-invitation", "preview-invitation", "accept-invitation"];
+    const trackerIntegration = new integrations.HttpLambdaIntegration("TrackerRelayIntegration", trackerRelayFunction);
+    for (const route of trackerRoutes) {
+      api.addRoutes({ path: `/trackers/${route}`, methods: [apigwv2.HttpMethod.POST], integration: trackerIntegration, authorizationScopes: ["aws.cognito.signin.user.admin"] });
     }
     api.addRoutes({
       path: "/rates",

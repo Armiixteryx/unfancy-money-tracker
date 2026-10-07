@@ -133,7 +133,7 @@ describe("category provenance and schema 7", () => {
     const transaction = createTransaction({ amount: "12.5", currency: "USD", type: "expense", categoryId: category.id, description: "Synthetic", date: "2026-01-01" }, { categories: original.categories });
     const raw = { ...original, schemaVersion, transactions: [transaction], categories: original.categories.filter(c => c.defaultCategoryKey !== "housing").map(({ defaultCategoryKey: key, ...rest }) => ({ ...rest, isSystem: key === "uncategorized" })), categoryDeletionTombstones: [{ recordType: "category", recordId: original.categories.find(c => c.defaultCategoryKey === "housing")!.id, deletedAt: new Date().toISOString() }] };
     const migrated = migrateSnapshot(raw);
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.preferences.language).toBe("system");
     expect(migrated.transactions).toEqual([transaction]);
     expect(migrated.categoryDeletionTombstones).toEqual(raw.categoryDeletionTombstones);

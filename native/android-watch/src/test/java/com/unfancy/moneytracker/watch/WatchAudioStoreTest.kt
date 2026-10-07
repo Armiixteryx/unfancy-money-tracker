@@ -36,6 +36,35 @@ class WatchAudioStoreTest {
     assertEquals("processing", f.store.find(requestId)?.status)
   }
 
+  @Test fun protocolOneQueueIsDurablyPinnedToItsOriginatingPersonalTarget() {
+    val f = fixture(); f.store.bind("account-a", "watch-node-a")
+    val personal = PhoneWatchTarget("018f47e2-9abc-7def-8abc-123456789013", "Personal", null, 1, "personal")
+    f.store.setTargets(listOf(personal))
+    assertEquals(listOf(personal), f.store.targets())
+    assertFalse(f.store.bindLegacyPersonalTarget(requestId, "account-b", personal))
+    assertTrue(f.store.bindLegacyPersonalTarget(requestId, "account-a", personal))
+    val migrated = f.store.find(requestId)!!
+    assertEquals(personal.datasetId, migrated.trackerId)
+    assertEquals(1L, migrated.generation)
+    assertEquals(2, migrated.protocolVersion)
+    assertNull(migrated.membershipId)
+    assertArrayEquals(byteArrayOf(1, 2, 3, 4), f.store.read(requestId))
+  }
+
+  @Test fun changingTheBoundAccountClearsTheEncryptedTrackerCatalog() {
+    val f = fixture()
+    val personal = PhoneWatchTarget("018f47e2-9abc-7def-8abc-123456789013", "Personal", null, 1, "personal")
+    f.store.bind("account-a", "watch-node-a")
+    f.store.setTargets(listOf(personal))
+    assertEquals(listOf(personal), f.store.targets())
+
+    f.store.bind("account-b", "watch-node-b")
+
+    assertTrue(f.store.targets().isEmpty())
+    assertEquals("account-b", f.store.boundAccount())
+    assertArrayEquals(byteArrayOf(1, 2, 3, 4), f.store.read(requestId))
+  }
+
   @Test fun failedAndCompletedReceiptsAreDurableAndDuplicateItemsCannotReinsertAudio() {
     val f = fixture()
     assertTrue(f.store.claimPending(requestId, "account-a"))

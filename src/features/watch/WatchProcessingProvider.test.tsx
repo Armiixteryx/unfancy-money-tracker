@@ -4,19 +4,22 @@ import { WatchProcessingProvider } from './WatchProcessingProvider';
 const mocks = vi.hoisted(() => ({
   auth: { identity: 'synthetic-login' as string | null, epoch: 0 },
   account: 'subject-a', process: vi.fn(), failPending: vi.fn(), setAccount: vi.fn(),
+  setTargets: vi.fn(), listTargets: vi.fn(),
 }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => mocks.auth }));
 vi.mock('../../platform/auth/client', () => ({ getAuthenticatedAccountId: async () => mocks.account }));
 vi.mock('./processor', () => ({ processWatchQueue: mocks.process }));
 vi.mock('./bridge', () => ({ watchAudioBridge: {
   available: true, setAccount: mocks.setAccount, failPendingForCurrentBinding: mocks.failPending,
+  setTargets: mocks.setTargets,
   subscribe: () => () => undefined,
 } }));
+vi.mock('../trackers/store', () => ({ listVoiceTargets: mocks.listTargets, subscribeTrackerRegistry: () => () => undefined }));
 let tree: ReactTestRenderer | undefined;
 beforeEach(() => {
   vi.clearAllMocks(); mocks.auth = { identity: 'synthetic-login', epoch: 0 }; mocks.account = 'subject-a';
   mocks.process.mockResolvedValue(undefined); mocks.failPending.mockResolvedValue(undefined);
-  mocks.setAccount.mockResolvedValue(undefined);
+  mocks.setAccount.mockResolvedValue(undefined); mocks.setTargets.mockResolvedValue(undefined); mocks.listTargets.mockResolvedValue([]);
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 afterEach(async () => { if (tree) await act(async () => tree?.unmount()); tree = undefined; });
@@ -45,6 +48,24 @@ describe('watch foreground lifecycle', () => {
     await act(async () => finishCleanup?.());
     expect(mocks.process).toHaveBeenCalledWith('subject-a', expect.any(Function));
     expect(mocks.setAccount).not.toHaveBeenCalledWith(null);
+  });
+  it('does not publish a prior account catalog after a delayed binding completes', async () => {
+    let finishOldBinding: (() => void) | undefined;
+    const personal = (datasetId: string, name: string) => ({
+      datasetId, name, membershipId: null, generation: 1, kind: 'personal', writable: true,
+    });
+    mocks.listTargets.mockResolvedValue([personal('personal-a', 'Account A')]);
+    mocks.setAccount.mockImplementationOnce(() => new Promise<void>(resolve => { finishOldBinding = resolve; }));
+    await mount();
+
+    mocks.account = 'subject-b'; mocks.auth = { identity: 'second-login', epoch: 1 };
+    mocks.listTargets.mockResolvedValue([personal('personal-b', 'Account B')]);
+    await update();
+    expect(mocks.setTargets).toHaveBeenCalledOnce();
+    expect(mocks.setTargets).toHaveBeenCalledWith([expect.objectContaining({ datasetId: 'personal-b' })]);
+
+    await act(async () => finishOldBinding?.());
+    expect(mocks.setTargets).toHaveBeenCalledOnce();
   });
   it('preserves manual tracking when the encrypted queue is unavailable', async () => {
     mocks.process.mockRejectedValue(new Error('watch_audio_error'));

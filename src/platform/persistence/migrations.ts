@@ -181,5 +181,10 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
     migrated.schemaVersion = 8;
     migrated.sync = emptySyncState();
   }
+  if (version <= 8) {
+    // Schema 9 adds only local tracker context. Keep schema-8 financial records,
+    // currency preferences, and every durable sync mutation byte-for-byte.
+    migrated.schemaVersion = 9;
+  }
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }

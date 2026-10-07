@@ -19,6 +19,9 @@ class WatchAudioAckWorker(context: Context, params: WorkerParameters) : Worker(c
       if (request.status == "completed" || request.status == "deleted") store.cleanupTerminalAudio(requestId)
       if (request.sourceNodeId.isBlank()) return Result.retry()
       val ack = JSONObject().put("requestId", request.requestId).put("accountId", request.accountId).put("status", request.status)
+      request.trackerId?.let { ack.put("trackerId", it) }
+      request.membershipId?.let { ack.put("membershipId", it) }
+      request.generation?.let { ack.put("generation", it) }
       request.errorCode?.let { ack.put("code", it) }
       Tasks.await(Wearable.getMessageClient(applicationContext).sendMessage(request.sourceNodeId, "/unfancy/watch/ack", ack.toString().toByteArray(Charsets.UTF_8)), 20, TimeUnit.SECONDS)
       Result.success()

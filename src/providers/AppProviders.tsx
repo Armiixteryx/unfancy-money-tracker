@@ -10,6 +10,7 @@ import { DatasetHydrationGate } from "./DatasetHydrationGate";
 import { AnalyticsProvider } from "./AnalyticsProvider";
 import { AppThemeProvider } from "../ui/theme";
 import { AppFonts } from "../ui/AppFonts";
+import { TrackerProvider } from "../features/trackers/TrackerProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,7 +26,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <LocalizationProvider><AnalyticsProvider>
         <AppThemeProvider><AppFonts>
-          <AuthProvider><SyncProvider><DatasetHydrationGate><WatchProcessingProvider><VoiceProvider>{children}</VoiceProvider></WatchProcessingProvider></DatasetHydrationGate></SyncProvider></AuthProvider>
+          <AuthProvider><TrackerProvider><SyncProvider><DatasetHydrationGate><WatchProcessingProvider><VoiceProvider>{children}</VoiceProvider></WatchProcessingProvider></DatasetHydrationGate></SyncProvider></TrackerProvider></AuthProvider>
         </AppFonts></AppThemeProvider>
       </AnalyticsProvider></LocalizationProvider>
     </QueryClientProvider>

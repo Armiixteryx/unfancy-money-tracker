@@ -37,6 +37,32 @@ class WatchAudioBridgeModule(private val app: ReactApplicationContext) : ReactCo
     emitQueueChanged(); promise.resolve(null)
   }
 
+  @ReactMethod fun setTargets(targetsJson: String, promise: Promise) = guarded(promise) {
+    val rows = org.json.JSONArray(targetsJson)
+    require(rows.length() <= 128)
+    val targets = (0 until rows.length()).map { index ->
+      val row = rows.getJSONObject(index)
+      val datasetId = row.getString("datasetId"); val name = row.getString("name")
+      val membershipId = if (row.isNull("membershipId")) null else row.getString("membershipId")
+      val generation = row.getLong("generation"); val kind = row.getString("kind")
+      require(UUID_V7.matches(datasetId) && (membershipId == null || UUID_V7.matches(membershipId)))
+      require(name.isNotBlank() && name.length <= 80 && generation >= 0 && kind in setOf("personal", "shared"))
+      require((kind == "personal") == (membershipId == null))
+      PhoneWatchTarget(datasetId, name, membershipId, generation, kind)
+    }
+    require(targets.map { it.datasetId }.distinct().size == targets.size)
+    store.setTargets(targets)
+    store.boundAccount()?.let { WatchAudioReceiverService.syncSetup(app, it) }
+    promise.resolve(null)
+  }
+
+  @ReactMethod fun bindLegacyPersonalTarget(requestId: String, accountId: String, datasetId: String, generation: Double, promise: Promise) = guarded(promise) {
+    val target = store.targets().firstOrNull { it.datasetId == datasetId && it.kind == "personal" } ?: error("personal_target_unavailable")
+    require(target.generation == generation.toLong()) { "target_generation_changed" }
+    check(store.bindLegacyPersonalTarget(requestId, accountId, target)) { "legacy_target_binding_failed" }
+    promise.resolve(null)
+  }
+
   @ReactMethod fun failPendingForCurrentBinding(code: String, promise: Promise) = guarded(promise) {
     val failed = store.failPendingForCurrentBinding(code, includeProcessing = code != "handoff_failed")
     failed.forEach { WatchAudioReceiverService.sendTerminalAck(app, it.requestId, it.accountId, "failed", it.errorCode) }
@@ -68,26 +94,29 @@ class WatchAudioBridgeModule(private val app: ReactApplicationContext) : ReactCo
     promise.resolve(map)
   }
 
-  @ReactMethod fun markProcessing(requestId: String, promise: Promise) = guarded(promise) {
+  @ReactMethod fun markProcessing(requestId: String, trackerId: String?, membershipId: String?, generation: Double?, promise: Promise) = guarded(promise) {
     val req = store.find(requestId)
-    val ok = req != null && store.claimPending(requestId, store.boundAccount().orEmpty())
+    val ok = req != null && matchesTarget(req, trackerId, membershipId, generation) && store.claimPending(requestId, store.boundAccount().orEmpty())
     promise.resolve(ok)
     if (ok) emitQueueChanged()
   }
 
-  @ReactMethod fun markSucceeded(requestId: String, transactionId: String, promise: Promise) = guarded(promise) {
+  @ReactMethod fun markSucceeded(requestId: String, transactionId: String, trackerId: String?, membershipId: String?, generation: Double?, promise: Promise) = guarded(promise) {
     require(transactionId == requestId) { "transaction_id_required" }
     val req = store.find(requestId) ?: error("record_missing")
     require(req.accountId == store.boundAccount()) { "account_mismatch" }
+    require(matchesTarget(req, trackerId, membershipId, generation)) { "target_mismatch" }
     require(WatchQueuePolicy.canMarkCompleted(req.status)) { "invalid_terminal_transition" }
     check(store.markCompleted(requestId)) { "record_missing" }
     WatchAudioReceiverService.sendTerminalAck(app, requestId, req.accountId, "completed", null)
     emitQueueChanged(); promise.resolve(null)
   }
 
-  @ReactMethod fun markFailed(requestId: String, code: String, promise: Promise) = guarded(promise) {
+  @ReactMethod fun markFailed(requestId: String, code: String, trackerId: String?, membershipId: String?, generation: Double?, promise: Promise) = guarded(promise) {
     val safeCode = code.takeIf { it.matches(Regex("^[a-z0-9_]{1,48}$")) } ?: "processing_failed"
     val req = store.find(requestId) ?: error("record_missing")
+    require(req.accountId == store.boundAccount()) { "account_mismatch" }
+    require(matchesTarget(req, trackerId, membershipId, generation)) { "target_mismatch" }
     // Failure changes queue metadata only and never exposes audio, so a session change can safely close an old claim.
     check(store.update(requestId, "failed", safeCode)) { "record_missing" }
     WatchAudioReceiverService.sendTerminalAck(app, requestId, req.accountId, "failed", safeCode)
@@ -137,7 +166,12 @@ class WatchAudioBridgeModule(private val app: ReactApplicationContext) : ReactCo
   private fun toMap(r: WatchAudioRequest) = Arguments.createMap().apply {
     putString("requestId", r.requestId); putString("accountId", r.accountId); putString("recordedAt", r.recordedAt)
     putString("mimeType", r.mimeType); putString("status", r.status); r.durationMs?.let { putDouble("durationMs", it.toDouble()) }; r.errorCode?.let { putString("errorCode", it) }
+    r.trackerId?.let { putString("trackerId", it) }; r.membershipId?.let { putString("membershipId", it) }
+    r.generation?.let { putDouble("generation", it.toDouble()) }; r.localDate?.let { putString("localDate", it) }
+    putInt("protocolVersion", r.protocolVersion)
   }
+  private fun matchesTarget(req: WatchAudioRequest, trackerId: String?, membershipId: String?, generation: Double?): Boolean =
+    req.trackerId == trackerId && req.membershipId == membershipId && req.generation == generation?.toLong()
   private fun emitQueueChanged() {
     if (app.hasActiveReactInstance()) app.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit("WatchAudioQueueChanged", null)
   }
@@ -145,6 +179,7 @@ class WatchAudioBridgeModule(private val app: ReactApplicationContext) : ReactCo
   override fun invalidate() { stopPlayer("paused"); super.invalidate() }
 
   companion object {
+    private val UUID_V7 = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
     fun notifyQueueChanged(context: Context) {
       val reactApp = context.applicationContext as? ReactApplication ?: return
       val reactContext = reactApp.reactHost?.currentReactContext ?: return

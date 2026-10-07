@@ -59,6 +59,23 @@ class EncryptedQueueTest {
         assertArrayEquals(byteArrayOf(1, 2, 3), queue.list().single().audio)
     }
 
+    @Test fun legacyQueueMigrationPinsOnlyOriginatingAccountToPersonalTarget() {
+        val file = MemoryQueueFile()
+        val queue = queue(file)
+        val first = recording(5, byteArrayOf(1, 2, 3))
+        val other = first.copy(requestId = "019b0f3a-2230-7abc-8def-000000000006", accountId = "account-b")
+        assertTrue(queue.add(first)); assertTrue(queue.add(other))
+
+        assertTrue(queue.migrateLegacyToPersonal("account-a", "phone-a", "019b0f3a-2230-7abc-8def-000000000100", 4))
+        val rows = queue.list()
+        val migrated = rows.first { it.requestId == first.requestId }
+        assertEquals("019b0f3a-2230-7abc-8def-000000000100", migrated.trackerId)
+        assertEquals(4L, migrated.generation)
+        assertEquals(2, migrated.protocolVersion)
+        assertArrayEquals(byteArrayOf(1, 2, 3), migrated.audio)
+        assertEquals(null, rows.first { it.requestId == other.requestId }.trackerId)
+    }
+
     @Test fun corruptedQueueFailsClosedAndPreservesStoredBytes() {
         val corrupt = byteArrayOf(1, 2, 3, 4, 5)
         val file = MemoryQueueFile(corrupt.copyOf())

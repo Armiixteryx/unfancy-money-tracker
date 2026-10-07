@@ -27,12 +27,15 @@ import {
 } from "../../server/contracts/sync";
 import { syncState } from "./state";
 import { useSync } from "./SyncProvider";
+import { useActiveTrackerSummary } from "../trackers/store";
 
 export function SyncSettings() {
   const { i18n } = useTranslation();
   const es = i18n.resolvedLanguage === "es";
   const { coordinator, status } = useSync();
   const auth = useAuth();
+  const tracker = useActiveTrackerSummary();
+  const shared = tracker.kind === "shared";
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const saveStatus = useLocalDatasetStore((state) => state.saveStatus);
   const { colors } = useAppTheme();
@@ -112,10 +115,13 @@ export function SyncSettings() {
       "Choose which changes to keep",
       "Elige qué cambios conservar",
     ),
-    different_login: text(
-      "Local reset required for this login",
-      "Esta cuenta requiere un reinicio local",
+    rejected: text(
+      "Some changes need an admin review before retrying",
+      "Un administrador debe revisar algunos cambios antes de reintentar",
     ),
+    different_login: shared
+      ? text("Switch to the account that joined this tracker", "Cambia a la cuenta que se unió a este conjunto")
+      : text("Local reset required for this login", "Esta cuenta requiere un reinicio local"),
   };
   const enable = (mode: "upload" | "merge" | "replace") =>
     void perform(async () => {
@@ -138,8 +144,9 @@ export function SyncSettings() {
         }}
       >
         <Text style={{ ...typography.heading, color: colors.text }}>
-          {text("Cloud sync", "Sincronización en la nube")}
+          {shared ? text("Shared tracker sync", "Sincronización del conjunto compartido") : text("Cloud sync", "Sincronización en la nube")}
         </Text>
+        {shared ? <Text style={{ color: colors.muted, marginTop: 8 }}>{text("Shared trackers always sync to the cloud. Every member can view all records; device language, theme, consent, and notices stay local.", "Los conjuntos compartidos siempre se sincronizan con la nube. Todos los miembros pueden ver los registros; idioma, tema, consentimiento y avisos permanecen locales.")}</Text> : null}
         <Text
           accessibilityRole="text"
           style={{ color: colors.muted, marginTop: 8 }}
@@ -170,11 +177,11 @@ export function SyncSettings() {
                 text("Sync now / Retry", "Sincronizar / Reintentar"),
                 () => void perform(() => coordinator.run(true)),
               )
-            : button(text("Enable sync", "Activar sincronización"), () => {
+            : !shared ? button(text("Enable sync", "Activar sincronización"), () => {
                 setNotice(true);
                 setError(null);
-              })}
-        {state.enabled
+              }) : null}
+        {state.enabled && !shared
           ? button(
               text("Turn off sync", "Desactivar sincronización"),
               () =>
@@ -190,7 +197,7 @@ export function SyncSettings() {
                 }),
             )
           : null}
-        {notice ? (
+        {!shared && notice ? (
           <View>
             <Text style={{ color: colors.text, marginTop: 12 }}>
               {text(
@@ -238,7 +245,7 @@ export function SyncSettings() {
             )}
           </View>
         ) : null}
-        {replace ? (
+        {!shared && replace ? (
           <View>
             <Text accessibilityRole="alert" style={{ color: colors.text }}>
               {text(

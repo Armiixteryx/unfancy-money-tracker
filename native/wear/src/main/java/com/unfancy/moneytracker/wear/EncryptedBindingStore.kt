@@ -22,7 +22,17 @@ internal class EncryptedBindingStore(context: Context) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, packed.copyOfRange(0, 12)))
         val json = JSONObject(String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8))
-        PhoneBinding(json.getString("accountId"), json.getString("nodeId"), Base64.decode(json.getString("publicKey"), Base64.NO_WRAP))
+        val targets = json.optJSONArray("targets")?.let { rows ->
+            (0 until rows.length()).map { index ->
+                val row = rows.getJSONObject(index)
+                WatchTarget(row.getString("datasetId"), row.getString("name"),
+                    if (row.isNull("membershipId")) null else row.getString("membershipId"),
+                    row.getLong("generation"), row.getString("kind"))
+            }
+        } ?: emptyList()
+        PhoneBinding(json.getString("accountId"), json.getString("nodeId"), Base64.decode(json.getString("publicKey"), Base64.NO_WRAP),
+            json.optInt("protocolVersion", 1), targets,
+            json.takeIf { !it.isNull("selectedTrackerId") }?.optString("selectedTrackerId")?.takeIf { it.isNotBlank() })
     }
 
     fun save(binding: PhoneBinding?) = synchronized(LOCK) {
@@ -32,6 +42,15 @@ internal class EncryptedBindingStore(context: Context) {
         }
         val json = JSONObject().put("accountId", binding.accountId).put("nodeId", binding.nodeId)
             .put("publicKey", Base64.encodeToString(binding.publicKey, Base64.NO_WRAP))
+            .put("protocolVersion", binding.protocolVersion)
+            .put("targets", org.json.JSONArray().apply {
+                binding.targets.forEach { target ->
+                    put(JSONObject().put("datasetId", target.datasetId).put("name", target.name)
+                        .put("membershipId", target.membershipId ?: JSONObject.NULL).put("generation", target.generation)
+                        .put("kind", target.kind))
+                }
+            })
+            .put("selectedTrackerId", binding.selectedTrackerId ?: JSONObject.NULL)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key)
         val bytes = cipher.iv + cipher.doFinal(json.toString().toByteArray(Charsets.UTF_8))
