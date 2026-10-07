@@ -51,6 +51,102 @@ Resources:
           Properties:
             Path: /sync/conflicts/resolve
             Method: post
+        SharedPush:
+          Type: HttpApi
+          Properties:
+            Path: /sync/v2/push
+            Method: post
+        SharedPull:
+          Type: HttpApi
+          Properties:
+            Path: /sync/v2/pull
+            Method: post
+        SharedResolveConflict:
+          Type: HttpApi
+          Properties:
+            Path: /sync/v2/conflicts/resolve
+            Method: post
+    Metadata:
+      BuildMethod: makefile
+
+  TrackerRelayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/server/handlers/trackerRelay.handler
+      Environment:
+        Variables:
+          APP_ENV: local
+          DATABASE_URL: postgresql://unfancy_migrations:local-development-only@host.docker.internal:55432/unfancy
+          COGNITO_USER_POOL_ID: us-east-1_gCLS9k4s0
+          COGNITO_CLIENT_ID: 63kh2vrfpvd7h9moob0m9l2umf
+          PUBLIC_APP_ORIGIN: http://localhost:8081
+      Events:
+        List:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/list
+            Method: post
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/create
+            Method: post
+        Rename:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/rename
+            Method: post
+        Archive:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/archive
+            Method: post
+        Restore:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/restore
+            Method: post
+        Leave:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/leave
+            Method: post
+        Members:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/members
+            Method: post
+        Role:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/role
+            Method: post
+        Remove:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/remove
+            Method: post
+        Invite:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/invite
+            Method: post
+        RevokeInvitation:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/revoke-invitation
+            Method: post
+        PreviewInvitation:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/preview-invitation
+            Method: post
+        AcceptInvitation:
+          Type: HttpApi
+          Properties:
+            Path: /trackers/accept-invitation
+            Method: post
     Metadata:
       BuildMethod: makefile
 
@@ -81,6 +177,7 @@ Resources:
       Environment:
         Variables:
           APP_ENV: local
+          DATABASE_URL: postgresql://unfancy_migrations:local-development-only@host.docker.internal:55432/unfancy
           COGNITO_USER_POOL_ID: us-east-1_gCLS9k4s0
           COGNITO_CLIENT_ID: 63kh2vrfpvd7h9moob0m9l2umf
           AI_GATEWAY_API_KEY: ''

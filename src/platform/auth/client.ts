@@ -24,6 +24,7 @@ export interface AuthClient {
   signOut(): Promise<void>;
   accessToken(options?: { forceRefresh?: boolean }): Promise<string>;
 }
+export type AuthenticatedIdentity = { subject: string; email: string };
 export const authClient: AuthClient = {
   async register(email, password) { requireConfiguration(); await auth.signUp({ username: email, password, options: { userAttributes: { email } } }); },
   async confirm(email, code) { requireConfiguration(); await auth.confirmSignUp({ username: email, confirmationCode: code }); },
@@ -57,4 +58,16 @@ export async function getAuthenticatedAccountId(): Promise<string | null> {
   if (!configured) return null;
   try { return (await auth.getCurrentUser()).userId || null; }
   catch { return null; }
+}
+
+export async function getAuthenticatedIdentity(): Promise<AuthenticatedIdentity | null> {
+  if (!configured) return null;
+  try {
+    const user = await auth.getCurrentUser();
+    const session = await auth.fetchAuthSession();
+    const tokenEmail = session.tokens?.idToken?.payload.email;
+    const email = typeof tokenEmail === "string" ? tokenEmail : user.signInDetails?.loginId;
+    if (!user.userId || !email) return null;
+    return { subject: user.userId, email };
+  } catch { return null; }
 }

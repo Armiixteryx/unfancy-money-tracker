@@ -35,6 +35,14 @@ class QueuePolicyTest {
         assertFalse(QueuePolicy.ackMatches(saved, saved.requestId, "account-a", "phone-b", "failed"))
     }
 
+    @Test fun versionTwoReceiptMustMatchTrackerMembershipAndGeneration() {
+        val saved = recording().copy(trackerId = "019b0f3a-2230-7abc-8def-012345678900", membershipId = "019b0f3a-2230-7abc-8def-012345678901", generation = 3, protocolVersion = 2)
+        assertTrue(QueuePolicy.ackMatches(saved, saved.requestId, "account-a", "phone-a", "completed", saved.trackerId, saved.membershipId, 3))
+        assertFalse(QueuePolicy.ackMatches(saved, saved.requestId, "account-a", "phone-a", "completed", saved.trackerId, saved.membershipId, 4))
+        assertFalse(QueuePolicy.ackMatches(saved, saved.requestId, "account-a", "phone-a", "completed", saved.trackerId, "019b0f3a-2230-7abc-8def-012345678902", 3))
+        assertFalse(QueuePolicy.ackMatches(saved, saved.requestId, "account-a", "phone-a", "completed", "019b0f3a-2230-7abc-8def-012345678903", saved.membershipId, 3))
+    }
+
     @Test fun anotherLoginCannotRebindPendingAudio() {
         val pending = listOf(recording())
         assertTrue(QueuePolicy.canRebind(pending, "account-a", "phone-a"))

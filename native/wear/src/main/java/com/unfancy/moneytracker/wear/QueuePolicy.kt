@@ -15,8 +15,13 @@ internal object QueuePolicy {
     fun canRebind(queue: List<Recording>, accountId: String, nodeId: String): Boolean =
         queue.all { belongsToPhone(it, accountId, nodeId) }
 
-    fun ackMatches(recording: Recording?, requestId: String, accountId: String, nodeId: String, status: String): Boolean =
-        recording != null && recording.requestId == requestId && belongsToPhone(recording, accountId, nodeId) && terminalAck(status)
+    fun ackMatches(recording: Recording?, requestId: String, accountId: String, nodeId: String, status: String,
+                    trackerId: String? = null, membershipId: String? = null, generation: Long? = null): Boolean {
+        if (recording == null || recording.requestId != requestId || !belongsToPhone(recording, accountId, nodeId) || !terminalAck(status)) return false
+        // Protocol 1 receipts lacked target context. They remain acceptable only for protocol 1 clips.
+        if (recording.protocolVersion < 2) return recording.trackerId == null || recording.trackerId == trackerId
+        return recording.trackerId == trackerId && recording.membershipId == membershipId && recording.generation == generation
+    }
 
     fun terminalAck(status: String): Boolean = status == "completed" || status == "failed" || status == "deleted"
 }

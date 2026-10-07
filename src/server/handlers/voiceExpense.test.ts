@@ -46,6 +46,17 @@ describe("voice handler", () => {
         transaction,
       });
   });
+  it("authorizes a shared tracker generation before any provider call", async () => {
+    const authorizeTracker = vi.fn().mockRejectedValue(new Error("revoked"));
+    const transcribe = vi.fn();
+    const classify = vi.fn();
+    const sharedRequest = { ...request, tracker: { datasetId: dataset.datasetId, membershipId: "018f0000-0000-7000-8000-000000000001" } };
+    const result = await createVoiceHandler({ authorize: async () => "actor-sub", authorizeTracker, transcribe, classify })(event(sharedRequest));
+    expect(result).toMatchObject({ statusCode: 403 });
+    expect(authorizeTracker).toHaveBeenCalledWith("actor-sub", sharedRequest.tracker);
+    expect(transcribe).not.toHaveBeenCalled();
+    expect(classify).not.toHaveBeenCalled();
+  });
   it.each([
     { ...request, audio: "invalid" },
     { ...request, audio: Buffer.alloc(MAX_AUDIO_BYTES + 1).toString("base64") },

@@ -13,6 +13,7 @@ const canonicalAmount = z.string().superRefine((value, context) => {
 export const transactionSchema = z
   .object({
     id: uuidSchema,
+    creator: z.object({ subject: z.string().min(1), email: z.string().email() }).strict().optional(),
     amount: canonicalAmount,
     currency: currencyCodeSchema,
     type: z.enum(["income", "expense"]),

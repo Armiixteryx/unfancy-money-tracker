@@ -1,4 +1,6 @@
 import posthog from "posthog-js";
+import type { CaptureResult } from "posthog-js";
+import { invitationSafeUrl, redactInvitationTelemetry } from "./invitationRedaction";
 
 import type { AnalyticsEvent, AnalyticsProperties } from "./types";
 import type { PostHogSdk, PostHogSdkConfig } from "./posthogSdk";
@@ -15,11 +17,14 @@ export function createPostHogSdk(config: PostHogSdkConfig): PostHogSdk | null {
           autocapture: true,
           capture_pageview: false,
           capture_pageleave: false,
+          disable_capture_url_hashes: true,
+          get_current_url: invitationSafeUrl,
+          before_send: (event: CaptureResult | null) => event ? redactInvitationTelemetry(event) : null,
           opt_out_capturing_by_default: true,
           mask_all_text: true,
           mask_all_element_attributes: true,
           disable_session_recording: true,
-          session_recording: { maskAllInputs: true, maskTextSelector: MASKED_SELECTOR, blockSelector: MASKED_SELECTOR },
+          session_recording: { maskAllInputs: true, maskTextSelector: MASKED_SELECTOR, blockSelector: MASKED_SELECTOR, recordHeaders: false, recordBody: false, maskCapturedNetworkRequestFn: () => null },
           loaded: () => resolve()
         } as never);
       });

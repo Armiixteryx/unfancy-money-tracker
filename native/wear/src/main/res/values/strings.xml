@@ -1,6 +1,11 @@
 <resources>
     <string name="app_name">Unfancy Money Tracker</string>
     <string name="watch_title">Unfancy</string>
+    <string name="target_header">Record into</string>
+    <string name="target_selected">Selected: %1$s</string>
+    <string name="target_select">Use %1$s</string>
+    <string name="target_unavailable">Choose an available tracker before recording.</string>
+    <string name="personal_tracker">Personal tracker</string>
     <string name="queue_count">Queue: %1$d / %2$d</string>
     <string name="record">Record expense</string>
     <string name="stop">Stop</string>

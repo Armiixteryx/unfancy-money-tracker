@@ -11,6 +11,7 @@ import { Button } from "../../../ui/controls";
 import { DashboardScreen } from "./DashboardScreen";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+const access = vi.hoisted(() => ({ tracker: { datasetId: "00000000-0000-7000-8000-000000000001", kind: "personal" as "personal" | "shared", name: "Personal", role: "admin" as "admin" | "member", membershipId: null as string | null, archived: false }, subject: null as string | null }));
 vi.mock("react-native", () => ({
   View: "div", Text: "span", Pressable: "button", Platform: { OS: "web" },
   StyleSheet: { create: (value: unknown) => value }, useWindowDimensions: () => ({ width: 390 }),
@@ -22,6 +23,11 @@ vi.mock("../../../ui/AppScreen", () => ({
   EmptyState: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("../../voice/VoiceEntryButton", () => ({ VoiceEntryButton: () => null }));
+vi.mock("../../trackers/store", async importOriginal => ({
+  ...await importOriginal<typeof import("../../trackers/store")>(),
+  useActiveTrackerSummary: () => access.tracker,
+}));
+vi.mock("../../auth/AuthProvider", () => ({ useAuth: () => ({ subject: access.subject }) }));
 vi.mock("../../../providers/AnalyticsProvider", () => ({ useAnalytics: () => ({ capture: vi.fn() }) }));
 vi.mock("../../exchange-rates/hooks/useExchangeRates", () => ({ useExchangeRates: () => ({ latestRates: new Map(), isLoading: false, hasError: false }) }));
 
@@ -35,6 +41,8 @@ let tree: ReactTestRenderer | undefined;
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   navigation.push.mockReset();
+  access.tracker = { datasetId: original.datasetId, kind: "personal", name: "Personal", role: "admin", membershipId: null, archived: false };
+  access.subject = null;
   useLocalDatasetStore.setState({ dataset: { ...original, transactions: [expense], budgets: [budget] } });
 });
 afterEach(async () => { await act(async () => tree?.unmount()); tree = undefined; });
@@ -61,5 +69,19 @@ describe("dashboard composition", () => {
     const createBudgetButton = buttons.find((button) => button.props.label === "Create budget")!;
     await act(async () => createBudgetButton.props.onPress());
     expect(navigation.push).toHaveBeenLastCalledWith("/budgets?new=1");
+  });
+  it("shows shared authorship and avoids opening another member's entry for editing", async () => {
+    const membershipId = "018f0fcb-76a9-7000-8000-000000000055";
+    access.tracker = { datasetId: original.datasetId, kind: "shared", name: "Family", role: "member", membershipId, archived: false };
+    access.subject = "current-subject";
+    const sharedExpense = { ...expense, creator: { subject: "other-subject", email: "member@example.invalid" } };
+    const tracker = { kind: "shared" as const, name: "Family", accountSubject: access.subject, membershipId, role: "member" as const, archived: false, access: "active" as const };
+    useLocalDatasetStore.setState({ dataset: { ...original, tracker, budgets: [], transactions: [sharedExpense] } });
+    await act(async () => { tree = create(<DashboardScreen />); });
+    expect(tree!.root.findAllByType(AppText).some(node => node.props.children === "member@example.invalid")).toBe(true);
+    expect(tree!.root.findAllByType(Button).some(button => button.props.label === "Create budget")).toBe(false);
+    const activity = tree!.root.findAllByType("button").find(node => String(node.props.accessibilityLabel).includes("Synthetic dashboard expense"));
+    await act(async () => activity!.props.onPress());
+    expect(navigation.push).toHaveBeenLastCalledWith(`/transactions?tracker=${original.datasetId}`);
   });
 });

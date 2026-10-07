@@ -1,6 +1,11 @@
 <resources>
     <string name="app_name">Unfancy Money Tracker</string>
     <string name="watch_title">Unfancy</string>
+    <string name="target_header">Registrar en</string>
+    <string name="target_selected">Seleccionado: %1$s</string>
+    <string name="target_select">Usar %1$s</string>
+    <string name="target_unavailable">Elige un rastreador disponible antes de grabar.</string>
+    <string name="personal_tracker">Rastreador personal</string>
     <string name="queue_count">Cola: %1$d / %2$d</string>
     <string name="record">Grabar gasto</string>
     <string name="stop">Detener</string>

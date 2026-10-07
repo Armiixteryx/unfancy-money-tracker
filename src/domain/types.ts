@@ -27,6 +27,8 @@ export type Category = {
 };
 
 export type Transaction = {
+  // Local display/permission metadata. Never part of a submitted sync mutation.
+  creator?: { subject: string; email: string };
   id: UUID;
   amount: string;
   currency: CurrencyCode;
@@ -64,6 +66,15 @@ export type Preferences = {
 };
 
 export type Dataset = {
+  tracker?: {
+    kind: "shared";
+    name: string;
+    accountSubject: string;
+    membershipId: string;
+    role: "admin" | "member";
+    archived: boolean;
+    access: "active" | "revoked";
+  };
   sync?: SyncState;
   schemaVersion: number;
   datasetId: UUID;

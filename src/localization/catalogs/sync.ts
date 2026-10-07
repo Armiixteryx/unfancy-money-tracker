@@ -1,0 +1,26 @@
+export const syncEn = {
+  "syncTrackerCloudSyncRequired": "This shared tracker always syncs to the cloud. Changes sync automatically.",
+  "syncTrackerSyncing": "Syncing shared tracker…",
+  "syncTrackerUpToDate": "Shared tracker is up to date.",
+  "syncTrackerOffline": "Offline. Changes stay saved on this device and sync when you reconnect.",
+  "syncTrackerError": "Shared sync could not complete. Your local changes are preserved.",
+  "syncTrackerAuthRequired": "Sign in with the account that joined this tracker to resume sync.",
+  "syncTrackerDifferentLogin": "This tracker belongs to another login. Switch to the account that joined it.",
+  "syncTrackerRejected": "Some changes need an admin review. They remain saved here; review the tracker status, then retry in Settings.",
+  "syncTrackerConflicts": "Some changes need your choice. Review them in Settings.",
+  "syncTrackerPendingChanges": "{{count, number}} pending changes remain saved on this device.",
+  "syncTrackerRetry": "Retry sync",
+} as const;
+export const syncEs: Record<keyof typeof syncEn, string> = {
+  "syncTrackerCloudSyncRequired": "Este conjunto compartido siempre se sincroniza con la nube. Los cambios se envían automáticamente.",
+  "syncTrackerSyncing": "Sincronizando el conjunto compartido…",
+  "syncTrackerUpToDate": "El conjunto compartido está actualizado.",
+  "syncTrackerOffline": "Sin conexión. Los cambios se guardan en este dispositivo y se sincronizan al reconectar.",
+  "syncTrackerError": "No se pudo completar la sincronización. Tus cambios locales se conservan.",
+  "syncTrackerAuthRequired": "Inicia sesión con la cuenta que se unió a este conjunto para reanudar la sincronización.",
+  "syncTrackerDifferentLogin": "Este conjunto pertenece a otra cuenta. Cambia a la cuenta que se unió.",
+  "syncTrackerRejected": "Un administrador debe revisar algunos cambios. Se conservan aquí; revisa el conjunto y luego reintenta en Ajustes.",
+  "syncTrackerConflicts": "Debes elegir entre algunos cambios. Revísalos en Ajustes.",
+  "syncTrackerPendingChanges": "{{count, number}} cambios pendientes se conservan en este dispositivo.",
+  "syncTrackerRetry": "Reintentar sincronización",
+};

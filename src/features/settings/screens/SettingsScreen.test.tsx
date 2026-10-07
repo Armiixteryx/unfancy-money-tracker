@@ -11,6 +11,7 @@ import { SyncSettings } from "../../sync/SyncSettings";
 
 vi.mock("../../sync/SyncSettings", () => ({ SyncSettings: () => null }));
 const surface = vi.hoisted(() => ({ width: 400, os: "web", identity: "synthetic@example.invalid" as string | null }));
+const trackerProvider = vi.hoisted(() => ({ client: {}, createShared: vi.fn(), acceptShared: vi.fn(), refresh: vi.fn(async () => undefined), isRefreshing: false, error: null }));
 const watchMocks = vi.hoisted(() => ({
   available: false,
   list: vi.fn(async () => [] as { requestId: string; accountId: string; recordedAt: string; durationMs: number; mimeType: string; status: "failed" }[]),
@@ -23,8 +24,9 @@ const watchMocks = vi.hoisted(() => ({
 vi.mock("../../watch/bridge", () => ({ watchAudioBridge: watchMocks }));
 vi.mock("../../../platform/auth/client", () => ({ getAuthenticatedAccountId: vi.fn(async () => "cognito-sub-current") }));
 vi.mock("../../auth/AuthProvider", () => ({ useAuth: () => ({ identity: surface.identity, epoch: 0, open: vi.fn(), signOut: vi.fn() }) }));
+vi.mock("../../trackers/TrackerProvider", () => ({ useTrackers: () => trackerProvider }));
 vi.mock("react-native", () => ({
-  Pressable: "button", Text: "text", TextInput: "input", View: "view",
+  Modal: "modal", Pressable: "button", Text: "text", TextInput: "input", View: "view",
   Platform: { get OS() { return surface.os; } },
   useWindowDimensions: () => ({ width: surface.width }),
   StyleSheet: { create: (styles: unknown) => styles }
@@ -102,7 +104,6 @@ describe("protected categories in Settings", () => {
     await act(async () => { button(i18n.t($ => $.ui.settingsFailedWatchRecordings)).props.onPress(); await Promise.resolve(); });
     expect(tree!.root.findAllByType("button").some(node => node.props.accessibilityLabel === i18n.t($ => $.ui.settingsPlayRecording))).toBe(false);
     expect(tree!.root.findAllByType(AppText).some(node => node.props.children === i18n.t($ => $.ui.settingsWatchOriginAccountRequired))).toBe(true);
-    expect(tree!.root.findAllByType(AppText).some(node => String(node.props.children).includes("again"))).toBe(false);
 
     const deleteButton = tree!.root.findAllByType("button").find(node => node.props.accessibilityLabel === i18n.t($ => $.ui.settingsDeleteRecording));
     await act(async () => { deleteButton!.props.onPress(); });

@@ -19,7 +19,15 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
 
-internal data class PhoneBinding(val accountId: String, val nodeId: String, val publicKey: ByteArray)
+internal data class WatchTarget(val datasetId: String, val name: String, val membershipId: String?, val generation: Long, val kind: String)
+internal data class PhoneBinding(
+    val accountId: String,
+    val nodeId: String,
+    val publicKey: ByteArray,
+    val protocolVersion: Int = 1,
+    val targets: List<WatchTarget> = emptyList(),
+    val selectedTrackerId: String? = null,
+)
 
 internal class WatchTransport(private val context: Context) {
     private val bindingStore = EncryptedBindingStore(context)
@@ -35,6 +43,7 @@ internal class WatchTransport(private val context: Context) {
         try {
             val setup = JSONObject(String(payload, Charsets.UTF_8))
             val account = setup.optString("accountId")
+            val protocol = setup.optInt("protocol", 1).coerceIn(1, 2)
             val current = binding()
             if (account.isBlank()) {
                 if (current == null || current.nodeId == sourceNodeId) bindingStore.save(null)
@@ -44,6 +53,21 @@ internal class WatchTransport(private val context: Context) {
             require(encryption.getInt("version") == 1)
             require(encryption.getString("algorithm") == ALGORITHM)
             val publicKey = Base64.decode(encryption.getString("publicKey"), Base64.NO_WRAP)
+            val targets = if (protocol >= 2) {
+                val rows = setup.getJSONArray("targets")
+                (0 until rows.length()).map { index ->
+                    val row = rows.getJSONObject(index)
+                    val datasetId = row.getString("datasetId")
+                    val name = row.getString("name")
+                    val membershipId = if (row.isNull("membershipId")) null else row.getString("membershipId")
+                    val generation = row.getLong("generation")
+                    val kind = row.getString("kind")
+                    require(UUID_V7.matches(datasetId) && (membershipId == null || UUID_V7.matches(membershipId)))
+                    require(name.isNotBlank() && name.length <= 80 && generation >= 0 && kind in setOf("personal", "shared"))
+                    require((kind == "personal") == (membershipId == null))
+                    WatchTarget(datasetId, name, membershipId, generation, kind)
+                }.also { require(it.map(WatchTarget::datasetId).distinct().size == it.size) }
+            } else emptyList()
             // Do not silently move queued audio between user accounts.
             val pending = queue.list()
             if (!queue.available()) return
@@ -52,8 +76,23 @@ internal class WatchTransport(private val context: Context) {
                 if (current?.nodeId == sourceNodeId && current.accountId != account) bindingStore.save(null)
                 return
             }
-            bindingStore.save(PhoneBinding(account, sourceNodeId, publicKey))
+            val sameOrigin = current?.accountId == account && current.nodeId == sourceNodeId
+            val selected = if (sameOrigin) current?.selectedTrackerId else null
+            val selectedOrPersonal = selected ?: targets.firstOrNull { it.kind == "personal" }?.datasetId
+            val personal = targets.firstOrNull { it.kind == "personal" }
+            if (protocol >= 2 && personal != null) {
+                queue.migrateLegacyToPersonal(account, sourceNodeId, personal.datasetId, personal.generation, personal.membershipId)
+            }
+            bindingStore.save(PhoneBinding(account, sourceNodeId, publicKey, protocol, targets, selectedOrPersonal))
         } catch (_: Exception) { /* malformed setup is ignored */ }
+    }
+
+    fun selectTarget(datasetId: String): Boolean {
+        val phone = binding() ?: return false
+        val target = phone.targets.firstOrNull { it.datasetId == datasetId } ?: return false
+        if (phone.protocolVersion < 2) return false
+        bindingStore.save(phone.copy(selectedTrackerId = target.datasetId))
+        return true
     }
 
     suspend fun transferPending() {
@@ -70,6 +109,13 @@ internal class WatchTransport(private val context: Context) {
                     dataMap.putString("recordedAt", recording.recordedAt)
                     dataMap.putLong("durationMs", recording.durationMs)
                 dataMap.putString("mimeType", recording.mimeType)
+                dataMap.putInt("protocolVersion", recording.protocolVersion)
+                if (recording.protocolVersion >= 2) {
+                    dataMap.putString("trackerId", requireNotNull(recording.trackerId))
+                    recording.membershipId?.let { dataMap.putString("membershipId", it) }
+                    dataMap.putLong("generation", requireNotNull(recording.generation))
+                    recording.localDate?.let { dataMap.putString("localDate", it) }
+                }
                 dataMap.putAsset("audio", Asset.createFromBytes(envelope))
             }.asPutDataRequest().setUrgent()
             Wearable.getDataClient(context).putDataItem(request).await()
@@ -85,9 +131,12 @@ internal class WatchTransport(private val context: Context) {
             val requestId = ack.getString("requestId")
             val accountId = ack.optString("accountId")
             val status = ack.optString("status")
+            val trackerId = ack.optString("trackerId").takeIf { it.isNotBlank() && it != "null" }
+            val membershipId = ack.optString("membershipId").takeIf { it.isNotBlank() && it != "null" }
+            val generation = ack.optLong("generation", -1L).takeIf { it >= 0 }
             // A terminal phone receipt is the only event allowed to erase queued audio.
             val recording = queue.list().firstOrNull { it.requestId == requestId }
-            if (!QueuePolicy.ackMatches(recording, requestId, accountId, sourceNodeId, status)) return false
+            if (!QueuePolicy.ackMatches(recording, requestId, accountId, sourceNodeId, status, trackerId, membershipId, generation)) return false
             // DataItems are created under this watch's node. Wildcard host deletes the local synced item.
             Wearable.getDataClient(context).deleteDataItems(Uri.parse("wear://*$RECORDING_PATH/$requestId")).await()
             prefs.edit().putString("lastOutcome", status).apply()
@@ -100,7 +149,7 @@ internal class WatchTransport(private val context: Context) {
         try {
             for (node in Wearable.getNodeClient(context).connectedNodes.await()) {
                 Wearable.getMessageClient(context).sendMessage(node.id, SETUP_REQUEST_PATH,
-                    "{\"protocol\":1}".toByteArray(Charsets.UTF_8)).await()
+                    "{\"protocol\":2}".toByteArray(Charsets.UTF_8)).await()
             }
         } catch (_: Exception) { /* pairing and setup can be retried when the app resumes */ }
     }
@@ -132,6 +181,7 @@ internal class WatchTransport(private val context: Context) {
         const val ACK_PATH = "/unfancy/watch/ack"
         const val RECORDING_PATH = "/unfancy/watch/recordings"
         private const val ALGORITHM = "RSA-OAEP-256+A256GCM"
+        private val UUID_V7 = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
         private val senderGlobally = SequentialTransfer()
     }
 }

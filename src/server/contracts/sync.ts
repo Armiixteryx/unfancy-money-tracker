@@ -68,6 +68,9 @@ export const syncChangeSchema = z
               ? budgetSchema
               : syncedPreferencesSchema;
       const parsed = schema.safeParse(change.payload);
+      if (change.recordType === "transaction" && typeof change.payload === "object" && change.payload !== null && "creator" in change.payload) {
+        context.addIssue({ code: "custom", path: ["payload", "creator"], message: "Transaction authorship is server metadata" });
+      }
       if (
         change.recordType === "transaction" ||
         change.recordType === "budget"
@@ -179,6 +182,9 @@ export class SyncClientError extends Error {
   constructor(
     readonly code:
       | "unauthenticated"
+      | "membership_revoked"
+      | "permission_denied"
+      | "tracker_archived"
       | "offline"
       | "invalid_request"
       | "server_error"

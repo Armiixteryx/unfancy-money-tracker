@@ -2,7 +2,9 @@ export function normalizeDeveloperSeedPath(path: string): string {
   try {
     const url = new URL(path);
     const route = url.hostname || url.pathname.replace(/^\/+/, "");
-    return route === "developer-seed" ? `/developer-seed${url.search}` : path;
+    if (route === "developer-seed") return `/developer-seed${url.search}`;
+    if (route === "join") return "/join";
+    return path;
   } catch {
     return path;
   }

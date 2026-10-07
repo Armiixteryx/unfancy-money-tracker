@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptyDataset } from "../platform/persistence/datasetPersistence";
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
+import { trackerRegistryStore } from "../features/trackers/store";
 import { LocalizationProvider } from "./LocalizationProvider";
 import { i18n } from "./i18n";
 import { getRegion } from "./region";
@@ -30,6 +31,7 @@ beforeEach(async () => {
   device.tags = ["en-US"];
   device.locale = "en-US";
   useLocalDatasetStore.setState({ dataset: createEmptyDataset() });
+  trackerRegistryStore.setState({ devicePreferences: { language: "system", theme: "system", analyticsConsent: false, firstRunNoticeDismissed: false } });
   await act(async () => { tree = create(<LocalizationProvider><Draft /></LocalizationProvider>); });
 });
 afterEach(async () => { await act(async () => { tree.unmount(); await i18n.changeLanguage("en"); }); vi.unstubAllGlobals(); });
@@ -38,8 +40,7 @@ describe("localization provider lifecycle", () => {
   it("changes preference without remounting its children or losing drafts", async () => {
     await act(async () => { tree.root.findByType("input").props.onChange({ target: { value: "Unfinished synthetic draft" } }); });
     await act(async () => {
-      const dataset = useLocalDatasetStore.getState().dataset!;
-      useLocalDatasetStore.setState({ dataset: { ...dataset, preferences: { ...dataset.preferences, language: "es" } } });
+      trackerRegistryStore.setState(state => ({ devicePreferences: { ...state.devicePreferences, language: "es" } }));
     });
     expect(tree.root.findByType("input").props["aria-label"]).toBe("Movimientos");
     expect(tree.root.findByType("input").props.value).toBe("Unfinished synthetic draft");
@@ -53,8 +54,7 @@ describe("localization provider lifecycle", () => {
     expect(i18n.language).toBe("es");
     expect(getRegion().decimalSeparator).toBe(",");
     await act(async () => {
-      const dataset = useLocalDatasetStore.getState().dataset!;
-      useLocalDatasetStore.setState({ dataset: { ...dataset, preferences: { ...dataset.preferences, language: "en" } } });
+      trackerRegistryStore.setState(state => ({ devicePreferences: { ...state.devicePreferences, language: "en" } }));
     });
     device.tags = ["es-VE"];
     await act(async () => { device.foreground?.("active"); });

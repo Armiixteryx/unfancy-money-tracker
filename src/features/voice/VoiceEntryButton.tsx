@@ -6,11 +6,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pressable, View } from "react-native";
 import { useAppTheme } from "../../ui/theme";
 import { useVoice } from "./VoiceProvider";
+import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
 export function VoiceEntryButton() {
   useTranslation();
   const { phase, start, stop } = useVoice();
   const { colors } = useAppTheme();
   const auth = useAuth();
+  const shared = useLocalDatasetStore(state => state.dataset?.tracker?.kind === "shared");
   if (!auth.identity) return <Pressable accessibilityRole="button" disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={auth.open} style={{ minHeight: 48, justifyContent: "center" }}><Text style={{ color: colors.primary }}>{i18n.resolvedLanguage === "es" ? "Inicia sesión para usar la voz" : "Sign in to use voice"}</Text></Pressable>;
   const disabled = ["processing", "saving", "save_failed"].includes(phase);
   const toggleDisabled =
@@ -69,7 +71,7 @@ export function VoiceEntryButton() {
         </Pressable>
       </View>
       <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>
-        {i18n.t($ => $.ui.voiceVoiceAudioIsSentToVercelSpacexai)}
+        {shared ? i18n.t($ => $.ui.voiceSharedAudioDisclosure) : i18n.t($ => $.ui.voiceVoiceAudioIsSentToVercelSpacexai)}
       </Text>
     </View>
   );

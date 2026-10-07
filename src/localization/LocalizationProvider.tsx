@@ -1,7 +1,7 @@
 import { useEffect, useState, type PropsWithChildren } from "react";
 import { AppState, Platform } from "react-native";
 import { I18nextProvider } from "react-i18next";
-import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
+import { useDevicePreferences } from "../features/trackers/store";
 import { devicePreferences } from "./device";
 import { i18n, resolveLanguage } from "./i18n";
 import { setRegion } from "./region";
@@ -11,7 +11,7 @@ setRegion(initial.region);
 void i18n.changeLanguage(resolveLanguage("system", initial.tags));
 
 export function LocalizationProvider({ children }: PropsWithChildren) {
-  const preference = useLocalDatasetStore(state => state.dataset?.preferences.language ?? "system");
+  const preference = useDevicePreferences(state => state.language);
   const [device, setDevice] = useState(initial);
   useEffect(() => {
     const refresh = () => setDevice(devicePreferences());

@@ -30,6 +30,7 @@ export type SyncStatus =
   | "error"
   | "auth_required"
   | "conflicts"
+  | "rejected"
   | "different_login";
 export function applyChanges(
   dataset: Dataset,
@@ -373,7 +374,7 @@ export class SyncCoordinator {
     }
     if (state.saveStatus !== "idle") return Promise.resolve();
     const generation = this.generation;
-    this.running = this.execute(generation)
+    this.running = this.execute(generation, manual)
       .catch((error) => {
         if (generation !== this.generation) return;
         if (
@@ -384,6 +385,8 @@ export class SyncCoordinator {
         this.setStatus(
           error instanceof SyncClientError && error.code === "unauthenticated"
             ? "auth_required"
+            : error instanceof SyncClientError && ["membership_revoked", "permission_denied", "tracker_archived"].includes(error.code)
+              ? "rejected"
             : error instanceof SyncClientError &&
                 error.code === "different_login"
               ? "different_login"
@@ -430,8 +433,17 @@ export class SyncCoordinator {
       }
     }
   }
-  private async execute(generation: number) {
+  private async execute(generation: number, retryRejected = false) {
     this.setStatus("syncing");
+    if (retryRejected) {
+      await this.update(current => ({
+        ...current,
+        sync: {
+          ...syncState(current),
+          outbox: syncState(current).outbox.map(({ rejection: _rejection, ...entry }) => entry),
+        },
+      }), generation);
+    }
     await this.retry(() => this.inspect(), generation);
     for (;;) {
       const dataset = this.dataset();
@@ -449,6 +461,7 @@ export class SyncCoordinator {
       const ready = state.outbox
         .filter(
           (entry) =>
+            !entry.rejection &&
             (!blockedCategories.has(
               entry.change.recordType === "category" && entry.change.tombstone
                 ? entry.change.recordId
@@ -511,15 +524,26 @@ export class SyncCoordinator {
         generation,
       );
       await this.update(
-        (current) =>
-          acknowledge(
-            current,
-            response,
-            submitted.map((entry) => entry.change),
-          ),
+        (current) => {
+          const acknowledged = acknowledge(current, response, submitted.map((entry) => entry.change));
+          const rejected = (response as PushResponse & { rejectedChanges?: readonly { mutationId: string; code: "permission_denied" | "tracker_archived" }[] }).rejectedChanges ?? [];
+          if (rejected.length === 0) return acknowledged;
+          const rejectedById = new Map(rejected.map(item => [item.mutationId, item.code]));
+          return {
+            ...acknowledged,
+            sync: {
+              ...syncState(acknowledged),
+              outbox: syncState(acknowledged).outbox.map(entry => {
+                const rejection = rejectedById.get(entry.change.mutationId);
+                return rejection ? { ...entry, submitted: true, rejection } : entry;
+              }),
+            },
+          };
+        },
         generation,
       );
-      if (!response.acknowledgedChanges.length && !response.conflicts.length)
+      const rejectedCount = (response as PushResponse & { rejectedChanges?: readonly unknown[] }).rejectedChanges?.length ?? 0;
+      if (!response.acknowledgedChanges.length && !response.conflicts.length && rejectedCount === 0)
         throw new SyncClientError("server_error");
     }
     let pageCursor = syncState(this.dataset()).cursor;
@@ -553,9 +577,8 @@ export class SyncCoordinator {
         },
       });
     }, generation);
-    this.setStatus(
-      syncState(this.dataset()).conflicts.length ? "conflicts" : "idle",
-    );
+    const finalState = syncState(this.dataset());
+    this.setStatus(finalState.conflicts.length ? "conflicts" : finalState.outbox.some(entry => entry.rejection) ? "rejected" : "idle");
   }
   async resolve(conflict: SyncConflict, choice: "keep_local" | "keep_cloud") {
     const generation = this.generation;

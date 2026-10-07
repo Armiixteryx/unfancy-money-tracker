@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0024](0024-shared-family-trackers.md) for independent shared trackers, membership permissions, tracker-scoped persistence/voice, and compatibility. The personal-tracker behavior below remains applicable; single-dataset assumptions are historical for shared use.
+
 Accepted October 6, 2026. Paired-device acceptance remains required before release.
 
 ## Context

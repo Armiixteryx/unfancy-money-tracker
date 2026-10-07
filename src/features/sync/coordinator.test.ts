@@ -393,6 +393,28 @@ describe("durable client sync", () => {
     expect(store.getState().dataset!.transactions).toHaveLength(0);
     expect(syncState(store.getState().dataset!).binding).toBeNull();
   });
+  it("keeps rejected shared mutations immutable, stops automatic retry, and allows an explicit retry", async () => {
+    const { store, client, coordinator } = await enabled();
+    const added = await store.getState().addTransaction(input);
+    if (!added.ok) throw new Error("Fixture failed");
+    const original = syncState(store.getState().dataset!).outbox.find(entry => entry.change.recordId === added.value.id)!.change;
+    client.push.mockResolvedValueOnce({
+      acknowledgedChanges: [], conflicts: [],
+      rejectedChanges: [{ mutationId: original.mutationId, code: "permission_denied" }],
+    } as PushResponse);
+
+    await coordinator.run();
+    const rejected = syncState(store.getState().dataset!).outbox.find(entry => entry.change.mutationId === original.mutationId)!;
+    expect(rejected).toMatchObject({ submitted: true, rejection: "permission_denied", change: original });
+    expect(coordinator.status).toBe("rejected");
+    const calls = client.push.mock.calls.length;
+    await coordinator.run();
+    expect(client.push.mock.calls.length).toBe(calls);
+
+    await coordinator.run(true);
+    expect(client.push.mock.calls.length).toBe(calls + 1);
+    expect(syncState(store.getState().dataset!).outbox.some(entry => entry.change.mutationId === original.mutationId)).toBe(false);
+  });
   it("keeps device preferences out of the outbox and preserves server ordering under clock skew", () => {
     const original = {
       ...createEmptyDataset(),

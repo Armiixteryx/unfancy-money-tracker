@@ -18,6 +18,7 @@ export const outboxEntrySchema = z.object({
       choice: z.enum(["keep_local", "keep_cloud"]),
     })
     .optional(),
+  rejection: z.enum(["permission_denied", "tracker_archived"]).optional(),
 });
 export const syncStateSchema = z.object({
   binding: z
@@ -59,12 +60,16 @@ export function records(
     ["transaction", dataset.transactions],
     ["budget", dataset.budgets],
   ] as const) {
-    for (const value of values)
+    for (const value of values) {
+      const payload = type === "transaction"
+        ? (({ creator: _creator, ...financialRecord }) => financialRecord)(value as Dataset["transactions"][number])
+        : value;
       map.set(recordKey(type, value.id), {
         type,
         id: value.id,
-        payload: value,
+        payload,
       });
+    }
   }
   map.set("preference:currency", {
     type: "preference",

@@ -63,9 +63,12 @@ class MainActivity : ComponentActivity() {
     private var queueAvailable by mutableStateOf(true)
     private var phoneReady by mutableStateOf(false)
     private var phoneConnected by mutableStateOf(false)
+    private var phoneBinding by mutableStateOf<PhoneBinding?>(null)
     private var message by mutableStateOf(0)
     private var requestId: String? = null
     private var recordingBinding: PhoneBinding? = null
+    private var recordingTarget: WatchTarget? = null
+    private var recordingLocalDate: String? = null
     private var startedAtMs = 0L
     private val stateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { refresh() }
@@ -105,7 +108,15 @@ class MainActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             autoCentering = null, contentPadding = PaddingValues(horizontal = 22.dp, vertical = 24.dp)) {
                             item { Text(stringResource(R.string.watch_title), fontSize = 18.sp, color = Color(0xFF63D9A0)) }
-                            item { Text(stringResource(message.takeIf { it != 0 } ?: R.string.status_start), fontSize = 14.sp, color = Color(0xFFE6EDF5), textAlign = TextAlign.Center) }
+                            val binding = phoneBinding
+                            val selectedTarget = binding?.targets?.firstOrNull { it.datasetId == binding.selectedTrackerId }
+                            if ((binding?.protocolVersion ?: 1) >= 2) {
+                                val displayedTarget = if (recording) recordingTarget else selectedTarget
+                                item { Text(if (displayedTarget == null) stringResource(R.string.target_unavailable) else stringResource(R.string.target_selected, displayedTarget.name), fontSize = 13.sp, color = Color(0xFFE6EDF5), textAlign = TextAlign.Center) }
+                            } else if (binding != null) {
+                                item { Text(stringResource(R.string.personal_tracker), fontSize = 13.sp, color = Color(0xFFE6EDF5)) }
+                            }
+                            item { Text(stringResource(message.takeIf { it != 0 } ?: R.string.status_ready), fontSize = 14.sp, color = Color(0xFFE6EDF5), textAlign = TextAlign.Center) }
                             item { Text(stringResource(R.string.queue_count, queueSize, QueuePolicy.MAX_ITEMS), fontSize = 12.sp, color = Color(0xFFE6EDF5)) }
                             item { Button(onClick = {
                                 if (recording) stopRecording() else if (queueSize >= QueuePolicy.MAX_ITEMS) {
@@ -113,10 +124,26 @@ class MainActivity : ComponentActivity() {
                                 } else if (!queueAvailable) message = R.string.status_recovery
                                 else if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
                                 else permission.launch(Manifest.permission.RECORD_AUDIO)
-                            }, enabled = recording || (queueAvailable && queueSize < QueuePolicy.MAX_ITEMS), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16734F), contentColor = Color.White)) {
+                                }, enabled = recording || (queueAvailable && queueSize < QueuePolicy.MAX_ITEMS && targetCanRecord()), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16734F), contentColor = Color.White)) {
                                 Text(stringResource(if (recording) R.string.stop else R.string.record), fontSize = 14.sp)
                             } }
                             if (queueSize > 0) item { Button(onClick = { lifecycleScope.launch { transport.transferPending(); refresh() } }) { Text(stringResource(R.string.send_to_phone)) } }
+                            if ((binding?.protocolVersion ?: 1) >= 2) {
+                                item { Text(stringResource(R.string.target_header), fontSize = 13.sp, color = Color(0xFF63D9A0)) }
+                                binding?.targets?.forEach { target ->
+                                    item {
+                                        Button(onClick = {
+                                            if (transport.selectTarget(target.datasetId)) {
+                                                message = R.string.status_ready
+                                                refresh()
+                                            }
+                                        }, enabled = !recording, colors = ButtonDefaults.buttonColors(containerColor = if (target.datasetId == binding.selectedTrackerId) Color(0xFF16734F) else Color(0xFF26364B), contentColor = Color.White)) {
+                                            Text(stringResource(if (target.datasetId == binding.selectedTrackerId) R.string.target_selected else R.string.target_select, target.name), fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+
                     }
                 }
             }
@@ -137,6 +164,7 @@ class MainActivity : ComponentActivity() {
             queueSize = queue.size()
             queueAvailable = queue.available()
             val binding = transport.binding()
+            phoneBinding = binding
             phoneReady = binding != null
             phoneConnected = binding != null && runCatching { Wearable.getNodeClient(this@MainActivity).connectedNodes.await().any { it.id == binding.nodeId } }.getOrDefault(false)
             if (binding != null && phoneConnected && queueSize > 0) lifecycleScope.launch { transport.transferPending() }
@@ -149,7 +177,8 @@ class MainActivity : ComponentActivity() {
                     transport.lastOutcome() == "failed" -> R.string.status_phone_failed
                     transport.lastOutcome() == "deleted" -> R.string.status_phone_deleted
                     !phoneConnected -> R.string.status_offline
-                    else -> R.string.status_ready
+                binding.protocolVersion >= 2 && binding.targets.none { it.datasetId == binding.selectedTrackerId } -> R.string.target_unavailable
+                else -> R.string.status_ready
                 }
             }
         }
@@ -159,6 +188,14 @@ class MainActivity : ComponentActivity() {
         if (recording || queue.size() >= QueuePolicy.MAX_ITEMS) return
         recordingBinding = transport.binding()
         if (recordingBinding == null) { message = R.string.status_sign_in; return }
+        recordingTarget = if (recordingBinding!!.protocolVersion >= 2) {
+            recordingBinding!!.targets.firstOrNull { it.datasetId == recordingBinding!!.selectedTrackerId }
+        } else null
+        if (recordingBinding!!.protocolVersion >= 2 && recordingTarget == null) {
+            message = R.string.target_unavailable
+            recordingBinding = null
+            return
+        }
         try {
             requestId = newRequestId()
             val output = File(cacheDir, "$requestId.m4a")
@@ -179,6 +216,7 @@ class MainActivity : ComponentActivity() {
             recorder = audioRecorder
             recording = true
             startedAtMs = SystemClock.elapsedRealtime()
+            recordingLocalDate = java.time.LocalDate.now().toString()
             message = R.string.status_recording
             stopTimer = lifecycleScope.launch { delay(QueuePolicy.MAX_RECORDING_MS); stopRecording() }
         } catch (_: Exception) { releaseRecorder(); message = R.string.status_record_failed }
@@ -198,14 +236,16 @@ class MainActivity : ComponentActivity() {
                     return
                 }
                 val saved = queue.add(Recording(requestId ?: newRequestId(), binding.accountId, binding.nodeId,
-                    Instant.now().toString(), duration, "audio/mp4", file.readBytes()))
+                    Instant.now().toString(), duration, "audio/mp4", file.readBytes(), recordingTarget?.datasetId,
+                    recordingTarget?.membershipId, recordingTarget?.generation, recordingLocalDate,
+                    if (binding.protocolVersion >= 2) 2 else 1))
                 if (saved) {
                     message = if (phoneConnected) R.string.status_saved else R.string.status_saved_local
                     lifecycleScope.launch { transport.transferPending(); refresh() }
                 } else message = R.string.status_save_failed
             } else message = R.string.status_unavailable
         } catch (_: Exception) { message = R.string.status_save_failed }
-        finally { recording = false; recordingBinding = null; requestId = null; releaseRecorder(); recordingFile?.delete(); recordingFile = null; refresh() }
+        finally { recording = false; recordingBinding = null; recordingTarget = null; recordingLocalDate = null; requestId = null; releaseRecorder(); recordingFile?.delete(); recordingFile = null; refresh() }
     }
 
     private fun cancelRecording() {
@@ -216,10 +256,17 @@ class MainActivity : ComponentActivity() {
         recordingFile?.delete()
         recordingFile = null
         recordingBinding = null
+        recordingTarget = null
+        recordingLocalDate = null
         requestId = null
     }
 
     private fun releaseRecorder() { runCatching { recorder?.reset() }; runCatching { recorder?.release() }; recorder = null }
+
+    private fun targetCanRecord(): Boolean {
+        val binding = transport.binding() ?: return false
+        return binding.protocolVersion < 2 || binding.targets.any { it.datasetId == binding.selectedTrackerId }
+    }
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(stateReceiver) }

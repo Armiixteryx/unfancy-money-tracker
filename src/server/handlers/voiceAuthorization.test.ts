@@ -17,7 +17,7 @@ function token(overrides: Record<string, unknown> = {}) {
 const event = (bearer: string) => ({ headers: { authorization: `Bearer ${bearer}` }, body: "not-json" }) as unknown as APIGatewayProxyEventV2;
 describe("signed voice access-token authorization", () => {
   it("accepts valid direct-sign-in access tokens", async () => {
-    await expect(createVoiceAuthorizer(verifier)(event(token()))).resolves.toBeUndefined();
+    await expect(createVoiceAuthorizer(verifier)(event(token()))).resolves.toBe("synthetic");
   });
   it.each([
     { exp: Math.floor(Date.now()/1000)-60 },

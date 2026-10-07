@@ -20,7 +20,9 @@ import { AppState } from "react-native";
 import { useRouter } from "expo-router";
 import { createUuid } from "../../platform/identifiers/createUuid";
 import { findUncategorizedCategory } from "../../domain/categories";
-import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
+import { addVoiceTransactionDurably, getVoiceTarget, useActiveTrackerSummary } from "../trackers/store";
+import type { Dataset } from "../../domain/types";
+import type { TransactionInput } from "../../domain/validation";
 import { voiceErrorMessages, type VoiceRequest } from "../../contracts/voice";
 import { requestVoiceExpense, VoiceAuthenticationError, VoiceClientError } from "./api";
 import { createRecorder, type Recorder } from "./recording";
@@ -49,7 +51,12 @@ export const useVoice = () => {
 };
 type Session = {
   id: string;
-  epoch: number;
+  trackerId: string;
+  targetGeneration: number;
+  membershipId: string | null;
+  shared: boolean;
+  targetName: string;
+  saveInput?: TransactionInput;
   date: string;
   recorder: Recorder;
   controller: AbortController;
@@ -57,6 +64,7 @@ type Session = {
   released: boolean;
   deadline?: number;
 };
+class VoiceTargetUnavailableError extends Error {}
 export function localRecordingDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -64,13 +72,14 @@ export function VoiceProvider({ children }: PropsWithChildren) {
   useTranslation();
   const router = useRouter();
   const auth = useAuth();
+  const activeTracker = useActiveTrackerSummary();
   useEffect(() => {
     if (["permission", "starting", "recording", "processing"].includes(phaseRef.current)) cancelRef.current();
   }, [auth.epoch]);
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const phaseRef = useRef<VoicePhase>("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [saved, setSaved] = useState<{ id: string; message: string } | null>(
+  const [saved, setSaved] = useState<{ id: string; message: string; trackerId: string } | null>(
     null,
   );
   const session = useRef<Session | null>(null);
@@ -97,8 +106,12 @@ export function VoiceProvider({ children }: PropsWithChildren) {
   const current = (value: Session) =>
     session.current === value &&
     !value.controller.signal.aborted &&
-    (value.deadline === undefined || Date.now() < value.deadline) &&
-    useLocalDatasetStore.getState().datasetEpoch === value.epoch;
+    (value.deadline === undefined || Date.now() < value.deadline);
+  const resolveCurrentTarget = async (value: Session) => {
+    const target = await getVoiceTarget(value.trackerId);
+    if (!target || !target.writable || target.generation !== value.targetGeneration || target.membershipId !== value.membershipId) return null;
+    return target;
+  };
   const cleanup = async (value: Session) => {
     clearTimeout(value.timer);
     try {
@@ -131,9 +144,6 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       )
         cancelRef.current();
     });
-    const unsubscribe = useLocalDatasetStore.subscribe((next, previous) => {
-      if (next.datasetEpoch !== previous.datasetEpoch) cancelRef.current();
-    });
     const visibility = () => {
       if (
         document.hidden &&
@@ -146,14 +156,12 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     return () => {
       unsubscribeAuth();
       subscription.remove();
-      unsubscribe();
       if (typeof document !== "undefined")
         document.removeEventListener("visibilitychange", visibility);
       cancelRef.current();
     };
   }, []);
-  const announceSaved = (id: string) => {
-    const dataset = useLocalDatasetStore.getState().dataset;
+  const announceSaved = (id: string, dataset: Dataset, trackerId: string, targetName: string) => {
     const record = dataset?.transactions.find((t) => t.id === id);
     if (!record) {
       setMessage(i18n.t($ => $.ui.voiceThisTransactionIsNoLongerAvailable));
@@ -164,7 +172,8 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     );
     setSaved({
       id,
-      message: `${categoryLabel(category)} · ${record.description} · ${record.amount} ${record.currency}`,
+      trackerId,
+      message: `${targetName !== "Personal" ? `${targetName} · ` : ""}${categoryLabel(category)} · ${record.description} · ${formatMoneyForDisplay(record)}`,
     });
     setMessage(null);
   };
@@ -190,15 +199,17 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       const recording = await value.recorder.stop();
       const audio = await value.recorder.read(recording);
       if (!current(value)) return;
-      const dataset = useLocalDatasetStore.getState().dataset;
-      if (!dataset) throw new VoiceClientError(i18n.t($ => $.ui.voiceLocalDataIsStillLoading));
+      const target = await resolveCurrentTarget(value);
+      if (!target) throw new VoiceTargetUnavailableError();
+      if (value.shared && !value.membershipId) throw new VoiceTargetUnavailableError();
       const request: VoiceRequest = {
         requestId: value.id,
         audio,
         mimeType: recording.mimeType,
         durationMs: recording.durationMs,
         localDate: value.date,
-        categories: voiceCategoryChoices(dataset.categories, categoryLabel),
+        ...(value.shared && value.membershipId ? { tracker: { datasetId: value.trackerId, membershipId: value.membershipId } } : {}),
+        categories: voiceCategoryChoices(target.dataset.categories, categoryLabel),
       };
       const accessToken = await authClient.accessToken();
       if (!current(value)) return;
@@ -212,8 +223,9 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       if (!current(value) || completed.current.has(value.id)) return;
       clearTimeout(value.timer);
       value.deadline = undefined;
-      const latest = useLocalDatasetStore.getState().dataset;
-      if (!latest) return;
+      const latestTarget = await resolveCurrentTarget(value);
+      if (!latestTarget) throw new VoiceTargetUnavailableError();
+      const latest = latestTarget.dataset;
       const chosen = latest.categories.find(
         (c) =>
           c.id === response.transaction.categoryId &&
@@ -227,15 +239,14 @@ export function VoiceProvider({ children }: PropsWithChildren) {
           findUncategorizedCategory(latest.categories, "expense").id,
       };
       transition("saving");
-      const result = await useLocalDatasetStore
-        .getState()
-        .addTransaction(input, value.id);
+      value.saveInput = input;
+      const result = await addVoiceTransactionDurably(value.trackerId, input, value.id, value.targetGeneration, value.membershipId);
       if (!current(value)) return;
       completed.current.add(value.id);
       if (result.ok) {
         session.current = null;
         transition("idle");
-        announceSaved(result.value.id);
+        announceSaved(result.value.id, latest, value.trackerId, value.targetName);
       } else if (result.recordId) {
         transition("save_failed");
         setMessage(
@@ -253,7 +264,9 @@ export function VoiceProvider({ children }: PropsWithChildren) {
         transition("idle");
         if ((error instanceof VoiceAuthenticationError || error instanceof AuthenticationRequiredError)) void auth.signOut().catch(() => {});
         setMessage(
-          (error instanceof VoiceAuthenticationError || error instanceof AuthenticationRequiredError) ? (i18n.resolvedLanguage === "es" ? "Inicia sesión para usar la voz." : "Sign in to use voice.") : error instanceof VoiceClientError
+          error instanceof VoiceTargetUnavailableError
+            ? i18n.t($ => $.ui.voiceSelectedTrackerIsNoLongerAvailable)
+            : (error instanceof VoiceAuthenticationError || error instanceof AuthenticationRequiredError) ? (i18n.resolvedLanguage === "es" ? "Inicia sesión para usar la voz." : "Sign in to use voice.") : error instanceof VoiceClientError
             ? error.code
             : voiceErrorMessages.unavailable,
         );
@@ -269,11 +282,19 @@ export function VoiceProvider({ children }: PropsWithChildren) {
   const start = async () => {
     if (!auth.identity) { auth.open(); return; }
     if (phaseRef.current !== "idle") return;
-    const store = useLocalDatasetStore.getState();
-    if (!store.dataset) return;
+    const trackerId = activeTracker.datasetId;
     setSaved(null);
     setMessage(null);
     transition("starting");
+    const target = await getVoiceTarget(trackerId).catch(() => null);
+    // TypeScript keeps the pre-await idle narrowing here; React state may change
+    // while getVoiceTarget hydrates the pinned tracker.
+    if ((phaseRef.current as VoicePhase) !== "starting") return;
+    if (!target || !target.writable) {
+      transition("idle");
+      setMessage(i18n.t($ => $.ui.voiceSelectedTrackerIsNoLongerAvailable));
+      return;
+    }
     let recorder: Recorder;
     try {
       recorder = createRecorder();
@@ -284,7 +305,11 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     }
     const value: Session = {
       id: createUuid(),
-      epoch: store.datasetEpoch,
+      trackerId,
+      targetGeneration: target.generation,
+      membershipId: target.membershipId,
+      shared: target.kind === "shared",
+      targetName: target.name,
       date: localRecordingDate(),
       recorder,
       controller: new AbortController(),
@@ -337,13 +362,23 @@ export function VoiceProvider({ children }: PropsWithChildren) {
     const value = session.current;
     if (!value || phaseRef.current !== "save_failed" || !current(value)) return;
     transition("saving");
-    const result = await useLocalDatasetStore.getState().retryLocalSave();
+    const target = await resolveCurrentTarget(value);
+    if (!target || !value.saveInput) {
+      session.current = null;
+      transition("idle");
+      setMessage(i18n.t($ => $.ui.voiceSelectedTrackerIsNoLongerAvailable));
+      return;
+    }
+    const result = await addVoiceTransactionDurably(value.trackerId, value.saveInput, value.id, value.targetGeneration, value.membershipId);
     if (!current(value)) return;
     if (result.ok) {
       session.current = null;
       transition("idle");
-      announceSaved(value.id);
-    } else transition("save_failed");
+      announceSaved(value.id, target.dataset, value.trackerId, value.targetName);
+    } else {
+      transition("save_failed");
+      setMessage(i18n.t($ => $.ui.voiceLocalSaveFailedRetrySaveToKeep));
+    }
   };
   return (
     <VoiceContext.Provider value={{ phase, start, stop, cancel, message }}>
@@ -351,23 +386,22 @@ export function VoiceProvider({ children }: PropsWithChildren) {
       <VoiceFeedback
         phase={phase}
         message={message}
-        saved={saved ? { ...saved, message: (() => {
-          const record = useLocalDatasetStore.getState().dataset?.transactions.find(transaction => transaction.id === saved.id);
-          return record ? `${categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === record.categoryId))} · ${record.description} · ${formatMoneyForDisplay(record)}` : saved.message;
-        })() } : null}
+        saved={saved}
         onDismissSaved={() => setSaved(null)}
         onDismissMessage={() => setMessage(null)}
         onEdit={(id) => {
+          const trackerId = saved?.trackerId;
           setSaved(null);
-          router.push({ pathname: "/transactions", params: { edit: id } });
+          router.push({ pathname: "/transactions", params: { edit: id, ...(trackerId ? { tracker: trackerId } : {}) } });
         }}
         onCancel={cancel}
         onStop={() => void stop()}
         onStart={() => void start()}
         onRetrySave={() => void retrySave()}
         onManual={() => {
+          const trackerId = session.current?.trackerId;
           cancel();
-          router.push({ pathname: "/transactions", params: { new: "1" } });
+          router.push({ pathname: "/transactions", params: { new: "1", ...(trackerId ? { tracker: trackerId } : {}) } });
         }}
       />
     </VoiceContext.Provider>

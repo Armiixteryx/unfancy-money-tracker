@@ -1,4 +1,5 @@
 import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
@@ -12,6 +13,7 @@ import {
   type VoiceRequest,
 } from "../../contracts/voice";
 import { VoiceError } from "../voice/parser";
+import { handleInternalOperation } from "./sync";
 import {
   classifyExpense,
   sanitizeProviderError,
@@ -23,7 +25,10 @@ export function createVoiceAuthorizer(tokenVerifier: { verify: (token: string) =
   return async (event: APIGatewayProxyEventV2) => {
     const header = event.headers?.authorization ?? event.headers?.Authorization;
     if (!header?.startsWith("Bearer ")) throw new Error("Unauthorized");
-    await tokenVerifier.verify(header.slice(7));
+    const claims = await tokenVerifier.verify(header.slice(7));
+    if (typeof claims !== "object" || claims === null || !("sub" in claims) || typeof claims.sub !== "string")
+      throw new Error("Unauthorized");
+    return claims.sub;
   };
 }
 const authorize = createVoiceAuthorizer(verifier);
@@ -32,7 +37,8 @@ type Dependencies = {
   transcribe: typeof transcribeAudio;
   classify: typeof classifyExpense;
   deadlineMs?: number;
-  authorize?: (event: APIGatewayProxyEventV2) => Promise<void>;
+  authorize?: (event: APIGatewayProxyEventV2) => Promise<string | void>;
+  authorizeTracker?: (actor: string, scope: { datasetId: string; membershipId: string }) => Promise<void>;
 };
 function decodeRequest(event: APIGatewayProxyEventV2): VoiceRequest {
   if (
@@ -83,7 +89,8 @@ export function createVoiceHandler(dependencies: Dependencies) {
   return async (
     event: APIGatewayProxyEventV2,
   ): Promise<APIGatewayProxyResultV2> => {
-    try { await (dependencies.authorize ?? authorize)(event); } catch { return { statusCode: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }, body: JSON.stringify({ code: "unauthorized" }) }; }
+    let subject: string | void;
+    try { subject = await (dependencies.authorize ?? authorize)(event); } catch { return { statusCode: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }, body: JSON.stringify({ code: "unauthorized" }) }; }
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
@@ -94,6 +101,14 @@ export function createVoiceHandler(dependencies: Dependencies) {
     });
     try {
       const request = decodeRequest(event);
+      if (request.tracker) {
+        if (!subject) return { statusCode: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }, body: JSON.stringify({ code: "unauthorized" }) };
+        try {
+          await (dependencies.authorizeTracker ?? authorizeTracker)(subject, request.tracker);
+        } catch {
+          return { statusCode: 403, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" }, body: JSON.stringify({ code: "tracker_unavailable" }) };
+        }
+      }
       const result = await Promise.race([
         timeout,
         (async () => {
@@ -157,3 +172,22 @@ export const handler = createVoiceHandler({
   transcribe: transcribeAudio,
   classify: classifyExpense,
 });
+
+const workerClient = new LambdaClient({ maxAttempts: 2, requestHandler: { connectionTimeout: 1000, requestTimeout: 5000 } });
+async function authorizeTracker(actor: string, scope: { datasetId: string; membershipId: string }): Promise<void> {
+  const request = { operation: "tracker.authorize-voice", actor, scope };
+  const result = process.env.APP_ENV === "local"
+    ? await handleInternalOperation(request)
+    : await invokeTrackerWorker(request);
+  if (!result.ok) throw new Error("Tracker is unavailable");
+}
+async function invokeTrackerWorker(request: unknown): Promise<{ ok: boolean }> {
+  const functionName = process.env.SYNC_WORKER_FUNCTION_NAME;
+  if (!functionName) throw new Error("Tracker worker is not configured");
+  const response = await workerClient.send(new InvokeCommand({ FunctionName: functionName, InvocationType: "RequestResponse", Payload: Buffer.from(JSON.stringify(request)) }));
+  if (response.FunctionError || !response.Payload) throw new Error("Tracker worker is unavailable");
+  const result = JSON.parse(Buffer.from(response.Payload).toString("utf8")) as unknown;
+  if (typeof result !== "object" || result === null || !("ok" in result) || typeof result.ok !== "boolean")
+    throw new Error("Tracker worker is unavailable");
+  return result as { ok: boolean };
+}

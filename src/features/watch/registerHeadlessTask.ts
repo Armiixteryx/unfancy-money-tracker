@@ -1,7 +1,7 @@
 import { AppRegistry, Platform } from "react-native";
 import { authClient, getAuthenticatedAccountId } from "../../platform/auth/client";
 import { subscribeAuthentication } from "../../platform/auth/lifecycle";
-import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
+import { initializeTrackerRegistry, listVoiceTargets, setTrackerPrincipal } from "../trackers/store";
 import { watchAudioBridge } from "./bridge";
 import { processWatchQueue } from "./processor";
 
@@ -21,8 +21,17 @@ if (Platform.OS === "android") AppRegistry.registerHeadlessTask(WATCH_AUDIO_TASK
       await watchAudioBridge.setAccount(null);
       return;
     }
-    const state = useLocalDatasetStore.getState();
-    if (!state.dataset || state.hydration.status !== "ready") await state.initialize();
+    await setTrackerPrincipal(identity ? { subject: accountId, email: identity } : null);
+    await initializeTrackerRegistry();
+    const targets = await listVoiceTargets();
+    await watchAudioBridge.setAccount(accountId);
+    await watchAudioBridge.setTargets(targets.map(target => ({
+      datasetId: target.datasetId,
+      name: target.name,
+      membershipId: target.membershipId,
+      generation: target.generation,
+      kind: target.kind,
+    })));
     await processWatchQueue(accountId, () => !cancelled);
   } catch {
     // React Native does not finish an ordinary rejected headless task. Close its durable

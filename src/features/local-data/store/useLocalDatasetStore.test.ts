@@ -9,6 +9,21 @@ import { emptySyncState } from "../../sync/state";
 describe("local dataset store", () => {
   afterEach(() => vi.unstubAllEnvs());
 
+  it("keeps a hydrated tracker mounted when refresh requests initialization again", async () => {
+    const persistence = new DatasetPersistence(new MemoryPersistenceAdapter());
+    const hydrate = vi.spyOn(persistence, "hydrate");
+    const store = createDatasetStore(persistence, async () => undefined);
+    await store.getState().initialize();
+    const dataset = store.getState().dataset;
+    const statuses: string[] = [];
+    const unsubscribe = store.subscribe(state => statuses.push(state.hydration.status));
+    await store.getState().initialize();
+    unsubscribe();
+    expect(hydrate).toHaveBeenCalledTimes(1);
+    expect(store.getState().dataset).toBe(dataset);
+    expect(statuses).not.toContain("loading");
+  });
+
   it("hydrates before exposing records and persists transaction CRUD without sync mutations", async () => {
     const store = createDatasetStore(new DatasetPersistence(new MemoryPersistenceAdapter()), async () => undefined);
     expect(store.getState().dataset).toBeNull();
@@ -89,7 +104,7 @@ describe("local dataset store", () => {
     if (hydrated.status === "ready") expect(hydrated.dataset).toEqual(saved);
   });
 
-  it("does not expose a watch transaction or outbox mutation when its durable write fails", async () => {
+  it("retains a failed watch write in memory for same-ID retry without persisting or uploading it", async () => {
     const adapter = new MemoryPersistenceAdapter();
     const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
     await store.getState().initialize();
@@ -98,11 +113,19 @@ describe("local dataset store", () => {
     const category = before.categories.find(candidate => candidate.defaultCategoryKey === "food")!;
     vi.spyOn(adapter, "writeSnapshot").mockRejectedValueOnce(new Error("synthetic storage failure"));
     const result = await store.getState().addTransactionDurably({ amount: "9.25", type: "expense", categoryId: category.id, description: "Synthetic watch entry", date: "2026-10-06", currency: "USD" }, createUuid());
-    expect(result.ok).toBe(false);
-    expect(store.getState().dataset).toBe(before);
-    expect(store.getState().dataset?.transactions).toHaveLength(0);
-    expect(store.getState().dataset?.sync?.outbox).toHaveLength(0);
-    expect((await new DatasetPersistence(adapter).hydrate()).status).toBe("ready");
+    if (result.ok) throw new Error("Expected a failed durable write");
+    expect(result).toMatchObject({ recordId: expect.any(String) });
+    expect(store.getState().dataset).not.toBe(before);
+    expect(store.getState().dataset?.transactions.map(record => record.id)).toEqual([result.recordId]);
+    expect(store.getState().dataset?.sync?.outbox).toHaveLength(1);
+    const persisted = await new DatasetPersistence(adapter).hydrate();
+    expect(persisted.status).toBe("ready");
+    if (persisted.status === "ready") expect(persisted.dataset.transactions).toHaveLength(0);
+    const retried = await store.getState().addTransactionDurably({ amount: "90.00", type: "expense", categoryId: category.id, description: "Changed retry payload", date: "2026-10-06", currency: "USD" }, result.recordId!);
+    expect(retried.ok).toBe(true);
+    const saved = await new DatasetPersistence(adapter).hydrate();
+    expect(saved.status).toBe("ready");
+    if (saved.status === "ready") expect(saved.dataset.transactions.map(record => record.id)).toEqual([result.recordId]);
   });
 
   it("serializes a pending watch write before a confirmed local reset and leaves no stale record", async () => {
