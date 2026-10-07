@@ -9,7 +9,7 @@ import { translateMessage } from "../../../localization/i18n";
 import { categoryLabel } from "../../../localization/i18n";
 import { i18n } from "../../../localization/i18n";
 import { useTranslation } from "react-i18next";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -20,10 +20,16 @@ import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/them
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
+import { watchAudioBridge, type WatchRecording } from "../../watch/bridge";
+import { getAuthenticatedAccountId } from "../../../platform/auth/client";
+import { TrackerManagement } from "../../trackers/TrackerManagement";
+import { useActiveTrackerSummary } from "../../trackers/store";
 
 export function SettingsScreen() {
   const { t, i18n: language } = useTranslation();
   const auth = useAuth();
+  const activeTracker = useActiveTrackerSummary();
+  const canManageTracker = activeTracker.kind === "personal" || activeTracker.role === "admin";
   const [accountError, setAccountError] = useState(false);
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
@@ -64,6 +70,7 @@ export function SettingsScreen() {
   return (
     <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)}>
       <SensitiveContent><View style={styles.card}><Text style={{ color: colors.text, fontWeight: "500" }}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
+      <TrackerManagement />
       <SyncSettings />
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
       {saveError ? <Pressable accessibilityRole="button" onPress={() => void retryLocalSave()} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.notices.retrySave)}</Text></Pressable> : null}
@@ -86,7 +93,7 @@ export function SettingsScreen() {
           <View style={styles.chips}>{SUPPORTED_CURRENCIES.map((currency) => {
             const selected = dataset.preferences.selectedCurrencies.includes(currency);
             const isBase = dataset.preferences.baseCurrency === currency;
-            return <ChoiceChip active={selected} disabled={isBase} key={currency} label={currency} onPress={() => {
+            return <ChoiceChip active={selected} disabled={isBase || !canManageTracker} key={currency} label={currency} onPress={() => {
               const next = selected
                 ? dataset.preferences.selectedCurrencies.filter((candidate) => candidate !== currency)
                 : [...dataset.preferences.selectedCurrencies, currency];
@@ -95,7 +102,8 @@ export function SettingsScreen() {
           })}</View>
           <Text style={styles.label}>{i18n.t($ => $.ui.settingsBaseCurrency)}</Text>
           <Text style={styles.helper}>{i18n.t($ => $.ui.settingsUsedForFutureAggregateConversionAndNew)}</Text>
-          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, { code: "baseCurrencySaved", currency })} />)}</View>
+          <View style={styles.chips}>{dataset.preferences.selectedCurrencies.map((currency) => <ChoiceChip active={dataset.preferences.baseCurrency === currency} disabled={!canManageTracker} key={currency} label={currency} onPress={() => void updatePreference({ baseCurrency: currency }, { code: "baseCurrencySaved", currency })} />)}</View>
+          {!canManageTracker ? <Text style={styles.helper}>{language.resolvedLanguage === "es" ? "Solo los administradores cambian las monedas del conjunto." : "Only admins can change tracker currencies."}</Text> : null}
           <Text style={styles.label}>{i18n.t($ => $.ui.settingsTheme)}</Text>
           <View style={styles.chips}>{(["system", "light", "dark"] as const).map((theme) => <ChoiceChip active={dataset.preferences.theme === theme} key={theme} label={i18n.t($ => $.notices[theme])} onPress={() => void updatePreference({ theme }, i18n.t($ => $.ui.settingsThemePreferenceSavedLocally))} />)}</View>
         </View> : null}
@@ -110,9 +118,9 @@ export function SettingsScreen() {
         {activeSection === "privacy" ?
         <View style={styles.card}>
           <SectionHeader title={i18n.t($ => $.ui.settingsLocalDataAndPrivacy)} description={i18n.t($ => $.ui.settingsYourTrackerIsAnonymousAndKeepsFinancial)} />
-          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{i18n.t($ => $.ui.settingsLocalOnlyDataset)}</Text><Text style={styles.helper}>{formatNumber(dataset.transactions.length)} {i18n.t($ => $.ui.settingsTransactions)} {formatNumber(dataset.budgets.length)} {i18n.t($ => $.ui.settingsBudgets)} {formatNumber(dataset.categories.length)} {i18n.t($ => $.ui.settingsCategories)}</Text></View></View>
+          <View style={styles.statusRow}><View style={[styles.statusDot, styles.statusDotGood]} /><View style={styles.statusCopy}><Text style={styles.statusTitle}>{activeTracker.kind === "shared" ? (language.resolvedLanguage === "es" ? "Conjunto compartido" : "Shared tracker") : i18n.t($ => $.ui.settingsLocalOnlyDataset)}</Text><Text style={styles.helper}>{formatNumber(dataset.transactions.length)} {i18n.t($ => $.ui.settingsTransactions)} {formatNumber(dataset.budgets.length)} {i18n.t($ => $.ui.settingsBudgets)} {formatNumber(dataset.categories.length)} {i18n.t($ => $.ui.settingsCategories)}</Text></View></View>
           <Pressable accessibilityRole="button" accessibilityState={{ checked: dataset.preferences.analyticsConsent }} onPress={() => void updatePreference({ analyticsConsent: !dataset.preferences.analyticsConsent }, dataset.preferences.analyticsConsent ? i18n.t($ => $.ui.settingsAnalyticsDisabled) : i18n.t($ => $.ui.settingsAnalyticsEnabledWithPrivacyControls))} style={styles.toggleRow}><View style={[styles.toggle, dataset.preferences.analyticsConsent && styles.toggleOn]}><View style={[styles.toggleKnob, dataset.preferences.analyticsConsent && styles.toggleKnobOn]} /></View><View style={styles.statusCopy}><Text style={styles.statusTitle}>{i18n.t($ => $.ui.settingsOptionalAnalytics)}</Text><Text style={styles.helper}>{dataset.preferences.analyticsConsent ? i18n.t($ => $.ui.settingsEnabledFinancialValuesAndUserEnteredText) : i18n.t($ => $.ui.settingsDisabledByDefaultNoProductAnalyticsIs)}</Text></View></Pressable>
-          {confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>{i18n.t($ => $.ui.settingsResetThisLocalCopy)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsThisRemovesLocalTransactionsBudgetsCategoriesAnd)}</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable>}
+          {activeTracker.kind === "personal" ? (confirmReset ? <View style={styles.dangerBox}><Text style={styles.dangerTitle}>{i18n.t($ => $.ui.settingsResetThisLocalCopy)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsThisRemovesLocalTransactionsBudgetsCategoriesAnd)}</Text><View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void handleReset()} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable></View></View> : <Pressable accessibilityRole="button" onPress={() => setConfirmReset(true)} style={styles.outlineDanger}><Text style={styles.outlineDangerText}>{i18n.t($ => $.ui.commonResetLocalData)}</Text></Pressable>) : null}
         </View> : null}
 
         {activeSection === "export" ?
@@ -120,16 +128,68 @@ export function SettingsScreen() {
           <SectionHeader title={i18n.t($ => $.notices.previewTitle)} description={i18n.t($ => $.notices.previewDescription)} />
           <View style={styles.proBox}><Text style={styles.proBadge}>{i18n.t($ => $.ui.settingsProPreview)}</Text><Text style={styles.proTitle}>{i18n.t($ => $.ui.settingsTakeYourRecordsWithYou)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsExpressInterestInCsvExportWithoutDownloading)}</Text><Pressable accessibilityRole="button" onPress={() => { setMessage(i18n.t($ => $.notices.previewInterest)); void analytics.capture("csv_upgrade_interest_clicked", { surface: "settings", actionResult: "success" }); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>{i18n.t($ => $.ui.settingsIMInterested)}</Text></Pressable></View>
         </View> : null}
+
+        {activeSection === "watch" ? <FailedWatchRecordings identity={auth.identity} epoch={auth.epoch} /> : null}
       </View> : null}
 
-      {activeSection === "categories" ? <CategoryManager onMessage={setMessage} /> : null}
+        {activeSection === "categories" ? (activeTracker.kind === "personal" || activeTracker.role === "admin" ? <CategoryManager onMessage={setMessage} /> : <Text style={styles.helper}>{language.resolvedLanguage === "es" ? "Solo los administradores pueden gestionar categorías." : "Only tracker admins can manage categories."}</Text>) : null}
         </View>
       </View>
     </AppScreen>
   );
 }
 
-type SettingsSection = "preferences" | "categories" | "rates" | "privacy" | "export";
+function FailedWatchRecordings({ identity, epoch }: { identity: string | null; epoch: number }) {
+  useTranslation();
+  const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
+  const [items, setItems] = useState<WatchRecording[]>([]);
+  const [playing, setPlaying] = useState<string | null>(null);
+  const playingRef = useRef<string | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [resolvedIdentity, setResolvedIdentity] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const refresh = useCallback(async () => {
+    if (!watchAudioBridge.available) { setItems([]); setLoading(false); return; }
+    try {
+      const [records, stableAccountId] = await Promise.all([watchAudioBridge.list(), identity ? getAuthenticatedAccountId() : Promise.resolve(null)]);
+      setItems(records.filter(item => item.status === "failed"));
+      setAccountId(stableAccountId);
+      setResolvedIdentity(identity);
+      setQueueError(null);
+    } catch { setQueueError(i18n.t($ => $.ui.settingsWatchQueueUnavailable)); }
+    finally { setLoading(false); }
+  }, [identity]);
+  useEffect(() => {
+    setLoading(true);
+    void refresh();
+    const unsubscribe = watchAudioBridge.subscribe(() => void refresh());
+    const unsubscribePlayback = watchAudioBridge.subscribePlayback(event => {
+      if (event.requestId === playingRef.current) { playingRef.current = null; setPlaying(null); }
+    });
+    return () => { unsubscribe(); unsubscribePlayback(); if (playingRef.current) void watchAudioBridge.pause(playingRef.current).catch(() => undefined); playingRef.current = null; };
+  }, [identity, epoch, refresh]);
+  useEffect(() => {
+    if (playingRef.current) void watchAudioBridge.pause(playingRef.current).catch(() => undefined);
+    playingRef.current = null;
+    setPlaying(null);
+  }, [accountId]);
+  if (!watchAudioBridge.available) return null;
+  return <SensitiveContent><View style={styles.watchCard}>
+    <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{i18n.t($ => $.ui.settingsFailedWatchRecordings)}</Text><Text style={styles.sectionDescription}>{i18n.t($ => $.ui.settingsFailedWatchRecordingsHelp)}</Text></View>
+    {queueError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{queueError}</Text> : null}
+    {loading ? <Text style={styles.helper}>{i18n.t($ => $.ui.settingsLoadingWatchRecordings)}</Text> : items.length === 0 ? <Text style={styles.helper}>{i18n.t($ => $.ui.settingsNoFailedWatchRecordings)}</Text> : items.map(item => <View key={item.requestId} style={styles.watchRow}>
+      <View style={styles.statusCopy}><Text style={styles.statusTitle}>{formatTimestamp(item.recordedAt)}</Text><Text style={styles.helper}>{i18n.t($ => $.ui.settingsFailedWatchRecordings)}</Text></View>
+      {identity !== null && resolvedIdentity === identity && item.accountId === accountId ? <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => playing === item.requestId ? $.ui.settingsPauseRecording : $.ui.settingsPlayRecording)} onPress={() => { if (playing === item.requestId) { void watchAudioBridge.pause(item.requestId).then(() => { playingRef.current = null; setPlaying(null); }).catch(() => setQueueError(i18n.t($ => $.ui.settingsWatchPlaybackFailed))); } else { void watchAudioBridge.play(item.requestId).then(() => { playingRef.current = item.requestId; setPlaying(item.requestId); setQueueError(null); }).catch(() => setQueueError(i18n.t($ => $.ui.settingsWatchPlaybackFailed))); } }} style={styles.tinyButton}><Ionicons color={colors.text} name={playing === item.requestId ? "pause" : "play"} size={18} /></Pressable> : <Text style={styles.helper}>{i18n.t($ => $.ui.settingsWatchOriginAccountRequired)}</Text>}
+      <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.settingsDeleteRecording)} onPress={() => setConfirmDelete(item.requestId)} style={styles.tinyButton}><Ionicons color={colors.negative} name="trash-outline" size={18} /></Pressable>
+      {confirmDelete === item.requestId ? <View style={styles.watchConfirm}><Text style={styles.helper}>{i18n.t($ => $.ui.settingsDeleteRecordingConfirm)}</Text><Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.settingsDeleteRecording)} onPress={() => { void watchAudioBridge.delete(item.requestId).then(() => { setConfirmDelete(null); if (playingRef.current === item.requestId) { playingRef.current = null; setPlaying(null); } setQueueError(null); return refresh(); }).catch(() => setQueueError(i18n.t($ => $.ui.settingsWatchDeleteFailed))); }} style={styles.dangerButton}><Text style={styles.dangerText}>{i18n.t($ => $.ui.settingsDeleteRecording)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => setConfirmDelete(null)} style={styles.textButton}><Text style={styles.textButtonText}>{i18n.t($ => $.ui.commonCancel)}</Text></Pressable></View> : null}
+    </View>)}
+  </View></SensitiveContent>;
+}
+
+type SettingsSection = "preferences" | "categories" | "rates" | "privacy" | "export" | "watch";
 type MobileSection = SettingsSection;
 
 function getMobileGroups(colors: ThemeColors): readonly { title: string; rows: readonly { section: MobileSection; icon: keyof typeof Ionicons.glyphMap; iconBackground: string; title: string; description: string }[] }[] {
@@ -140,7 +200,8 @@ function getMobileGroups(colors: ThemeColors): readonly { title: string; rows: r
   ] },
   { title: i18n.t($ => $.ui.settingsData), rows: [
     { section: "rates", icon: "swap-horizontal-outline", iconBackground: colors.infoSubtle, title: i18n.t($ => $.ui.settingsExchangeRates), description: i18n.t($ => $.ui.settingsConversionStatusAndFreshness) },
-    { section: "privacy", icon: "shield-checkmark-outline", iconBackground: colors.negativeSubtle, title: i18n.t($ => $.ui.settingsLocalDataPrivacy), description: i18n.t($ => $.ui.settingsAnalyticsAndLocalDataControls) }
+    { section: "privacy", icon: "shield-checkmark-outline", iconBackground: colors.negativeSubtle, title: i18n.t($ => $.ui.settingsLocalDataPrivacy), description: i18n.t($ => $.ui.settingsAnalyticsAndLocalDataControls) },
+    ...(watchAudioBridge.available ? [{ section: "watch" as const, icon: "watch-outline" as const, iconBackground: colors.infoSubtle, title: i18n.t($ => $.ui.settingsFailedWatchRecordings), description: i18n.t($ => $.ui.settingsFailedWatchRecordingsHelp) }] : [])
   ] },
   { title: i18n.t($ => $.ui.settingsMore), rows: [
     { section: "export", icon: "download-outline", iconBackground: colors.warningSubtle, title: i18n.t($ => $.notices.csvExport), description: i18n.t($ => $.ui.settingsProFeaturePreview) }
@@ -216,6 +277,9 @@ function CategoryManager({ onMessage }: { onMessage: (message: Message) => void 
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   grid: { gap: 16, minWidth: 0, width: "100%" },
+  watchCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 14, padding: 16 },
+  watchRow: { alignItems: "center", borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 12 },
+  watchConfirm: { flexBasis: "100%", gap: 8 },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 18, padding: 24 },
   categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 18, padding: 20 },
   sectionHeader: { gap: 5 },

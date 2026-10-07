@@ -2,24 +2,24 @@
 
 ## Product summary
 
-Build a polished, cross-platform finance tracker for individuals who want one clear view of their income, expenses, budgets, and spending.
+Build a polished, cross-platform finance tracker for individuals and families who want one clear view of their income, expenses, budgets, and spending. Every user retains a private personal tracker and may create or join separate shared family trackers.
 
 Users enter transactions manually or optionally record a single expense by voice. Voice audio is processed remotely by Vercel/SpaceXAI, and its parser-derived description plus active expense-category choices are classified by Cloudflare; completed transactions persist locally, with separate opt-in cloud synchronization. V1 does **not** model bank, cash, credit, or savings accounts; transactions have no source/destination fields and transfers are out of scope.
 
-The app supports optional email/password Cognito login. One encrypted local dataset remains shared across guest and signed-in use. Sign-in enables voice independently; a separate Settings action enables sync for one personal cloud dataset across devices. Sync uploads financial records and currency preferences to PostgreSQL on RDS, while device language, theme, analytics consent, and first-run notice choices remain local. Optional voice processing sends recordings and derived text/category choices remotely.
+The app supports optional email/password Cognito login. The private personal dataset remains available across guest and signed-in use. Sign-in enables voice independently; a separate Settings action enables personal cloud sync across devices. Separate shared trackers require sign-in, membership, and explicit consent to cloud sharing. Sync uploads financial records and currency preferences to PostgreSQL on RDS, while device language, theme, analytics consent, and first-run notice choices remain local. Optional voice processing sends recordings and derived text/category choices remotely.
 
 ## Product decisions
 
 | Decision | V1 choice |
 | --- | --- |
-| Target user | General individual tracking income, expenses, and monthly budgets |
+| Target user | Individuals and families tracking income, expenses, and monthly budgets |
 | Financial model | One consolidated view; no financial accounts or transfers |
 | Transaction fields | Positive amount, income/expense type, category, description, date, currency |
 | Categories | Fixed-slug system and UUIDv7 custom income and expense categories; protected system defaults plus custom create, rename, archive, and delete |
 | Budgets | One expense-category budget per calendar month; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
 | Localization | Bundled English and neutral Latin American Spanish; System / English / Español selection, default System; device region independently controls money and date formatting |
-| Data and identity | Optional login for voice and separately enabled sync; one shared local dataset; one canonical cloud dataset per login |
+| Data and identity | Optional login and opt-in sync for the private personal tracker; separate cloud-backed shared trackers with authenticated membership and explicit sharing consent |
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
 | First-run safety notice | Show a dismissible warning on first launch that this is not a serious application and must not be used to store real data |
@@ -44,6 +44,8 @@ The product should demonstrate thoughtful product, design, and engineering pract
 - Review monthly trends and category breakdowns.
 - Change base currency, theme, and UI language, and inspect exchange-rate freshness.
 - Use the tracker anonymously with local persistence from the first launch.
+- Keep a private personal tracker while creating or joining separate shared family trackers.
+- Invite an existing registered account by a link, give admins equal control, and let members record income/expenses without changing tracker settings.
 - Open the CSV export CTA and see a Pro-feature preview.
 
 ## Information architecture
@@ -86,6 +88,7 @@ The same five labels are used on mobile bottom navigation and the browser left r
 - Base currency, theme, and System / English / Español language preference.
 - Choose a non-empty set of desired currencies for new transaction and budget forms; the base currency is always included.
 - Category management.
+- Trackers: create/select shared trackers, manage memberships/invitations, and archive/restore; all users keep their private personal tracker.
 - Exchange-rate status.
 - Local-data and privacy controls.
 
@@ -165,7 +168,6 @@ Allowed event properties are limited to platform, app version, surface, action r
 
 - Bank connections or transaction imports.
 - Financial-account balances, source/destination details, and transfers.
-- Shared household finances.
 - Investments, loans, debt tracking, or financial advice.
 - CSV download, payments, and subscription enforcement.
 - Pre-populated end-user demo data and demo-data reset. Development-only local fixture tooling is documented separately and is not product UI.
@@ -193,3 +195,28 @@ Replacement requires confirmation that local records and pending edits will be d
 Sync follows successful local saves, launch, foreground, reconnect, and Sync now. There is no polling or background-task requirement. Unsent edits coalesce while retaining the original base revision. Submitted mutations freeze until acknowledgment; edits during requests remain separate pending work. Push acknowledgments never advance the pull cursor. Server revisions, not device clocks, order commits. Transient failures retry with bounded backoff; auth failure pauses automatic sync and retains pending data. Settings exposes pending counts, last sync, offline/error/auth states, conflicts, and manual retry. Logout stops sync without deleting local records/outbox. Reset, replacement, and auth changes cancel stale sync and voice responses.
 
 AWS keeps Cognito/access-token authentication and API resource identities. Portable normalized PostgreSQL 18.6 replaces DynamoDB, with plain parameterized SQL through `pg`, Flyway Community 13.9.0 migrations, immutable changes/tombstones/acknowledgments, and explicit decimal-string/date serialization. Private sync/cache/migration workers use separate roles, verified TLS, a Secrets Manager endpoint, bounded concurrency, and encrypted storage. Development uses the user-approved one-day automated backup window accepted by AWS after its seven-day setting was rejected; production also retains one-day backups under the owner-approved October 5, 2026 account-plan exception. The internet-connected rate API uses an IAM-invoked private PostgreSQL cache worker, preserving rate freshness/fallback behavior without NAT. Production deployment was authorized October 5, 2026; rollout evidence is recorded in the PostgreSQL runbook. ADR 0021 and the PostgreSQL runbook govern staged rollout and portability.
+
+## Wear OS voice expense entry
+
+A non-standalone Kotlin/Compose watch companion records one expense for processing by its paired Android phone, including while the phone app is in the background. Initial setup requires the installed, signed-in phone app. Until the watch receives its signed-in account binding, it shows only an install/open/sign-in prompt; queue and recording controls stay hidden. Phone sign-out sends an empty binding so the watch returns to this setup screen while preserving any encrypted recordings. Full watch controls appear only with a signed-in binding. After setup, the watch holds up to ten encrypted recordings while the phone is unreachable and transfers them sequentially, with a stable request identity. Android may defer processing; pending remains visible until the phone confirms a locally saved expense or a durable failed recording. The watch retains its copy if the phone cannot store either outcome.
+
+The phone uses the existing authenticated remote voice service and durable local-save path. Failed parsing, processing, interruption, authentication, or local saves retain the recording only in a separate encrypted phone queue. Settings → Failed watch recordings provides Play/Pause and confirmed Delete, with guidance to enter a new expense from Dashboard or Transactions. There is no Try again action and no automatic resubmission of failed audio. Lost acknowledgments and duplicate deliveries must not create duplicate expenses.
+
+Audio and recovery metadata never enter the financial dataset or cloud sync; only completed expenses can sync after the existing separate opt-in. Sign-out and financial reset do not silently delete failed audio. Playback requires the originating account; deletion remains available. See ADR 0023 for delivery, account binding, and durability boundaries.
+
+
+## Shared family trackers
+
+Accepted October 7, 2026; see ADR 0024. Everyone keeps a private personal tracker and may create or join multiple separate shared trackers. A shared tracker starts empty with protected system categories and a chosen base/selected currency set. Creating or joining requires sign-in and an explicit cloud-sharing notice; personal records are never uploaded into a shared tracker by these actions. Personal sync stays a separate opt-in.
+
+The creator is an admin. All admins have equal control over transactions, budgets, categories, currencies, tracker name, membership, and archive/restore. Members see the entire shared tracker, add income and expenses, and edit/delete only their own entries. The last admin cannot leave, be removed, or be demoted. Account emails identify members and transaction authors; permissions use Cognito subjects. Membership administration requires a connection. No permanent cloud-deletion action is added.
+
+Admins create a link for an existing enabled account with verified email and choose Admin or Member. Links bind that exact cloud account, expire after seven days, are single-use and revocable, and are shared manually. Recipients sign in as the invited account and explicitly accept the sharing notice. Invalid or wrong-account links do not reveal shared data.
+
+A visible tracker selector scopes all five product routes. Each tracker has independent financial data, categories, currency settings, local cache, pending edits, sync state, and conflicts. Device language, theme, analytics consent, and notices stay device-local across switching. Shared entries work offline using cached permissions; the server rechecks authority when the device reconnects. Archived trackers are read-only until an admin restores them.
+
+Leaving or being removed makes the tracker disappear as soon as the device knows access has ended. Fully synchronized cached data can be cleared. If unsynced work remains, keep its encrypted snapshot inaccessible until that user confirms deletion of local records, pending changes, and backups. Declining deletion does not restore access. Offline devices learn of revocation after reconnection; there is no remote-wipe guarantee. Leaving/removal does not remove the person's previously synchronized transactions from the tracker.
+
+Voice remains expense-only. Phone recordings capture the selected tracker before recording and save to that tracker even if the visible selection changes. Wear OS provides its own tracker selector before recording; it remains independent from phone selection. Every queued recording retains its originating tracker, membership identity, target generation, and watch-local recording date. Delayed delivery never redirects into a different tracker. Removed/archived targets fail safely and retain encrypted failed audio through the existing recovery flow. Legacy recordings and older watch clients remain personal-only.
+
+Acceptance includes two admins and one member sharing a dataset while retaining private personal trackers; server enforcement of own-entry editing and protected tracker settings; invitation identity/expiry/replay; independent offline queues; tracker switching during voice/sync; archive/restore; removal with confirmed pending-data deletion; migration/recovery without silent loss; and legacy personal-client/watch compatibility.

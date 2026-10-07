@@ -28,6 +28,15 @@ export const preferencesSchema = z.object({
 export const datasetEnvelopeSchema = z.object({
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
   datasetId: uuidSchema,
+  tracker: z.object({
+    kind: z.literal("shared"),
+    name: z.string().min(1).max(80),
+    accountSubject: z.string().min(1),
+    membershipId: uuidSchema,
+    role: z.enum(["admin", "member"]),
+    archived: z.boolean(),
+    access: z.enum(["active", "revoked"])
+  }).optional(),
   transactions: z.array(transactionSchema),
   categories: z.array(categorySchema),
   budgets: z.array(budgetSchema),

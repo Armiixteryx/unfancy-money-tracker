@@ -18,6 +18,8 @@ type TransactionRowProps = {
   isDeletePending: boolean;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  canManage?: boolean;
+  showCreator?: boolean;
 };
 
 export function TransactionRow({
@@ -27,7 +29,9 @@ export function TransactionRow({
   onDelete,
   isDeletePending,
   onCancelDelete,
-  onConfirmDelete
+  onConfirmDelete,
+  canManage = true,
+  showCreator = false
 }: TransactionRowProps) {
   useTranslation();
   const styles = useThemedStyles(createStyles);
@@ -35,21 +39,22 @@ export function TransactionRow({
   return (
     <View style={styles.row}>
       <View style={styles.rowContent}>
-        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.editRecord, { description: transaction.description })} onPress={onPress} style={styles.main}>
+        <Pressable accessibilityRole={canManage ? "button" : undefined} accessibilityLabel={i18n.t($ => canManage ? $.notices.editRecord : $.notices.viewRecord, { description: transaction.description })} disabled={!canManage} onPress={onPress} style={styles.main}>
           <View style={[styles.icon, isIncome ? styles.incomeIcon : styles.expenseIcon]}>
             <Text style={styles.iconText}>{isIncome ? "+" : "−"}</Text>
           </View>
           <View style={styles.copy}>
             <Text numberOfLines={1} style={styles.description}>{transaction.description}</Text>
             <Text style={styles.meta}>{categoryLabel(category)} · {formatCalendarDate(transaction.date)}</Text>
+            {showCreator && transaction.creator ? <Text style={styles.creator}>{transaction.creator.email}</Text> : null}
           </View>
           <Text style={[styles.amount, isIncome ? styles.incomeAmount : styles.expenseAmount]}>
             {isIncome ? "+" : "−"}{formatMoneyForDisplay({ amount: transaction.amount, currency: transaction.currency })}
           </Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.deleteRecord, { description: transaction.description })} onPress={onDelete} style={styles.deleteButton}>
+        {canManage ? <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.deleteRecord, { description: transaction.description })} onPress={onDelete} style={styles.deleteButton}>
           <Text style={styles.deleteText}>×</Text>
-        </Pressable>
+        </Pressable> : null}
       </View>
       {isDeletePending ? (
         <View style={styles.confirmation}>
@@ -82,6 +87,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   copy: { flex: 1, gap: 4, minWidth: 0 },
   description: { color: colors.text, fontSize: 15, fontWeight: "500" },
   meta: { color: colors.muted, fontSize: 14 },
+  creator: { color: colors.muted, fontSize: 12 },
   amount: { ...typography.amount, fontSize: 14, fontWeight: "500", textAlign: "right" },
   incomeAmount: { color: colors.positive },
   expenseAmount: { color: colors.text },

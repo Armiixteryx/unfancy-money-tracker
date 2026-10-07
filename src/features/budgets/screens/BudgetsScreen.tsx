@@ -22,6 +22,8 @@ import { useLocalDatasetStore, type CopyBudgetsResult, type MutationResult } fro
 import { BudgetForm, type BudgetFormResult } from "../components/BudgetForm";
 import { CopyBudgetsForm } from "../components/CopyBudgetsForm";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
+import { useAuth } from "../../auth/AuthProvider";
+import { canManageTrackerSettings } from "../../../domain/trackerPermissions";
 
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | { mode: "copy" } | null;
 
@@ -32,6 +34,8 @@ export function BudgetsScreen() {
   const { new: newParam } = useLocalSearchParams<{ new?: string }>();
   const { width } = useWindowDimensions();
   const dataset = useLocalDatasetStore((state) => state.dataset);
+  const auth = useAuth();
+  const canManage = dataset ? canManageTrackerSettings(dataset, auth.subject) : false;
   const addBudget = useLocalDatasetStore((state) => state.addBudget);
   const editBudget = useLocalDatasetStore((state) => state.editBudget);
   const copyBudgets = useLocalDatasetStore((state) => state.copyBudgets);
@@ -53,10 +57,10 @@ export function BudgetsScreen() {
   }, [dataset, month]);
 
   useEffect(() => {
-    if (!dataset || !newParam) return;
+    if (!dataset || !newParam || !canManage) return;
     setFormState({ mode: "new" });
     router.setParams({ new: undefined });
-  }, [dataset, newParam, router]);
+  }, [canManage, dataset, newParam, router]);
 
   if (!dataset) return null;
 
@@ -86,7 +90,8 @@ export function BudgetsScreen() {
   const copyForm = formState?.mode === "copy" ? <CopyBudgetsForm budgets={dataset.budgets} categories={dataset.categories} targetMonth={month} initialSourceMonth={shiftCalendarMonth(month, -1)} onCancel={() => setFormState(null)} onCopy={onCopy} /> : null;
 
   return (
-    <AppScreen eyebrow={i18n.t($ => $.ui.budgetsMonthlyPlanning)} title={i18n.t($ => $.ui.navigationBudgets)} actions={<Button label={i18n.t($ => $.ui.budgetsCreateBudgetAlternative)} onPress={() => { setMessage(null); setFormState({ mode: "new" }); }} />}>
+    <AppScreen eyebrow={i18n.t($ => $.ui.budgetsMonthlyPlanning)} title={i18n.t($ => $.ui.navigationBudgets)} actions={canManage ? <Button label={i18n.t($ => $.ui.budgetsCreateBudgetAlternative)} onPress={() => { setMessage(null); setFormState({ mode: "new" }); }} /> : undefined}>
+      {!canManage ? <Text style={styles.errorBanner}>{auth.identity ? (i18n.resolvedLanguage === "es" ? "Solo los administradores gestionan presupuestos." : "Only tracker admins can manage budgets.") : (i18n.resolvedLanguage === "es" ? "Inicia sesión para sincronizar este conjunto compartido." : "Sign in to sync this shared tracker.")}</Text> : null}
       <View style={styles.toolbar}>
         <View style={styles.monthControl}>
           <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsPreviousBudgetMonth)} onPress={() => setMonth((value) => shiftCalendarMonth(value, -1))} style={styles.monthButton}><Text style={styles.monthButtonText}>‹</Text></Pressable>
@@ -94,7 +99,7 @@ export function BudgetsScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsNextBudgetMonth)} onPress={() => setMonth((value) => shiftCalendarMonth(value, 1))} style={styles.monthButton}><Text style={styles.monthButtonText}>›</Text></Pressable>
         </View>
         <View style={styles.toolbarActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCopyBudgetsFromAnotherMonth)} onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.budgetsCopyFromAnotherMonth)}</Text></Pressable>
+          {canManage ? <Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.ui.budgetsCopyBudgetsFromAnotherMonth)} onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.budgetsCopyFromAnotherMonth)}</Text></Pressable> : null}
 
         </View>
       </View>
@@ -105,7 +110,7 @@ export function BudgetsScreen() {
 
       <View style={[styles.workspace, isBrowserWorkspace && styles.browserWorkspace]}>
         <View style={styles.listCard}>
-          {progress.length === 0 ? <View style={styles.emptyWrap}><EmptyState title={i18n.t($ => $.ui.budgetsNoBudgetsForThisMonth)} description={i18n.t($ => $.ui.budgetsCreateACategoryLimitToCompareLocal)} /><View style={styles.emptyActions}><Pressable accessibilityRole="button" onPress={() => setFormState({ mode: "new" })} style={styles.emptyAction}><Text style={styles.addButtonText}>{i18n.t($ => $.ui.budgetsCreateBudgetAlternative)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.emptyCopyAction}><Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.budgetsCopyFromAnotherMonth)}</Text></Pressable></View></View> : <View style={styles.cards}>{progress.map((item) => <BudgetCard key={item.budget.id} progress={item} onEdit={() => setFormState({ mode: "edit", id: item.budget.id })} onDelete={() => setPendingDeleteId(item.budget.id)} />)}</View>}
+          {progress.length === 0 ? <View style={styles.emptyWrap}><EmptyState title={i18n.t($ => $.ui.budgetsNoBudgetsForThisMonth)} description={i18n.t($ => $.ui.budgetsCreateACategoryLimitToCompareLocal)} />{canManage ? <View style={styles.emptyActions}><Pressable accessibilityRole="button" onPress={() => setFormState({ mode: "new" })} style={styles.emptyAction}><Text style={styles.addButtonText}>{i18n.t($ => $.ui.budgetsCreateBudgetAlternative)}</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { setMessage(null); setFormState({ mode: "copy" }); }} style={styles.emptyCopyAction}><Text style={styles.secondaryButtonText}>{i18n.t($ => $.ui.budgetsCopyFromAnotherMonth)}</Text></Pressable></View> : null}</View> : <View style={styles.cards}>{progress.map((item) => <BudgetCard key={item.budget.id} progress={item} canManage={canManage} onEdit={() => setFormState({ mode: "edit", id: item.budget.id })} onDelete={() => setPendingDeleteId(item.budget.id)} />)}</View>}
         </View>
         {isBrowserWorkspace && (form || copyForm) ? <View style={styles.formPane}>{form ?? copyForm}</View> : null}
       </View>
@@ -114,7 +119,7 @@ export function BudgetsScreen() {
   );
 }
 
-function BudgetCard({ progress, onEdit, onDelete }: { progress: BudgetProgress; onEdit: () => void; onDelete: () => void }) {
+function BudgetCard({ progress, onEdit, onDelete, canManage = true }: { progress: BudgetProgress; onEdit: () => void; onDelete: () => void; canManage?: boolean }) {
   useTranslation();
   const styles = useThemedStyles(createStyles);
   const usedWidth = `${Math.min(progress.percentUsed, 100)}%` as `${number}%`;
@@ -125,7 +130,7 @@ function BudgetCard({ progress, onEdit, onDelete }: { progress: BudgetProgress; 
     <View accessibilityRole="progressbar" accessibilityLabel={categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === progress.budget.categoryId))} accessibilityValue={{ min: 0, max: 100, now: Math.min(Math.round(progress.percentUsed), 100), text: i18n.t($ => $.ui.budgetsPercentUsed, { percent: Math.round(progress.percentUsed) }) }} style={styles.progressTrack}><View style={[styles.progressFill, progress.status === "over_budget" ? styles.overFill : progress.status === "attention" ? styles.attentionFill : styles.onTrackFill, { width: usedWidth }]} /></View>
     <Text style={styles.remaining}>{progress.remaining.amount.startsWith("-") ? i18n.t($ => $.ui.budgetsAmountOver, { amount: formatMoneyForDisplay({ ...progress.remaining, amount: progress.remaining.amount.slice(1) }) }) : i18n.t($ => $.ui.budgetsAmountRemaining, { amount: formatMoneyForDisplay(progress.remaining) })}</Text>
     {progress.otherCurrencySpending.length > 0 ? <Text style={styles.note}>{i18n.t($ => $.ui.budgetsOtherCurrencySpendingIsShownSeparatelyUntil)}</Text> : null}
-    <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}><Text style={styles.editText}>{i18n.t($ => $.ui.budgetsEdit)}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.deleteBudget, { name: categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === progress.budget.categoryId)) })} onPress={onDelete} style={styles.deleteButton}><Text style={styles.deleteText}>{i18n.t($ => $.ui.settingsDelete)}</Text></Pressable></View>
+    {canManage ? <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}><Text style={styles.editText}>{i18n.t($ => $.ui.budgetsEdit)}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={i18n.t($ => $.notices.deleteBudget, { name: categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === progress.budget.categoryId)) })} onPress={onDelete} style={styles.deleteButton}><Text style={styles.deleteText}>{i18n.t($ => $.ui.settingsDelete)}</Text></Pressable></View> : null}
   </View>;
 }
 

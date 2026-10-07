@@ -22,8 +22,9 @@ export interface AuthClient {
   reset(email: string, code: string, password: string): Promise<void>;
   restore(): Promise<string | null>;
   signOut(): Promise<void>;
-  accessToken(): Promise<string>;
+  accessToken(options?: { forceRefresh?: boolean }): Promise<string>;
 }
+export type AuthenticatedIdentity = { subject: string; email: string };
 export const authClient: AuthClient = {
   async register(email, password) { requireConfiguration(); await auth.signUp({ username: email, password, options: { userAttributes: { email } } }); },
   async confirm(email, code) { requireConfiguration(); await auth.confirmSignUp({ username: email, confirmationCode: code }); },
@@ -39,10 +40,10 @@ export const authClient: AuthClient = {
   async reset(email, code, password) { requireConfiguration(); await auth.confirmResetPassword({ username: email, confirmationCode: code, newPassword: password }); },
   async restore() { if (!configured) return null; try { return (await auth.getCurrentUser()).signInDetails?.loginId ?? null; } catch { return null; } },
   async signOut() { try { await auth.signOut(); } finally { await credentialStorage.clear(); } },
-  async accessToken() {
+  async accessToken(options) {
     requireConfiguration();
     try {
-      const session = await auth.fetchAuthSession({ forceRefresh: true });
+      const session = await auth.fetchAuthSession({ forceRefresh: options?.forceRefresh ?? true });
       const token = session.tokens?.accessToken.toString();
       if (!token) throw new AuthenticationRequiredError();
       return token;
@@ -52,3 +53,21 @@ export const authClient: AuthClient = {
     }
   },
 };
+
+export async function getAuthenticatedAccountId(): Promise<string | null> {
+  if (!configured) return null;
+  try { return (await auth.getCurrentUser()).userId || null; }
+  catch { return null; }
+}
+
+export async function getAuthenticatedIdentity(): Promise<AuthenticatedIdentity | null> {
+  if (!configured) return null;
+  try {
+    const user = await auth.getCurrentUser();
+    const session = await auth.fetchAuthSession();
+    const tokenEmail = session.tokens?.idToken?.payload.email;
+    const email = typeof tokenEmail === "string" ? tokenEmail : user.signInDetails?.loginId;
+    if (!user.userId || !email) return null;
+    return { subject: user.userId, email };
+  } catch { return null; }
+}

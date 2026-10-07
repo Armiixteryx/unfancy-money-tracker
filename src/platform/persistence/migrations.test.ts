@@ -6,6 +6,8 @@ import { createBudget } from "../../domain/budgets";
 import { createEmptyDataset, DatasetPersistence, hydrateDataset } from "./datasetPersistence";
 import { MemoryPersistenceAdapter } from "./memoryPersistenceAdapter";
 import { migrateSnapshot } from "./migrations";
+import { emptySyncState } from "../../features/sync/state";
+import { createUuid } from "../identifiers/createUuid";
 
 it("migrates historical UUID built-ins to slugs while preserving custom IDs, records, and the backup", async () => {
   const dataset=createEmptyDataset();
@@ -58,7 +60,7 @@ describe("schema 7 system categories", () => {
     const migrated = migrateSnapshot(raw, idFactory);
     expect(idFactory).not.toHaveBeenCalled();
     expect(JSON.stringify(raw)).toBe(snapshot);
-    expect(migrated).toMatchObject({ schemaVersion: 8, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
+    expect(migrated).toMatchObject({ schemaVersion: 9, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
     expect(migrated.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt])).toEqual(raw.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt]));
     expect(migrated.categories.find(category => category.id === food.id)).toMatchObject({ isSystem: true, isArchived: false, defaultCategoryKey: "food" });
     expect(migrated.categories.filter(category => category.defaultCategoryKey).every(category => category.isSystem && !category.isArchived)).toBe(true);
@@ -109,4 +111,27 @@ describe("schema 7 system categories", () => {
     expect(adapter.migrationBackups).toEqual([snapshot]);
     expect(await adapter.readRecoverySnapshot()).toBe(snapshot);
   });
+});
+
+it("migrates a schema-8 tracker snapshot without changing submitted mutation data", () => {
+  const dataset = createEmptyDataset();
+  const food = dataset.categories.find(category => category.defaultCategoryKey === "food")!;
+  const transaction = { ...createTransaction({ type: "expense", categoryId: food.id, amount: "8.25", currency: "USD", description: "Synthetic preserved outbox", date: "2026-10-07" }, { categories: dataset.categories }), id: createUuid() };
+  const change = {
+    mutationId: createUuid(), recordType: "transaction" as const, recordId: transaction.id,
+    operation: "upsert" as const, baseRevision: 4, payload: transaction, tombstone: false,
+    editedAt: transaction.updatedAt, revision: 0, committedAt: null,
+  };
+  const outbox = [{ change, submitted: true }];
+  const raw = {
+    ...dataset,
+    schemaVersion: 8,
+    transactions: [transaction],
+    sync: { ...emptySyncState(), enabled: true, binding: { owner: "synthetic-subject", datasetId: dataset.datasetId }, outbox },
+  };
+  const migrated = migrateSnapshot(raw);
+  expect(migrated.schemaVersion).toBe(9);
+  expect(migrated.sync?.outbox).toEqual(outbox);
+  expect(JSON.stringify(migrated.sync?.outbox[0]?.change)).toBe(JSON.stringify(change));
+  expect(migrated.transactions[0]).not.toHaveProperty("creator");
 });

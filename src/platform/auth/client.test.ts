@@ -1,4 +1,4 @@
-import { authClient } from "./client";
+import { authClient, getAuthenticatedAccountId } from "./client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const sdk = vi.hoisted(() => ({
   configure: vi.fn(), setStorage: vi.fn(), signUp: vi.fn(), confirmSignUp: vi.fn(), resendSignUpCode: vi.fn(), signIn: vi.fn(), resetPassword: vi.fn(), confirmResetPassword: vi.fn(), getCurrentUser: vi.fn(), fetchAuthSession: vi.fn(), signOut: vi.fn(), clear: vi.fn(),
@@ -35,6 +35,12 @@ describe("AuthClient lifecycle", () => {
     sdk.getCurrentUser.mockRejectedValue(new Error("offline"));
     expect(await authClient.restore()).toBeNull();
   });
+  it("uses the stable Cognito subject for watch audio ownership", async () => {
+    sdk.getCurrentUser.mockResolvedValue({ userId: "cognito-subject-uuid", signInDetails: { loginId: "owner@example.invalid" } });
+    expect(await getAuthenticatedAccountId()).toBe("cognito-subject-uuid");
+    sdk.getCurrentUser.mockRejectedValue(new Error("signed out"));
+    expect(await getAuthenticatedAccountId()).toBeNull();
+  });
   it("uses Amplify session refresh and requires an access token", async () => {
     sdk.fetchAuthSession.mockResolvedValue({ tokens: { accessToken: { toString: () => "synthetic-access" }, idToken: { toString: () => "synthetic-id" } } });
     expect(await authClient.accessToken()).toBe("synthetic-access");
@@ -43,6 +49,11 @@ describe("AuthClient lifecycle", () => {
     await expect(authClient.accessToken()).rejects.toThrow("Sign in required");
     sdk.fetchAuthSession.mockRejectedValue(new Error("offline"));
     await expect(authClient.accessToken()).rejects.toThrow("Authentication is unavailable");
+  });
+  it("allows background voice to use a valid session with automatic expired-token refresh", async () => {
+    sdk.fetchAuthSession.mockResolvedValue({ tokens: { accessToken: { toString: () => "synthetic-access" } } });
+    expect(await authClient.accessToken({ forceRefresh: false })).toBe("synthetic-access");
+    expect(sdk.fetchAuthSession).toHaveBeenCalledWith({ forceRefresh: false });
   });
   it("clears local credentials even when remote logout fails", async () => {
     sdk.signOut.mockRejectedValue(new Error("offline"));

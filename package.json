@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@11.17.0",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "start": "expo start --dev-client",
     "start:all": "./scripts/start-all.sh",
@@ -42,11 +42,13 @@
     "voice:env": "tsx scripts/voice-environment.ts",
     "db:migrate": "docker compose run --rm flyway validate migrate",
     "db:build-migrations": "./scripts/build-migrations.sh",
-    "test:migrations": "vitest run --config vitest.integration.config.ts tests/integration/flyway.test.ts"
+    "test:migrations": "vitest run --config vitest.integration.config.ts tests/integration/flyway.test.ts",
+    "wear:build": "./scripts/wear-build.sh"
   },
   "dependencies": {
     "@ai-sdk/gateway": "4.0.103",
     "@aws-amplify/react-native": "^1.3.3",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1146.0",
     "@aws-sdk/client-lambda": "^3.1146.0",
     "@aws-sdk/client-secrets-manager": "^3.1145.0",
     "@expo/vector-icons": "^15.0.0",

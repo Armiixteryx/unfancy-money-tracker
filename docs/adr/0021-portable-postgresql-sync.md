@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0024](0024-shared-family-trackers.md) for independent shared trackers, membership permissions, tracker-scoped persistence/voice, and compatibility. The personal-tracker behavior below remains applicable; single-dataset assumptions are historical for shared use.
+
 Accepted. Supersedes ADR 0015 and the sync suspension in ADR 0016. Updates ADRs 0001, 0003–0007, 0010–0011, 0017–0018, and 0020. Production deployment was explicitly authorized October 5, 2026 and retains the separate deployment gate; ADR 0014 continues to defer retail preview.
 
 ## Context

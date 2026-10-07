@@ -25,6 +25,7 @@ describe("portable PostgreSQL boundary",() => {
     database.hasResourceProperties("AWS::Lambda::Function",{ Runtime:"java21",ReservedConcurrentExecutions:Match.absent(),VpcConfig:Match.objectLike({ SubnetIds:Match.anyValue() }) });
     for (const template of [database,services]) {
       for (const resource of Object.values(template.findResources("AWS::Lambda::Function"))) {
+        if (resource.Properties.Environment?.Variables?.SYNC_WORKER_FUNCTION_NAME) continue;
         expect(resource.Properties.ReservedConcurrentExecutions).toBeUndefined();
       }
     }
@@ -47,7 +48,15 @@ describe("portable PostgreSQL boundary",() => {
     services.hasResourceProperties("AWS::Lambda::Function",{ ReservedConcurrentExecutions:2 });
     const policies=Object.values(services.findResources("AWS::IAM::Policy"));
     const invoke=policies.filter(resource => JSON.stringify(resource.Properties.PolicyDocument).includes("lambda:InvokeFunction"));
-    expect(invoke).toHaveLength(1); expect(JSON.stringify(invoke[0]?.Properties.Roles)).toContain("ExchangeRateFunctionServiceRole");
+    expect(invoke).toHaveLength(3);
+    const invokeRoles=JSON.stringify(invoke.map(resource => resource.Properties.Roles));
+    expect(invokeRoles).toContain("ExchangeRateFunctionServiceRole");
+    expect(invokeRoles).toContain("TrackerRelayFunctionServiceRole");
+    expect(invokeRoles).toContain("VoiceExpenseFunctionServiceRole");
+    const relay=Object.values(services.findResources("AWS::Lambda::Function")).find(resource => resource.Properties.Handler?.includes("trackerRelay"));
+    expect(relay?.Properties.VpcConfig).toBeUndefined();
+    expect(relay?.Properties.Environment.Variables.DB_SECRET_ARN).toBeUndefined();
+    expect(relay?.Properties.Environment.Variables.DATABASE_URL).toBeUndefined();
     const voice=policies.filter(resource => JSON.stringify(resource.Properties.PolicyDocument).includes("VoiceSecret"));
     expect(voice).toHaveLength(1); expect(JSON.stringify(voice[0]?.Properties.Roles)).toContain("VoiceExpenseFunctionServiceRole");
   });

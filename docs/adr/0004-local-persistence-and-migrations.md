@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0024](0024-shared-family-trackers.md) for independent shared trackers, membership permissions, tracker-scoped persistence/voice, and compatibility. The personal-tracker behavior below remains applicable; single-dataset assumptions are historical for shared use.
+
 Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
 
 Accepted for local persistence; account-scoped cache behavior is superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md).

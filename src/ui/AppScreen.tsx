@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useThemedStyles, type ThemeColors } from "./theme";
+import { TrackerSwitcher } from "../features/trackers/TrackerSwitcher";
+import { TrackerSyncNotice } from "../features/sync/TrackerSyncNotice";
 
 type AppScreenProps = {
   title: string;
@@ -46,6 +48,8 @@ export function AppScreen({ title, eyebrow, children, overlay, actions }: AppScr
           </View>
           {actions ? <View style={styles.headerActions}>{actions}</View> : null}
         </View>
+        <TrackerSwitcher />
+        <TrackerSyncNotice />
         {children}
       </ScrollView>
       {overlay ? (

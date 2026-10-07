@@ -1,4 +1,5 @@
 export const voiceEn = {
+  "voiceSharedAudioDisclosure": "Voice audio is sent to Vercel/SpaceXAI; the transcript and active category names go to Cloudflare. Saved expenses sync to this tracker and are visible to its members.",
   "voiceRecordingReleaseToSubmit15SecondLimit": "Recording · release to submit · 15 second limit",
   "voiceWaitingForMicrophonePermission": "Waiting for microphone permission",
   "voiceStartingMicrophone": "Starting microphone…",
@@ -14,6 +15,7 @@ export const voiceEn = {
   "voiceRecordAgain": "Record again",
   "voiceVoiceProviderMissing": "Voice provider missing",
   "voiceThisTransactionIsNoLongerAvailable": "This transaction is no longer available.",
+  "voiceSelectedTrackerIsNoLongerAvailable": "This tracker is no longer available for new expenses.",
   "voiceUncategorized": "Uncategorized",
   "voiceLocalDataIsStillLoading": "Local data is still loading.",
   "voiceLocalSaveFailedRetrySaveToKeep": "Local save failed. Retry save to keep this record without recording again.",
@@ -29,6 +31,7 @@ export const voiceEn = {
   "voiceVoiceAudioIsSentToVercelSpacexai": "Voice audio is sent to Vercel/SpaceXAI; the transcript and active category names go to Cloudflare. Say one expense: “Lunch forty thousand pesos”. The saved record stays on this device."
 } as const;
 export const voiceEs: Record<keyof typeof voiceEn, string> = {
+  "voiceSharedAudioDisclosure": "El audio se envía a Vercel/SpaceXAI; la transcripción y los nombres de categorías activas van a Cloudflare. Los gastos guardados se sincronizan con este conjunto y son visibles para sus miembros.",
   "voiceRecordingReleaseToSubmit15SecondLimit": "Grabando · suelta para enviar · límite de 15 segundos",
   "voiceWaitingForMicrophonePermission": "Esperando permiso del micrófono",
   "voiceStartingMicrophone": "Iniciando micrófono…",
@@ -44,6 +47,7 @@ export const voiceEs: Record<keyof typeof voiceEn, string> = {
   "voiceRecordAgain": "Grabar de nuevo",
   "voiceVoiceProviderMissing": "Falta el proveedor de voz",
   "voiceThisTransactionIsNoLongerAvailable": "Esta transacción ya no está disponible.",
+  "voiceSelectedTrackerIsNoLongerAvailable": "Este rastreador ya no está disponible para nuevos gastos.",
   "voiceUncategorized": "Sin categoría",
   "voiceLocalDataIsStillLoading": "Los datos locales todavía se están cargando.",
   "voiceLocalSaveFailedRetrySaveToKeep": "No se pudo guardar localmente. Reintenta el guardado para conservar este registro sin volver a grabar.",

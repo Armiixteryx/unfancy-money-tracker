@@ -11,6 +11,7 @@ export const MAX_REQUEST_BYTES = 2 * 1024 * 1024;
 export const voiceRequestSchema = z
   .object({
     requestId: uuidSchema,
+    tracker: z.object({ datasetId: uuidSchema, membershipId: uuidSchema }).strict().optional(),
     audio: z
       .string()
       .min(4)
