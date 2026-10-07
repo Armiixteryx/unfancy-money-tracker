@@ -13,6 +13,7 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     orientation: "portrait",
     userInterfaceStyle: "automatic",
     scheme: "unfancy-money-tracker",
+    icon: "./assets/icon.png",
     newArchEnabled: true,
     experiments: {
       autolinkingModuleResolution: true
@@ -25,12 +26,14 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     android: {
       package: applicationId,
       adaptiveIcon: {
-        backgroundColor: "#F7F5F0"
+        backgroundColor: "#F7F5F0",
+        foregroundImage: "./assets/icon-foreground.png"
       }
     },
     web: {
       bundler: "metro",
-      output: "static"
+      output: "static",
+      favicon: "./assets/favicon.png"
     },
     locales: { en: "./src/localization/native/en.json", es: "./src/localization/native/es.json" },
     plugins: [
