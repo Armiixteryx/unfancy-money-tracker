@@ -35,6 +35,8 @@ describe("app theme", () => {
     expect(contrastRatio(colors.text, colors.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.text, colors.canvas)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.muted, colors.canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.placeholder, colors.canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.placeholder, colors.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.positive, colors.positiveSubtle)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.negative, colors.negativeSubtle)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.warning, colors.warningSubtle)).toBeGreaterThanOrEqual(4.5);
@@ -42,6 +44,7 @@ describe("app theme", () => {
     expect(contrastRatio(colors.muted, colors.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.positive, colors.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.negative, colors.surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(colors.negative, colors.canvas)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(colors.onPrimary, colors.primary)).toBeGreaterThanOrEqual(4.5);
   });
 });

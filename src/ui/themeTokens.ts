@@ -29,7 +29,7 @@ export type ThemeColors = {
 export const lightColors: ThemeColors = {
   canvas: "#EFECEA", surface: "#FFFFFF", surfaceRaised: "#F7F5F2", text: "#102A43", muted: "#59666C",
   border: "#DCD9D6", divider: "#EEECE8", primary: "#102A43", onPrimary: "#FFFFFF", positive: "#0F7A3A",
-  negative: "#C93636", accent: "#0F7A3A", placeholder: "#667178", track: "#EEECE8", positiveSubtle: "#EDF6EF",
+  negative: "#C03232", accent: "#0F7A3A", placeholder: "#5B666D", track: "#EEECE8", positiveSubtle: "#EDF6EF",
   negativeSubtle: "#FFF2F0", infoSubtle: "#F1F3F3", warning: "#886000", warningSubtle: "#FFF7E6",
   pro: "#102A43", proSubtle: "#F1F3F3"
 };

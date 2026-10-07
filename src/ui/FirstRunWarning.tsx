@@ -3,6 +3,7 @@ import { i18n } from "../localization/i18n";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatasetStore";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "./theme";
@@ -11,13 +12,14 @@ export function FirstRunWarning() {
   useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const setPreferences = useLocalDatasetStore((state) => state.setPreferences);
 
   if (!dataset || dataset.preferences.firstRunNoticeDismissed) return null;
 
   return (
-    <View accessibilityRole="alert" style={styles.banner}>
+    <View accessibilityRole="alert" style={[styles.banner, { paddingTop: 12 + insets.top }]}>
       <Ionicons accessibilityElementsHidden color={colors.warning} name="warning-outline" size={22} />
       <Text style={styles.message}>{i18n.t($ => $.ui.commonThisIsNotASeriousApplicationDo)}</Text>
       <Pressable accessibilityLabel={i18n.t($ => $.ui.commonDismissApplicationWarning)} accessibilityRole="button" hitSlop={8} onPress={() => void setPreferences({ firstRunNoticeDismissed: true })} style={styles.dismiss}>
