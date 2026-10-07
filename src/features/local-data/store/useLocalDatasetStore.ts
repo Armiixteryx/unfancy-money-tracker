@@ -33,6 +33,7 @@ export type DatasetStoreState = {
   resetLocalData: () => Promise<void>;
   replaceWithMockData: (preset: MockDatasetPreset) => Promise<MutationResult<Dataset>>;
   addTransaction: (input: TransactionInput, id?: string) => Promise<MutationResult<Transaction>>;
+  addTransactionDurably: (input: TransactionInput, id: string) => Promise<MutationResult<Transaction>>;
   editTransaction: (id: string, input: TransactionInput) => Promise<MutationResult<Transaction>>;
   deleteTransaction: (id: string) => Promise<MutationResult<null>>;
   addBudget: (input: BudgetInput) => Promise<MutationResult<Budget>>;
@@ -74,13 +75,19 @@ function hasDuplicateCategoryName(categories: readonly Category[], category: Cat
 export function createDatasetStore(persistence: DatasetPersistence, legacyCleanup: () => Promise<void> = runLegacyAccountCacheCleanup) {
   return create<DatasetStoreState>((set, get) => {
     let initialization: Promise<void> | null = null;
+    let persistenceQueue: Promise<void> = Promise.resolve();
+    const serializePersistence = async <T,>(operation: () => Promise<T>): Promise<T> => {
+      const result = persistenceQueue.then(operation, operation);
+      persistenceQueue = result.then(() => undefined, () => undefined);
+      return result;
+    };
 
     const commit = async (requested: Dataset, fromSync = false): Promise<boolean> => {
       const previous = get().dataset;
       const dataset = previous && !fromSync ? trackLocalChanges(previous,requested) : requested;
       set({ dataset, saveStatus: "saving", saveError: null });
       try {
-        await persistence.save(dataset);
+        await serializePersistence(() => persistence.save(dataset));
         if (get().dataset === dataset) set({ saveStatus: "idle" });
         return true;
       } catch {
@@ -98,7 +105,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
         if (!replace) return commit(next,true);
         set({ datasetEpoch:get().datasetEpoch+1,dataset:null,hydration:{ status:"loading" },saveStatus:"saving" });
         try {
-          await persistence.save(next);
+          await serializePersistence(() => persistence.save(next));
           set({ dataset:next,hydration:{ status:"ready",dataset:next },saveStatus:"idle",saveError:null });
           return true;
         } catch {
@@ -130,7 +137,7 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
           if (result.status === "ready") {
             set({ hydration: result, dataset: result.dataset,saveStatus:"saving" });
             try {
-              await persistence.save(result.dataset);
+              await serializePersistence(() => persistence.save(result.dataset));
               set({ saveStatus:"idle" });
             } catch {
               set({ saveStatus: "error", saveError: "local_data_could_not_be_saved_retry_from_settings" });
@@ -148,14 +155,14 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
       },
       recoverLocalData: async () => {
         set({ datasetEpoch: get().datasetEpoch + 1 });
-        await persistence.restoreRecoverySnapshot();
+        await serializePersistence(() => persistence.restoreRecoverySnapshot());
         set({ hydration: { status: "loading" }, dataset: null, saveStatus: "idle", saveError: null });
         await get().initialize();
       },
       resetLocalData: async () => {
         const previous = get().dataset;
         set({ datasetEpoch: get().datasetEpoch + 1, dataset: null, hydration: { status: "loading" } });
-        try { await persistence.reset(); } catch {
+        try { await serializePersistence(() => persistence.reset()); } catch {
           set({ dataset: previous, hydration: previous ? { status: "ready", dataset: previous } : { status: "recovery", errorCode: "storage_unavailable", backupAvailable: true }, saveStatus: "error", saveError: "local_reset_failed_your_records_remain_available" });
           throw new Error("Local reset failed. Try again.");
         }
@@ -181,6 +188,29 @@ export function createDatasetStore(persistence: DatasetPersistence, legacyCleanu
           const saved = await commit(existing ? dataset : { ...dataset, transactions: [...dataset.transactions, transaction] });
           return saved ? { ok: true, value: transaction } : { ok: false, message: "local_save_failed_retry_to_save_this_record", recordId: transaction.id };
         } catch (error) {
+          return { ok: false, message: safeErrorMessage(error) };
+        }
+      },
+      addTransactionDurably: async (input, id) => {
+        const dataset = get().dataset;
+        const epoch = get().datasetEpoch;
+        if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
+        if (get().saveStatus !== "idle") return { ok: false, message: "local_data_has_unsaved_changes" };
+        try {
+          const existing = dataset.transactions.find(record => record.id === id);
+          if (existing) return { ok: true, value: existing };
+          const transaction = createTransaction(input, { categories: dataset.categories, now, idFactory: () => id });
+          const next = trackLocalChanges(dataset, { ...dataset, transactions: [...dataset.transactions, transaction] });
+          set({ saveStatus: "saving", saveError: null });
+          await serializePersistence(() => persistence.save(next));
+          if (get().datasetEpoch !== epoch || get().dataset !== dataset) {
+            if (get().dataset) await serializePersistence(() => persistence.save(get().dataset!));
+            return { ok: false, message: "local_data_changed_during_save" };
+          }
+          set({ dataset: next, saveStatus: "idle", saveError: null });
+          return { ok: true, value: transaction };
+        } catch (error) {
+          if (get().datasetEpoch === epoch && get().dataset === dataset) set({ saveStatus: "error", saveError: "local_watch_recording_save_failed_recording_retained" });
           return { ok: false, message: safeErrorMessage(error) };
         }
       },

@@ -32,6 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       ...(isProduction ? ["./plugins/with-android-release-signing.cjs"] : []),
       "./plugins/with-ios-scene.cjs",
+      "./plugins/with-wear-voice.cjs",
       "./plugins/with-ios-pod-minimum.cjs",
       ["expo-localization", { supportedLocales: ["en", "es"] }],
       "expo-router",

@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Unfancy Money Tracker</string>
+    <string name="watch_title">Unfancy</string>
+    <string name="queue_count">Cola: %1$d / %2$d</string>
+    <string name="record">Grabar gasto</string>
+    <string name="stop">Detener</string>
+    <string name="send_to_phone">Enviar al teléfono</string>
+    <string name="status_start">Abre la app del teléfono e inicia sesión para activar la voz.</string>
+    <string name="status_recovery">No se pudo leer la cola cifrada. Se conservaron los datos existentes.</string>
+    <string name="status_full">La cola está llena. Conecta tu teléfono e inténtalo de nuevo.</string>
+    <string name="status_sign_in">Abre la app del teléfono e inicia sesión para activar la voz.</string>
+    <string name="status_original_account">Inicia sesión en la cuenta que grabó estos audios para enviarlos.</string>
+    <string name="status_offline">Sin conexión. El audio queda cifrado aquí hasta que el teléfono lo envíe para procesarlo de forma remota.</string>
+    <string name="status_ready">Graba un gasto. El teléfono envía el audio para procesarlo de forma remota.</string>
+    <string name="status_recording">Grabando… toca Detener al terminar.</string>
+    <string name="status_saved">Guardado en el reloj. Enviando al teléfono…</string>
+    <string name="status_saved_local">Guardado en el reloj. Esperando al teléfono.</string>
+    <string name="status_pending">Esperando la confirmación del teléfono.</string>
+    <string name="status_save_failed">No se pudo guardar la grabación. Inténtalo de nuevo.</string>
+    <string name="status_unavailable">Grabación no disponible. Inténtalo de nuevo.</string>
+    <string name="status_too_short">Graba un poco más de tiempo.</string>
+    <string name="status_permission">Se necesita permiso para usar el micrófono.</string>
+    <string name="status_record_failed">No se pudo iniciar la grabación. Inténtalo de nuevo.</string>
+    <string name="status_phone_saved">Gasto enviado al teléfono.</string>
+    <string name="status_phone_failed">Escúchala en Grabaciones fallidas del reloj, en Configuración del teléfono.</string>
+    <string name="status_phone_deleted">Grabación eliminada del teléfono.</string>
+</resources>

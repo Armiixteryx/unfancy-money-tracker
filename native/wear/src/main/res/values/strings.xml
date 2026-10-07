@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Unfancy Money Tracker</string>
+    <string name="watch_title">Unfancy</string>
+    <string name="queue_count">Queue: %1$d / %2$d</string>
+    <string name="record">Record expense</string>
+    <string name="stop">Stop</string>
+    <string name="send_to_phone">Send to phone</string>
+    <string name="status_start">Open the phone app and sign in to enable voice.</string>
+    <string name="status_recovery">Encrypted queue could not be read. Existing data was preserved.</string>
+    <string name="status_full">Queue full. Connect your phone and try again.</string>
+    <string name="status_sign_in">Open the phone app and sign in to enable voice.</string>
+    <string name="status_original_account">Sign in to the account that recorded these clips to send them.</string>
+    <string name="status_offline">Offline. Audio stays encrypted here until your phone sends it for remote processing.</string>
+    <string name="status_ready">Record one expense. Your phone sends audio for remote processing.</string>
+    <string name="status_recording">Recording… tap Stop when finished.</string>
+    <string name="status_saved">Saved on watch. Sending to phone…</string>
+    <string name="status_saved_local">Saved on watch. Waiting for your phone.</string>
+    <string name="status_pending">Waiting for phone confirmation.</string>
+    <string name="status_save_failed">Could not save recording. Please try again.</string>
+    <string name="status_unavailable">Recording unavailable. Please try again.</string>
+    <string name="status_too_short">Please record a little longer.</string>
+    <string name="status_permission">Microphone permission is needed to record.</string>
+    <string name="status_record_failed">Recording could not start. Try again.</string>
+    <string name="status_phone_saved">Expense sent to phone.</string>
+    <string name="status_phone_failed">Listen in Failed watch recordings in phone Settings.</string>
+    <string name="status_phone_deleted">Recording removed from phone.</string>
+</resources>

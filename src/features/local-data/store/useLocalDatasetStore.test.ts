@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DatasetPersistence, MemoryPersistenceAdapter } from "../../../platform/persistence";
 import { createDatasetStore } from "./useLocalDatasetStore";
+import { createUuid } from "../../../platform/identifiers/createUuid";
+import { emptySyncState } from "../../sync/state";
 
 describe("local dataset store", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -45,6 +47,85 @@ describe("local dataset store", () => {
     expect(store.getState().dataset?.transactions).toHaveLength(0);
     expect(store.getState().dataset).not.toHaveProperty("recordTombstones");
     expect(store.getState().dataset).toHaveProperty("sync.enabled", false);
+  });
+
+  it("saves watch transactions durably before exposing the record and deduplicates the stable ID", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const before = store.getState().dataset!;
+    const category = before.categories.find(candidate => candidate.defaultCategoryKey === "food")!;
+    const id = createUuid();
+    const input = { amount: "9.25", type: "expense" as const, categoryId: category.id, description: "Synthetic watch entry", date: "2026-10-06", currency: "USD" as const };
+
+    const saved = await store.getState().addTransactionDurably(input, id);
+    expect(saved).toMatchObject({ ok: true, value: { id } });
+    const hydrated = await new DatasetPersistence(adapter).hydrate();
+    expect(hydrated.status).toBe("ready");
+    if (hydrated.status !== "ready") return;
+    expect(hydrated.dataset.transactions.map(record => record.id)).toEqual([id]);
+
+    await store.getState().addTransactionDurably({ ...input, amount: "90.00" }, id);
+    expect(store.getState().dataset?.transactions).toHaveLength(1);
+    expect(store.getState().dataset?.transactions[0]?.amount).toBe("9.25");
+  });
+
+  it("keeps watch audio and recovery metadata out of an opted-in financial snapshot and outbox", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    await store.getState().updateFromSync(current => ({ ...current, sync: { ...emptySyncState(), enabled: true, binding: { owner: "synthetic-sub", datasetId: current.datasetId } } }));
+    const dataset = store.getState().dataset!;
+    const category = dataset.categories.find(candidate => candidate.defaultCategoryKey === "food")!;
+    const input = { amount: "9.25", type: "expense" as const, categoryId: category.id, description: "Synthetic expense", date: "2026-10-06", currency: "USD" as const,
+      audio: "synthetic-recording-bytes", status: "failed", errorCode: "synthetic_failure", accountId: "synthetic-origin-account" };
+    expect((await store.getState().addTransactionDurably(input, createUuid())).ok).toBe(true);
+    const saved = store.getState().dataset!;
+    expect(saved.sync?.outbox).toHaveLength(1);
+    const serialized = JSON.stringify(saved);
+    for (const value of ["synthetic-recording-bytes", "synthetic_failure", "synthetic-origin-account", '\"audio\"', '\"errorCode\"']) expect(serialized).not.toContain(value);
+    const hydrated = await new DatasetPersistence(adapter).hydrate();
+    expect(hydrated.status).toBe("ready");
+    if (hydrated.status === "ready") expect(hydrated.dataset).toEqual(saved);
+  });
+
+  it("does not expose a watch transaction or outbox mutation when its durable write fails", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    await store.getState().updateFromSync(current => ({ ...current, sync: { ...emptySyncState(), enabled: true, binding: { owner: "synthetic-sub", datasetId: current.datasetId } } }));
+    const before = store.getState().dataset!;
+    const category = before.categories.find(candidate => candidate.defaultCategoryKey === "food")!;
+    vi.spyOn(adapter, "writeSnapshot").mockRejectedValueOnce(new Error("synthetic storage failure"));
+    const result = await store.getState().addTransactionDurably({ amount: "9.25", type: "expense", categoryId: category.id, description: "Synthetic watch entry", date: "2026-10-06", currency: "USD" }, createUuid());
+    expect(result.ok).toBe(false);
+    expect(store.getState().dataset).toBe(before);
+    expect(store.getState().dataset?.transactions).toHaveLength(0);
+    expect(store.getState().dataset?.sync?.outbox).toHaveLength(0);
+    expect((await new DatasetPersistence(adapter).hydrate()).status).toBe("ready");
+  });
+
+  it("serializes a pending watch write before a confirmed local reset and leaves no stale record", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const dataset = store.getState().dataset!;
+    const category = dataset.categories.find(candidate => candidate.defaultCategoryKey === "food")!;
+    const originalWrite = adapter.writeSnapshot.bind(adapter);
+    let enterWrite!: () => void;
+    let releaseWrite!: () => void;
+    const entered = new Promise<void>(resolve => { enterWrite = resolve; });
+    const gate = new Promise<void>(resolve => { releaseWrite = resolve; });
+    vi.spyOn(adapter, "writeSnapshot").mockImplementation(async snapshot => { enterWrite(); await gate; await originalWrite(snapshot); });
+    const watchSave = store.getState().addTransactionDurably({ amount: "9.25", type: "expense", categoryId: category.id, description: "Synthetic watch entry", date: "2026-10-06", currency: "USD" }, createUuid());
+    await entered;
+    const reset = store.getState().resetLocalData();
+    releaseWrite();
+    await Promise.all([watchSave, reset]);
+    expect(store.getState().dataset?.transactions).toHaveLength(0);
+    const hydrated = await new DatasetPersistence(adapter).hydrate();
+    expect(hydrated.status).toBe("ready");
+    if (hydrated.status === "ready") expect(hydrated.dataset.transactions).toHaveLength(0);
   });
 
   it("rejects a category from the wrong transaction kind at the domain boundary", async () => {
