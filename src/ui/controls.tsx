@@ -1,11 +1,12 @@
-import { Pressable, StyleSheet, View, type PressableProps, type ViewProps } from "react-native";
+import { Pressable, StyleSheet, View, type PressableProps, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
 import { AppText } from "./AppText";
 import { layout } from "./designTokens";
 import { useThemedStyles, type ThemeColors } from "./theme";
 
-type ButtonProps = Omit<PressableProps, "children"> & {
+type ButtonProps = Omit<PressableProps, "children" | "style"> & {
   label: string;
   variant?: "primary" | "secondary" | "ghost" | "danger";
+  style?: StyleProp<ViewStyle>;
 };
 
 export function Button({ label, variant = "primary", disabled, style, ...props }: ButtonProps) {
@@ -14,7 +15,7 @@ export function Button({ label, variant = "primary", disabled, style, ...props }
   return (
     <Pressable {...props} accessibilityRole="button" disabled={disabled}
       accessibilityState={{ ...props.accessibilityState, disabled: Boolean(disabled) }}
-      style={(state) => [styles.button, styles[variant], disabled && styles.disabled, state.pressed && styles.pressed, typeof style === "function" ? style(state) : style]}>
+      style={[styles.button, styles[variant], disabled && styles.disabled, style]}>
       <AppText variant="label" style={[styles.buttonText, filled && styles.filledText]}>{label}</AppText>
     </Pressable>
   );
@@ -37,7 +38,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   secondary: { backgroundColor: colors.surface, borderColor: colors.border },
   ghost: { borderColor: "transparent" },
   danger: { backgroundColor: colors.negative, borderColor: colors.negative },
-  disabled: { opacity: 0.5 }, pressed: { opacity: 0.75 },
+  disabled: { opacity: 0.5 },
   buttonText: { color: colors.text, textAlign: "center" }, filledText: { color: colors.onPrimary },
   status: { alignSelf: "flex-start", borderRadius: layout.pillRadius, paddingHorizontal: 12, paddingVertical: 6 },
   infoStatus: { backgroundColor: colors.infoSubtle }, infoText: { color: colors.muted },
