@@ -99,11 +99,15 @@ class WatchAudioReceiverService : WearableListenerService() {
     }
     fun syncSetup(context: android.content.Context, accountId: String?) {
       val store = WatchAudioStore(context.applicationContext)
-      store.bind(accountId)
-      if (accountId.isNullOrBlank()) return
-      val publicKey = store.setupPublicKey(store.boundNode() ?: return) ?: return
-      val json = org.json.JSONObject().put("accountId", accountId).put("encryption", org.json.JSONObject().put("version", 1).put("algorithm", "RSA-OAEP-256+A256GCM").put("publicKey", publicKey))
+      val normalizedAccount = accountId?.takeIf { it.isNotBlank() }
+      store.bind(normalizedAccount)
       val node = store.boundNode() ?: return
+      val json = if (normalizedAccount == null) {
+        org.json.JSONObject().put("accountId", "").put("encryption", org.json.JSONObject.NULL)
+      } else {
+        val publicKey = store.setupPublicKey(node) ?: return
+        org.json.JSONObject().put("accountId", normalizedAccount).put("encryption", org.json.JSONObject().put("version", 1).put("algorithm", "RSA-OAEP-256+A256GCM").put("publicKey", publicKey))
+      }
       Wearable.getMessageClient(context).sendMessage(node, "/unfancy/watch/setup", json.toString().toByteArray(Charsets.UTF_8))
     }
     private val UUID_V7 = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$") }

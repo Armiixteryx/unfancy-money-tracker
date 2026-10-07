@@ -10,7 +10,7 @@ Before mobile tests inspect `adb devices` and `xcrun xctrace list devices`; pref
 
 | Exercise | Required observation |
 | --- | --- |
-| Initial setup signed out / signed in | Recording disabled until signed-in phone binding is received |
+| Initial setup signed out / signed in | Setup-only prompt with no queue or recording controls until signed-in phone binding is received |
 | Phone offline, ten recordings | Queue persists through watch restart; eleventh capture blocked; no recording erased |
 | Reconnect | Sequential transfer; pending remains until terminal phone acknowledgment |
 | Phone UI closed/backgrounded | Deferred work processes inbox without mounting phone UI |
@@ -130,4 +130,10 @@ The physical SM_A546E phone and SM_L300 watch were attached. The watch remained 
 
 On the watch, a focused instrumentation action backed up the exact encrypted binding file bytes in memory, temporarily removed the binding, launched the real watch activity, and restored the original encrypted bytes in `finally`. During the unbound window, an actual accessibility hierarchy dump showed the “Open the phone app and sign in to enable voice” message and the Record control's clickable parent disabled. The activity's phone-ready state was false. Invoking the real `startRecording` guard directly left recording false, produced no request ID, created no `.m4a` cache file, and left the encrypted queue unchanged. The watch sent a setup request while the phone companion was absent; after a three-second wait the binding remained absent. The physical probe returned `bindingAbsent`, `recordControlGuardDisabled`, `microphoneStartBlocked`, `setupRequestRemainedUnbound`, `queueUnchanged`, and `bindingRestored` as true, with one connected phone node.
 
-After the exact binding backup was restored, the watch again displayed Queue: 0 / 10 and the Record control was enabled. Earlier paired setup exercises above established successful signed-in setup and binding receipt. This October 7 scenario verifies a never-configured watch state on an already-paired watch with no companion package available; it does not represent hardware that has never been system-paired.
+After the exact binding backup was restored, the watch again displayed Queue: 0 / 10 and the Record control was enabled. Earlier paired setup exercises above established successful signed-in setup and binding receipt. This October 7 scenario verifies a never-configured watch state on an already-paired watch with no companion package available; it does not represent hardware that has never been system-paired. The signed-out transition from an installed phone companion remains to be recorded separately.
+
+### Setup-only screen retest — October 7, 2026
+
+The updated debug Wear APK was installed on the physical SM_L300. The test copied the exact encrypted watch binding to an app-private temporary file, removed the binding, force-stopped and relaunched the watch app, then captured the screen and accessibility hierarchy. The screen showed the Unfancy title, phone icon, and “Install or open the phone app, then sign in to enable voice.” The hierarchy contained no queue count or recording control. The encrypted binding was restored from the temporary copy, the temporary copy was removed, and the app returned to its prior bound screen with Queue: 0 / 10 and Record expense enabled. The watch queue was unchanged.
+
+The custom `am instrument` runner failed to attach before executing its checks, so this was a manual physical UI probe. The phone companion is absent on this device; delivery of an empty binding from an actual phone sign-out was not exercised.

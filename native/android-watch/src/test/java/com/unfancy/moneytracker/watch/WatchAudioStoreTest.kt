@@ -74,6 +74,14 @@ class WatchAudioStoreTest {
     assertArrayEquals(byteArrayOf(1, 2, 3, 4), f.store.read(requestId))
   }
 
+  @Test fun signOutClearsAccountButPreservesPinnedWatchForSetupUpdate() {
+    val f = fixture(); f.store.bind("account-a", "watch-node-a")
+    f.store.bind(null)
+    assertNull(f.store.boundAccount())
+    assertEquals("watch-node-a", f.store.boundNode())
+    assertArrayEquals(byteArrayOf(1, 2, 3, 4), f.store.read(requestId))
+  }
+
   @Test fun handoffFailurePreservesAnAlreadyActiveOwner() {
     val f = fixture(); f.store.bind("account-a", "watch-node-a")
     assertTrue(f.store.claimPending(requestId, "account-a"))

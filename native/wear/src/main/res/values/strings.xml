@@ -5,10 +5,10 @@
     <string name="record">Record expense</string>
     <string name="stop">Stop</string>
     <string name="send_to_phone">Send to phone</string>
-    <string name="status_start">Open the phone app and sign in to enable voice.</string>
+    <string name="status_start">Install or open the phone app, then sign in to enable voice.</string>
     <string name="status_recovery">Encrypted queue could not be read. Existing data was preserved.</string>
     <string name="status_full">Queue full. Connect your phone and try again.</string>
-    <string name="status_sign_in">Open the phone app and sign in to enable voice.</string>
+    <string name="status_sign_in">Install or open the phone app, then sign in to enable voice.</string>
     <string name="status_original_account">Sign in to the account that recorded these clips to send them.</string>
     <string name="status_offline">Offline. Audio stays encrypted here until your phone sends it for remote processing.</string>
     <string name="status_ready">Record one expense. Your phone sends audio for remote processing.</string>

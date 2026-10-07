@@ -5,10 +5,10 @@
     <string name="record">Grabar gasto</string>
     <string name="stop">Detener</string>
     <string name="send_to_phone">Enviar al teléfono</string>
-    <string name="status_start">Abre la app del teléfono e inicia sesión para activar la voz.</string>
+    <string name="status_start">Instala o abre la app del teléfono e inicia sesión para activar la voz.</string>
     <string name="status_recovery">No se pudo leer la cola cifrada. Se conservaron los datos existentes.</string>
     <string name="status_full">La cola está llena. Conecta tu teléfono e inténtalo de nuevo.</string>
-    <string name="status_sign_in">Abre la app del teléfono e inicia sesión para activar la voz.</string>
+    <string name="status_sign_in">Instala o abre la app del teléfono e inicia sesión para activar la voz.</string>
     <string name="status_original_account">Inicia sesión en la cuenta que grabó estos audios para enviarlos.</string>
     <string name="status_offline">Sin conexión. El audio queda cifrado aquí hasta que el teléfono lo envíe para procesarlo de forma remota.</string>
     <string name="status_ready">Graba un gasto. El teléfono envía el audio para procesarlo de forma remota.</string>

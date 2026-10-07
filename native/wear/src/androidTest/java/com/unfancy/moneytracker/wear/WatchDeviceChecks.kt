@@ -104,6 +104,9 @@ class WatchDeviceChecks : Instrumentation() {
             result.putString("stage", "assert_record_disabled")
             val ready = activity!!.getPrivateField("phoneReady") as? Boolean ?: error("watch_ui_state_unavailable")
             check(!ready)
+            val mode = watchScreenMode(ready)
+            check(mode == WatchScreenMode.Setup)
+            result.putBoolean("setupOnlyMode", mode == WatchScreenMode.Setup)
             result.putString("stage", "invoke_record_guard")
             runOnMainSync { activity!!.invokePrivate("startRecording") }
             result.putString("stage", "setup_request_without_companion")

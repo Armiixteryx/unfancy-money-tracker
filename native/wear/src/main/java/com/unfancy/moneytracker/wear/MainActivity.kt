@@ -14,14 +14,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,23 +79,45 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                ScalingLazyColumn(modifier = Modifier.fillMaxSize().background(Color(0xFF101E33)), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        autoCentering = null, contentPadding = PaddingValues(horizontal = 22.dp, vertical = 24.dp)) {
-                        item { Text(stringResource(R.string.watch_title), fontSize = 18.sp, color = Color(0xFF63D9A0)) }
-                        item { Text(stringResource(message.takeIf { it != 0 } ?: R.string.status_start), fontSize = 14.sp, color = Color(0xFFE6EDF5), textAlign = TextAlign.Center) }
-                        item { Text(stringResource(R.string.queue_count, queueSize, QueuePolicy.MAX_ITEMS), fontSize = 12.sp, color = Color(0xFFE6EDF5)) }
-                        item { Button(onClick = {
-                            if (recording) stopRecording() else if (queueSize >= QueuePolicy.MAX_ITEMS) {
-                                message = R.string.status_full
-                            } else if (!queueAvailable) message = R.string.status_recovery
-                            else if (!phoneReady) message = R.string.status_sign_in
-                            else if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
-                            else permission.launch(Manifest.permission.RECORD_AUDIO)
-                        }, enabled = recording || (phoneReady && queueAvailable && queueSize < QueuePolicy.MAX_ITEMS), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16734F), contentColor = Color.White)) {
-                            Text(stringResource(if (recording) R.string.stop else R.string.record), fontSize = 14.sp)
-                        } }
-                        if (queueSize > 0) item { Button(onClick = { lifecycleScope.launch { transport.transferPending(); refresh() } }) { Text(stringResource(R.string.send_to_phone)) } }
+                if (watchScreenMode(phoneReady) == WatchScreenMode.Setup) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color(0xFF101E33)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Text(stringResource(R.string.watch_title), fontSize = 18.sp, color = Color(0xFF63D9A0))
+                            PhoneSetupIcon()
+                            Text(
+                                stringResource(R.string.status_sign_in),
+                                fontSize = 14.sp,
+                                lineHeight = 19.sp,
+                                color = Color(0xFFE6EDF5),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                } else {
+                    ScalingLazyColumn(modifier = Modifier.fillMaxSize().background(Color(0xFF101E33)), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            autoCentering = null, contentPadding = PaddingValues(horizontal = 22.dp, vertical = 24.dp)) {
+                            item { Text(stringResource(R.string.watch_title), fontSize = 18.sp, color = Color(0xFF63D9A0)) }
+                            item { Text(stringResource(message.takeIf { it != 0 } ?: R.string.status_start), fontSize = 14.sp, color = Color(0xFFE6EDF5), textAlign = TextAlign.Center) }
+                            item { Text(stringResource(R.string.queue_count, queueSize, QueuePolicy.MAX_ITEMS), fontSize = 12.sp, color = Color(0xFFE6EDF5)) }
+                            item { Button(onClick = {
+                                if (recording) stopRecording() else if (queueSize >= QueuePolicy.MAX_ITEMS) {
+                                    message = R.string.status_full
+                                } else if (!queueAvailable) message = R.string.status_recovery
+                                else if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
+                                else permission.launch(Manifest.permission.RECORD_AUDIO)
+                            }, enabled = recording || (queueAvailable && queueSize < QueuePolicy.MAX_ITEMS), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16734F), contentColor = Color.White)) {
+                                Text(stringResource(if (recording) R.string.stop else R.string.record), fontSize = 14.sp)
+                            } }
+                            if (queueSize > 0) item { Button(onClick = { lifecycleScope.launch { transport.transferPending(); refresh() } }) { Text(stringResource(R.string.send_to_phone)) } }
+                    }
                 }
             }
         }
@@ -195,5 +228,25 @@ class MainActivity : ComponentActivity() {
         releaseRecorder()
         recordingFile?.delete()
         super.onDestroy()
+    }
+}
+
+@Composable
+private fun PhoneSetupIcon() {
+    Canvas(Modifier.size(36.dp)) {
+        val stroke = 2.dp.toPx()
+        val left = size.width * 0.27f
+        val top = size.height * 0.08f
+        val width = size.width * 0.46f
+        val height = size.height * 0.84f
+        drawRoundRect(
+            color = Color(0xFF63D9A0),
+            topLeft = Offset(left, top),
+            size = Size(width, height),
+            cornerRadius = CornerRadius(5.dp.toPx()),
+            style = Stroke(width = stroke),
+        )
+        drawLine(Color(0xFF63D9A0), Offset(size.width * 0.43f, top + 4.dp.toPx()), Offset(size.width * 0.57f, top + 4.dp.toPx()), stroke)
+        drawCircle(Color(0xFF63D9A0), radius = 1.3.dp.toPx(), center = Offset(size.width / 2, top + height - 4.dp.toPx()))
     }
 }
