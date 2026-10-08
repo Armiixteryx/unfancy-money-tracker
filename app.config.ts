@@ -9,7 +9,7 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     ...config,
     name: isE2E ? "Unfancy Money Tracker (E2E)" : isProduction ? "Unfancy Money Tracker" : "Unfancy Money Tracker (Dev)",
     slug: "unfancy-money-tracker",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     userInterfaceStyle: "automatic",
     scheme: "unfancy-money-tracker",
@@ -25,7 +25,7 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     },
     android: {
       package: applicationId,
-      versionCode: 2,
+      versionCode: 3,
       adaptiveIcon: {
         backgroundColor: "#102A43",
         foregroundImage: "./assets/icon-foreground.png",
