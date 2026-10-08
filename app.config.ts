@@ -26,8 +26,9 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     android: {
       package: applicationId,
       adaptiveIcon: {
-        backgroundColor: "#F7F5F0",
-        foregroundImage: "./assets/icon-foreground.png"
+        backgroundColor: "#102A43",
+        foregroundImage: "./assets/icon-foreground.png",
+        monochromeImage: "./assets/icon-monochrome.png"
       }
     },
     web: {
