@@ -104,7 +104,7 @@ describe.skipIf(!enabled)("shared PostgreSQL tracker authorization and sync", ()
       expect((await sync.pushShared(member, { ...memberScope, changes: [category] })).rejectedChanges).toEqual([{ mutationId: category.mutationId, code: "permission_denied" }]);
       const budgetId = v7();
       const now = new Date().toISOString();
-      const budget = makeChange({ recordType: "budget", recordId: budgetId, payload: { id: budgetId, amount: "50", currency: "USD", categoryId: "expense-food", month: "2026-10", createdAt: now, updatedAt: now } });
+      const budget = makeChange({ recordType: "budget", recordId: budgetId, payload: { id: budgetId, amount: "50", currency: "USD", categoryId: "expense-food", month: "2026-10", plannedExpenses: [{ id: v7(), description: "Synthetic planned item", amount: "12", currency: "USD" }], createdAt: now, updatedAt: now } });
       expect((await sync.pushShared(member, { ...memberScope, changes: [budget] })).rejectedChanges).toEqual([{ mutationId: budget.mutationId, code: "permission_denied" }]);
 
       const adminEdit = makeChange({ recordType: "transaction", recordId: transactionId, payload: { ...transaction(transactionId, "Admin correction"), createdAt: originalTransaction.createdAt }, baseRevision: updatedAck.revision });

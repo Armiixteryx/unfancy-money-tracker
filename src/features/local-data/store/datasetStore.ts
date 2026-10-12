@@ -6,10 +6,10 @@ import { ZodError } from "zod";
 
 import { isCurrencyCode, normalizeSelectedCurrencies } from "../../../domain/currency";
 import { archiveCategory, createCategory, findUncategorizedCategory, renameCategory } from "../../../domain/categories";
-import { budgetKey, createBudget, updateBudget } from "../../../domain/budgets";
+import { budgetKey, createBudget, createBudgetPlannedExpense, updateBudget, updateBudgetPlannedExpense } from "../../../domain/budgets";
 import { createTransaction, filterTransactions, updateTransaction, type TransactionFilters } from "../../../domain/transactions";
-import type { Budget, Category, Dataset, Preferences, Transaction } from "../../../domain/types";
-import { calendarMonthSchema, type BudgetInput, type CategoryInput, type TransactionInput } from "../../../domain/validation";
+import type { Budget, BudgetPlannedExpense, Category, Dataset, Preferences, Transaction } from "../../../domain/types";
+import { calendarMonthSchema, type BudgetInput, type CategoryInput, type PlannedExpenseInput, type TransactionInput } from "../../../domain/validation";
 import { DatasetPersistence, runLegacyAccountCacheCleanup } from "../../../platform/persistence";
 import type { HydrationState } from "../../../platform/persistence";
 import { createUuid } from "../../../platform/identifiers/createUuid";
@@ -39,6 +39,9 @@ export type DatasetStoreState = {
   deleteTransaction: (id: string) => Promise<MutationResult<null>>;
   addBudget: (input: BudgetInput) => Promise<MutationResult<Budget>>;
   editBudget: (id: string, input: BudgetInput) => Promise<MutationResult<Budget>>;
+  addPlannedExpense: (budgetId: string, input: PlannedExpenseInput) => Promise<MutationResult<BudgetPlannedExpense>>;
+  editPlannedExpense: (budgetId: string, plannedExpenseId: string, input: PlannedExpenseInput) => Promise<MutationResult<BudgetPlannedExpense>>;
+  deletePlannedExpense: (budgetId: string, plannedExpenseId: string) => Promise<MutationResult<null>>;
   copyBudgets: (sourceMonth: string, targetMonth: string) => Promise<MutationResult<CopyBudgetsResult>>;
   deleteBudget: (id: string) => Promise<MutationResult<null>>;
   setPreferences: (preferences: Partial<Preferences>) => Promise<MutationResult<Preferences>>;
@@ -334,6 +337,50 @@ export function createDatasetStore(
           return { ok: false, message: safeErrorMessage(error) };
         }
       },
+      addPlannedExpense: async (budgetId, input) => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
+        if (!canManageTrackerSettings(authorizationView(dataset), options.principal?.()?.subject ?? null)) return { ok: false, message: "tracker_permission_denied" };
+        const existing = dataset.budgets.find((budget) => budget.id === budgetId);
+        if (!existing) return { ok: false, message: "this_budget_is_no_longer_available" };
+        try {
+          const expense = createBudgetPlannedExpense(input, { idFactory: createUuid });
+          const updated = { ...existing, plannedExpenses: [...(existing.plannedExpenses ?? []), expense], updatedAt: now() };
+          if (!await commit({ ...dataset, budgets: dataset.budgets.map((budget) => budget.id === budgetId ? updated : budget) })) return { ok: false, message: "local_save_failed_retry_to_save_your_change", recordId: expense.id };
+          return { ok: true, value: expense };
+        } catch (error) {
+          return { ok: false, message: safeErrorMessage(error) };
+        }
+      },
+      editPlannedExpense: async (budgetId, plannedExpenseId, input) => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
+        if (!canManageTrackerSettings(authorizationView(dataset), options.principal?.()?.subject ?? null)) return { ok: false, message: "tracker_permission_denied" };
+        const existing = dataset.budgets.find((budget) => budget.id === budgetId);
+        if (!existing) return { ok: false, message: "this_budget_is_no_longer_available" };
+        const plannedExpense = (existing.plannedExpenses ?? []).find((expense) => expense.id === plannedExpenseId);
+        if (!plannedExpense) return { ok: false, message: "this_planned_expense_is_no_longer_available" };
+        try {
+          const updatedExpense = updateBudgetPlannedExpense(plannedExpense, input);
+          const updated = { ...existing, plannedExpenses: (existing.plannedExpenses ?? []).map((expense) => expense.id === plannedExpenseId ? updatedExpense : expense), updatedAt: now() };
+          if (!await commit({ ...dataset, budgets: dataset.budgets.map((budget) => budget.id === budgetId ? updated : budget) })) return { ok: false, message: "local_save_failed_retry_to_save_your_change", recordId: updatedExpense.id };
+          return { ok: true, value: updatedExpense };
+        } catch (error) {
+          return { ok: false, message: safeErrorMessage(error) };
+        }
+      },
+      deletePlannedExpense: async (budgetId, plannedExpenseId) => {
+        const dataset = get().dataset;
+        if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
+        if (!canManageTrackerSettings(authorizationView(dataset), options.principal?.()?.subject ?? null)) return { ok: false, message: "tracker_permission_denied" };
+        const existing = dataset.budgets.find((budget) => budget.id === budgetId);
+        if (!existing) return { ok: false, message: "this_budget_is_no_longer_available" };
+        const plannedExpenses = existing.plannedExpenses ?? [];
+        if (!plannedExpenses.some((expense) => expense.id === plannedExpenseId)) return { ok: false, message: "this_planned_expense_is_no_longer_available" };
+        const updated = { ...existing, plannedExpenses: plannedExpenses.filter((expense) => expense.id !== plannedExpenseId), updatedAt: now() };
+        if (!await commit({ ...dataset, budgets: dataset.budgets.map((budget) => budget.id === budgetId ? updated : budget) })) return { ok: false, message: "local_save_failed_retry_to_save_your_change", recordId: budgetId };
+        return { ok: true, value: null };
+      },
       copyBudgets: async (sourceMonth, targetMonth) => {
         const dataset = get().dataset;
         if (!dataset) return { ok: false, message: "local_data_is_still_loading" };
@@ -361,7 +408,13 @@ export function createDatasetStore(
           }
           try {
             const budget = createBudget(
-              { categoryId: sourceBudget.categoryId, month: targetMonth as `${number}-${number}`, amount: sourceBudget.amount, currency: sourceBudget.currency },
+              {
+                categoryId: sourceBudget.categoryId,
+                month: targetMonth as `${number}-${number}`,
+                amount: sourceBudget.amount,
+                currency: sourceBudget.currency,
+                plannedExpenses: (sourceBudget.plannedExpenses ?? []).map((expense) => ({ ...expense, id: createUuid() }))
+              },
               { categories: dataset.categories, idFactory: createUuid, now }
             );
             created.push(budget);

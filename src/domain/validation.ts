@@ -51,7 +51,13 @@ export const budgetInputSchema = z
     categoryId: categoryIdSchema,
     month: calendarMonthSchema,
     amount: z.string(),
-    currency: currencyCodeSchema
+    currency: currencyCodeSchema,
+    plannedExpenses: z.array(z.object({
+      id: uuidV7Schema,
+      description: z.string().trim().min(1, "Description is required").max(200, "Description is too long"),
+      amount: z.string(),
+      currency: currencyCodeSchema
+    })).optional()
   })
   .superRefine((input, context) => {
     try {
@@ -63,9 +69,38 @@ export const budgetInputSchema = z
         message: errorToken(error)
       });
     }
+
+    for (const [index, expense] of (input.plannedExpenses ?? []).entries()) {
+      if ((input.plannedExpenses ?? []).findIndex((candidate) => candidate.id === expense.id) !== index) {
+        context.addIssue({ code: "custom", path: ["plannedExpenses", index, "id"], message: "Planned expense IDs must be unique" });
+      }
+      try {
+        normalizeMoneyAmount(expense.amount, expense.currency, { allowNegative: false, allowZero: false });
+      } catch (error) {
+        context.addIssue({
+          code: "custom",
+          path: ["plannedExpenses", index, "amount"],
+          message: errorToken(error)
+        });
+      }
+    }
   });
 
 export type BudgetInput = z.infer<typeof budgetInputSchema>;
+
+export const plannedExpenseInputSchema = z.object({
+  description: z.string().trim().min(1, "Description is required").max(200, "Description is too long"),
+  amount: z.string(),
+  currency: currencyCodeSchema
+}).superRefine((input, context) => {
+  try {
+    normalizeMoneyAmount(input.amount, input.currency, { allowNegative: false, allowZero: false });
+  } catch (error) {
+    context.addIssue({ code: "custom", path: ["amount"], message: errorToken(error) });
+  }
+});
+
+export type PlannedExpenseInput = z.infer<typeof plannedExpenseInputSchema>;
 
 export const categoryInputSchema = z.object({
   kind: z.enum(["income", "expense"]),

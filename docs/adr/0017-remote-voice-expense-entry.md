@@ -8,6 +8,8 @@ Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative 
 
 Accepted. AWS development backend deployed October 3, 2026; production backend deployed October 5, 2026 with owner authorization. Amplify main was released against production. Live recognition validation remains delegated to the user; provider-rate-limit testing exclusions remain in force.
 
+Accessibility-specific requirements and release checks are superseded by [ADR 0026](0026-deferred-accessibility-requirements.md), accepted October 12, 2026. Other decisions remain in effect.
+
 ## Context
 
 Optional voice entry needs multilingual transcription and category selection without reinstating synchronization or remote dataset storage. Audio and transcripts are sensitive. The existing anonymous dataset and manual entry remain usable during remote processing and provider failures.

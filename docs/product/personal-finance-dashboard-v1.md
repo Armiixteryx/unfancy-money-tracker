@@ -16,7 +16,7 @@ The app supports optional email/password Cognito login. The private personal dat
 | Financial model | One consolidated view; no financial accounts or transfers |
 | Transaction fields | Positive amount, income/expense type, category, description, date, currency |
 | Categories | Fixed-slug system and UUIDv7 custom income and expense categories; protected system defaults plus custom create, rename, archive, and delete |
-| Budgets | One expense-category budget per calendar month; no rollover |
+| Budgets | One expense-category budget per calendar month; independently set limit and reusable planned expenses; no rollover |
 | Currency | Preserve original currency; store canonical decimal amounts; use latest rates for current aggregates and transaction-date rates for historical reports |
 | Localization | Bundled English and neutral Latin American Spanish; System / English / Español selection, default System; device region independently controls money and date formatting |
 | Data and identity | Optional login and opt-in sync for the private personal tracker; separate cloud-backed shared trackers with authenticated membership and explicit sharing consent |
@@ -38,9 +38,10 @@ The product should demonstrate thoughtful product, design, and engineering pract
 
 - View current-month income, expenses, remaining budget, recent transactions, and category spending.
 - Add, edit, delete, search, and filter income and expense transactions.
-- Hold to record one expense in Spanish or English, or use accessible start/stop controls; review the saved result and edit it immediately.
+- Hold to record one expense in Spanish or English, or use start/stop controls; review the saved result and edit it immediately.
 - Use protected system income and expense categories; create, rename, archive, or delete custom categories.
 - Create monthly category budgets and monitor progress or overspending.
+- Define expected expenses within a budget, copy them with another month's budgets, and open a prefilled expense form for review.
 - Review monthly trends and category breakdowns.
 - Change base currency, theme, and UI language, and inspect exchange-rate freshness.
 - Use the tracker anonymously with local persistence from the first launch.
@@ -76,6 +77,8 @@ The same five labels are used on mobile bottom navigation and the browser left r
 - Month selection.
 - Create and edit one category limit per month.
 - Spent, remaining, and over-budget states with access to contributing transactions.
+- An editable planned-expense list per budget with description, positive amount, and individual currency. Show a separate planned total and unallocated/over-limit comparison against the independent limit; plans do not count as spending.
+- Record expense opens a prefilled transaction form; saving creates a normal expense and leaves the planned item available for repeated use.
 
 ### Reports
 
@@ -99,9 +102,13 @@ The same five labels are used on mobile bottom navigation and the browser left r
 - Browser Transactions uses a persistent split-pane workspace; mobile uses a full-screen transaction form.
 - Conflict resolution is a compact modal or detail panel over visible product context, not a full-viewport takeover.
 
+## Accessibility priority
+
+Accepted October 12, 2026: accessibility is deferred as a project focus. Accessibility compliance, VoiceOver/screen-reader testing, focus audits, semantic-label audits, minimum target-size acceptance checks, and WCAG/AA contrast certification are not V1 requirements or release gates. Existing accessibility support may remain. Continue checking readable UI and ordinary interaction behavior. See [ADR 0026](../adr/0026-deferred-accessibility-requirements.md).
+
 ## UI direction
 
-Use a warm editorial fintech system inspired by the Monarch Refero style reference, retaining Unfancy’s navy and emerald identity. Light mode uses a linen canvas, white cards, and warm gray hairline borders; dark mode uses navy surfaces and high-contrast warm text. Use Fraunces Regular for page and section headings, Inter for UI copy and tabular financial amounts, pill controls, 12px card corners, 8px input corners, and restrained elevation. Navy is the light-mode primary action; emerald supplies selection, positive states, charts, and the accessible dark-mode primary action. Coral indicates errors and overspending. See [editorial redesign](editorial-redesign.md) and ADR 0021.
+Use a warm editorial fintech system inspired by the Monarch Refero style reference, retaining Unfancy’s navy and emerald identity. Light mode uses a linen canvas, white cards, and warm gray hairline borders; dark mode uses navy surfaces and high-contrast warm text. Use Fraunces Regular for page and section headings, Inter for UI copy and tabular financial amounts, pill controls, 12px card corners, 8px input corners, and restrained elevation. Navy is the light-mode primary action; emerald supplies selection, positive states, charts, and the dark-mode primary action. Coral indicates errors and overspending. See [editorial redesign](editorial-redesign.md) and ADR 0021.
 
 ### Mobile
 
@@ -127,6 +134,9 @@ Use a warm editorial fintech system inspired by the Monarch Refero style referen
 - Transaction amounts are canonical decimal strings, dates use `YYYY-MM-DD`, and converted aggregates use half-up rounding at the target currency’s ISO precision.
 - Income never consumes a category budget.
 - Budgets apply only to expense transactions inside their selected calendar month, do not roll over, and may be exceeded.
+- Planned expenses inherit their budget's category, preserve their original amount and currency, and have no due date, completion status, or transaction link. Admins manage shared lists; members may read them and record expenses. There are no named template libraries, built-in sets, or automatic recurring entries.
+- Copying budgets includes planned expenses with fresh item identities and skips existing destination budgets. Deleting a budget removes its plans without deleting actual transactions. Category reassignment preserves plans.
+- Planned totals use latest rates into the budget currency with visible freshness and stale-cache notices. If any required rate is missing, show original-currency totals and withhold the combined planned total and limit comparison. Plans never change actual spending, dashboard balances, or reports. See ADR 0025.
 - Keep original transaction amount/currency for display. Convert dashboard and budget aggregates using the latest available rate; convert historical reports using the rate published on each transaction date.
 - Rates use Frankfurter’s blended feed through a shared backend cache; latest and historical lookups refresh after 24 hours. The PostgreSQL development cutover explicitly resets old cloud storage and requires a confirmed local record reset before uploading historical non-v7 records. Hydration itself preserves records and migration backups.
 - Display rate freshness. When current rates cannot load, use cached rates with a visible stale notice. When no rate is available, show original-currency figures and explain why a combined total is unavailable.

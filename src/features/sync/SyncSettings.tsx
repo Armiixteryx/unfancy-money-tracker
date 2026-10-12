@@ -314,6 +314,14 @@ export function SyncSettings() {
                           )}
                         </Text>
                       ) : null}
+                      {selected.recordType === "budget" && selected.reason === "duplicate_budget" ? (
+                        <Text style={{ color: colors.text }}>
+                          {text(
+                            "Choosing one budget keeps its limit and planned expenses. The other budget and its planned expenses are removed.",
+                            "Al elegir un presupuesto se conservan su límite y sus gastos previstos. Se eliminan el otro presupuesto y sus gastos previstos.",
+                          )}
+                        </Text>
+                      ) : null}
                       <Text style={{ color: colors.muted }}>
                         {text("Device edit: ", "Edición del dispositivo: ")}
                         {formatTimestamp(selected.localEditedAt)}
@@ -339,6 +347,7 @@ export function SyncSettings() {
                               selected.localPayload,
                               dataset.categories,
                               text("Category unavailable", "Categoría no disponible"),
+                              text("No planned expenses", "Sin gastos previstos"),
                             )}
                       </Text>
                       <Text selectable style={{ color: colors.text }}>
@@ -350,6 +359,7 @@ export function SyncSettings() {
                               selected.cloudPayload,
                               dataset.categories,
                               text("Category unavailable", "Categoría no disponible"),
+                              text("No planned expenses", "Sin gastos previstos"),
                             )}
                       </Text>
                       {button(
@@ -393,6 +403,7 @@ function versionSummary(
   payload: unknown,
   categories: readonly Category[],
   missingCategoryLabel: string,
+  noPlannedExpensesLabel: string,
 ): string {
   if (type === "transaction") {
     const record = transactionSchema.safeParse(payload);
@@ -407,8 +418,13 @@ function versionSummary(
     }
   } else if (type === "budget") {
     const record = budgetSchema.safeParse(payload);
-    if (record.success)
-      return `${record.data.month} · ${formatMoney(record.data)}`;
+    if (record.success) {
+      const planned = record.data.plannedExpenses ?? [];
+      const plannedSummary = planned.length === 0
+        ? noPlannedExpensesLabel
+        : planned.map((expense) => `${expense.description}: ${formatMoney(expense)}`).join(" · ");
+      return `${record.data.month} · ${formatMoney(record.data)} · ${plannedSummary}`;
+    }
   } else if (type === "category") {
     const record = categorySchema.safeParse(payload);
     if (record.success) return categoryLabel(record.data);

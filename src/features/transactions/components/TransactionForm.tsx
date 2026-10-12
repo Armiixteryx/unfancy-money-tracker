@@ -25,23 +25,27 @@ type TransactionFormProps = {
   selectedCurrencies: readonly CurrencyCode[];
   baseCurrency: CurrencyCode;
   transaction?: Transaction;
+  initialValues?: Partial<TransactionInput>;
+  saveDisabled?: boolean;
+  onRetryLocalSave?: () => void;
   onSave: (input: TransactionInput) => Promise<TransactionFormResult>;
   onCancel: () => void;
 };
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function TransactionForm({ categories, selectedCurrencies, baseCurrency, transaction, onSave, onCancel }: TransactionFormProps) {
+export function TransactionForm({ categories, selectedCurrencies, baseCurrency, transaction, initialValues, saveDisabled = false, onRetryLocalSave, onSave, onCancel }: TransactionFormProps) {
   useTranslation();
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const [amountRegion] = useState(getRegion);
   const [formError, setFormError] = useState<string | null>(null);
   const currencies = useMemo(
-    () => normalizeSelectedCurrencies(transaction ? [...selectedCurrencies, transaction.currency] : selectedCurrencies),
-    [selectedCurrencies, transaction]
+    () => normalizeSelectedCurrencies(transaction ? [...selectedCurrencies, transaction.currency] : [...selectedCurrencies, ...(initialValues?.currency ? [initialValues.currency] : [])]),
+    [initialValues?.currency, selectedCurrencies, transaction]
   );
   const { control, handleSubmit, setValue, watch, formState } = useForm<TransactionInput>({
     resolver: async (values, context, options) => {
@@ -60,12 +64,12 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
           currency: transaction.currency
         }
       : {
-          amount: "",
-          type: "expense",
-          categoryId: "",
-          description: "",
-          date: today(),
-          currency: baseCurrency
+          amount: amountDraft(initialValues?.amount ?? "", amountRegion),
+          type: initialValues?.type ?? "expense",
+          categoryId: initialValues?.categoryId ?? "",
+          description: initialValues?.description ?? "",
+          date: initialValues?.date ?? today(),
+          currency: initialValues?.currency ?? baseCurrency
         }
   });
 
@@ -227,7 +231,8 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
         </FieldLabel>
 
         {formError ? <Text accessibilityRole="alert" style={styles.formError}>{translateMessage(formError, true)}</Text> : null}
-        <Pressable accessibilityRole="button" disabled={formState.isSubmitting} onPress={() => void submit()} style={styles.saveButton}>
+        {saveDisabled && onRetryLocalSave ? <Pressable accessibilityRole="button" onPress={onRetryLocalSave} style={styles.retryButton}><Text style={styles.retryButtonText}>{i18n.t($ => $.notices.retrySave)}</Text></Pressable> : null}
+        <Pressable accessibilityRole="button" disabled={formState.isSubmitting || saveDisabled} onPress={() => void submit()} style={[styles.saveButton, (formState.isSubmitting || saveDisabled) && styles.disabledSaveButton]}>
           <Text style={styles.saveButtonText}>{formState.isSubmitting ? i18n.t($ => $.ui.transactionsSaving) : i18n.t($ => $.ui.transactionsSaveTransaction)}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancelButton}>
@@ -278,6 +283,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   fieldError: { color: colors.negative, fontSize: 14 },
   formError: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
   saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, minHeight: 50, justifyContent: "center", marginTop: 4 },
+  disabledSaveButton: { opacity: 0.5 },
+  retryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
+  retryButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
   saveButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
   cancelButton: { alignItems: "center", minHeight: 48, justifyContent: "center" },
   cancelButtonText: { color: colors.muted, fontSize: 14, fontWeight: "500" }

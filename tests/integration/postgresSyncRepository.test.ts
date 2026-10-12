@@ -1,7 +1,11 @@
+import { createHash } from "node:crypto";
 import { Pool } from "pg";
 import { v7 } from "uuid";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import { PostgresSyncRepository } from "../../src/server/repository/postgresSyncRepository";
+import {
+  canonicalJson,
+  PostgresSyncRepository,
+} from "../../src/server/repository/postgresSyncRepository";
 import { PostgresRateCache } from "../../src/server/repository/postgresRateCache";
 import { seedDefaultCategories } from "../../src/domain/categories";
 import type { SyncChange } from "../../src/server/contracts/sync";
@@ -67,6 +71,9 @@ function budget(id = v7(), categoryId = "expense-food") {
     createdAt: now,
     updatedAt: now,
   };
+}
+function plannedExpense(description: string, amount: string) {
+  return { id: v7(), description, amount, currency: "USD" as const };
 }
 beforeAll(async () => {
   await pool.query("SELECT version FROM flyway_schema_history WHERE success");
@@ -167,6 +174,308 @@ describe("PostgreSQL sync", () => {
       "12.5",
     );
     expect(accepted).not.toHaveProperty("cursor");
+  });
+  it("stores ordered planned expenses, preserves them for legacy omissions, and clears them explicitly", async () => {
+    const { owner, datasetId } = await fixture();
+    const value = budget();
+    const expenses = [
+      plannedExpense("Rent", "850"),
+      plannedExpense("Electricity", "42.5"),
+    ];
+    const created = mutation("budget", value.id, {
+      ...value,
+      plannedExpenses: expenses,
+    });
+    const createdAck = (await repository.push(owner, datasetId, [created]))
+      .acknowledgedChanges[0]!;
+    const createdHistory = await repository.pull(
+      owner,
+      datasetId,
+      String(createdAck.revision - 1),
+    );
+    expect(createdHistory.changes[0]!.payload).toMatchObject({
+      plannedExpenses: expenses,
+    });
+
+    // A legacy payload omits the field. Its original request hash remains
+    // tied to that omission while effective history carries the stored list.
+    const legacyPayload = { ...value, amount: "60" };
+    const legacy = mutation(
+      "budget",
+      value.id,
+      legacyPayload,
+      createdAck.revision,
+    );
+    const legacyAck = (await repository.push(owner, datasetId, [legacy]))
+      .acknowledgedChanges[0]!;
+    const request = await pool.query<{ request_hash: string }>(
+      `SELECT request_hash FROM mutation_requests
+       WHERE dataset_id=$1 AND mutation_id=$2`,
+      [datasetId, legacy.mutationId],
+    );
+    expect(request.rows[0]!.request_hash).toBe(
+      createHash("sha256").update(canonicalJson(legacy)).digest("hex"),
+    );
+    const effectiveHistory = await repository.pull(
+      owner,
+      datasetId,
+      String(createdAck.revision),
+    );
+    expect(effectiveHistory.changes[0]!.payload).toMatchObject({
+      amount: "60",
+      plannedExpenses: expenses,
+    });
+
+    const cleared = mutation(
+      "budget",
+      value.id,
+      { ...legacyPayload, plannedExpenses: [] },
+      legacyAck.revision,
+    );
+    const clearedAck = (await repository.push(owner, datasetId, [cleared]))
+      .acknowledgedChanges[0]!;
+    const restartedRepository = new PostgresSyncRepository(pool);
+    const restartedPull = await restartedRepository.pull(
+      owner,
+      datasetId,
+      String(legacyAck.revision),
+    );
+    expect(restartedPull.changes[0]!.payload).toMatchObject({
+      plannedExpenses: [],
+    });
+    expect(
+      (
+        await pool.query(
+          `SELECT id FROM budget_planned_expenses
+           WHERE dataset_id=$1 AND budget_id=$2`,
+          [datasetId, value.id],
+        )
+      ).rows,
+    ).toEqual([]);
+
+    const omittedNewBudget = budget(v7(), "expense-housing");
+    const omittedCreate = mutation(
+      "budget",
+      omittedNewBudget.id,
+      omittedNewBudget,
+    );
+    const omittedAck = (await repository.push(owner, datasetId, [omittedCreate]))
+      .acknowledgedChanges[0]!;
+    const omittedHistory = await restartedRepository.pull(
+      owner,
+      datasetId,
+      String(clearedAck.revision),
+    );
+    expect(omittedHistory.changes[0]!.revision).toBe(omittedAck.revision);
+    expect(omittedHistory.changes[0]!.payload).toMatchObject({
+      plannedExpenses: [],
+    });
+  });
+  it("treats planned expenses as a whole-budget conflict and applies the selected list", async () => {
+    const { owner, datasetId } = await fixture();
+    const value = budget();
+    const initial = [plannedExpense("Initial", "10")];
+    const created = await repository.push(owner, datasetId, [
+      mutation("budget", value.id, { ...value, plannedExpenses: initial }),
+    ]);
+    const baseRevision = created.acknowledgedChanges[0]!.revision;
+    const cloudList = [plannedExpense("Cloud replacement", "20")];
+    const cloudEdit = await repository.push(owner, datasetId, [
+      mutation(
+        "budget",
+        value.id,
+        { ...value, plannedExpenses: cloudList, updatedAt: "2026-10-05T00:00:00.000Z" },
+        baseRevision,
+      ),
+    ]);
+    const localList = [plannedExpense("Local replacement", "35")];
+    const conflictResponse = await repository.push(owner, datasetId, [
+      mutation(
+        "budget",
+        value.id,
+        { ...value, plannedExpenses: localList, updatedAt: "2026-10-06T00:00:00.000Z" },
+        baseRevision,
+      ),
+    ]);
+    const conflict = conflictResponse.conflicts[0]!;
+    expect(conflict.cloudPayload).toMatchObject({ plannedExpenses: cloudList });
+    expect(conflict.localPayload).toMatchObject({ plannedExpenses: localList });
+    const resolved = await repository.resolveConflict(owner, {
+      datasetId,
+      conflict,
+      choice: "keep_local",
+      mutationId: v7(),
+      editedAt: now,
+    });
+    expect(resolved.conflicts).toHaveLength(0);
+    const afterKeepLocal = await new PostgresSyncRepository(pool).pull(
+      owner,
+      datasetId,
+      String(cloudEdit.acknowledgedChanges[0]!.revision),
+    );
+    expect(afterKeepLocal.changes[0]!.payload).toMatchObject({
+      plannedExpenses: localList,
+    });
+
+    const newerLocal = [plannedExpense("Discarded local", "99")];
+    const cloudRevision = resolved.acknowledgedChanges[0]!.revision;
+    const secondConflict = (
+      await repository.push(owner, datasetId, [
+        mutation(
+          "budget",
+          value.id,
+          { ...value, plannedExpenses: newerLocal },
+          cloudRevision - 1,
+        ),
+      ])
+    ).conflicts[0]!;
+    expect(secondConflict.cloudPayload).toMatchObject({
+      plannedExpenses: localList,
+    });
+    await repository.resolveConflict(owner, {
+      datasetId,
+      conflict: secondConflict,
+      choice: "keep_cloud",
+      mutationId: v7(),
+      editedAt: now,
+    });
+    const finalPull = await new PostgresSyncRepository(pool).pull(
+      owner,
+      datasetId,
+      String(cloudRevision),
+    );
+    expect(finalPull.changes[0]!.payload).toMatchObject({
+      plannedExpenses: localList,
+    });
+  });
+  it("enforces planned expense database validation and dataset scoping", async () => {
+    const first = await fixture();
+    const value = budget();
+    await repository.push(first.owner, first.datasetId, [
+      mutation("budget", value.id, value),
+    ]);
+    const insert = (datasetId: string, options: {
+      id?: string;
+      description?: string;
+      amount?: string;
+      currency?: string;
+      budgetId?: string;
+    } = {}) =>
+      pool.query(
+        `INSERT INTO budget_planned_expenses
+         (dataset_id,budget_id,id,position,description,amount,currency)
+         VALUES($1,$2,$3,0,$4,$5,$6)`,
+        [
+          datasetId,
+          options.budgetId ?? value.id,
+          options.id ?? v7(),
+          options.description ?? "Synthetic planned item",
+          options.amount ?? "20",
+          options.currency ?? "USD",
+        ],
+      );
+    await expect(
+      insert(first.datasetId, { amount: "0" }),
+    ).rejects.toThrow();
+    await expect(
+      insert(first.datasetId, { amount: "20.00" }),
+    ).rejects.toThrow();
+    await expect(
+      insert(first.datasetId, { currency: "ZZZ" }),
+    ).rejects.toThrow();
+    await expect(
+      insert(first.datasetId, { description: "  " }),
+    ).rejects.toThrow();
+    await expect(
+      insert(first.datasetId, { currency: "JPY", amount: "20.5" }),
+    ).rejects.toThrow();
+    const second = await fixture();
+    await expect(insert(second.datasetId)).rejects.toThrow();
+  });
+  it("cascades planned expense rows when deleting a budget and keeps its transactions", async () => {
+    const { owner, datasetId } = await fixture();
+    const value = budget();
+    const expense = plannedExpense("Synthetic planned expense", "24");
+    const record = transaction(v7());
+    const budgetAck = (
+      await repository.push(owner, datasetId, [
+        mutation("budget", value.id, { ...value, plannedExpenses: [expense] }),
+        mutation("transaction", record.id, record),
+      ])
+    ).acknowledgedChanges[0]!;
+    await repository.push(owner, datasetId, [
+      mutation("budget", value.id, null, budgetAck.revision),
+    ]);
+    expect(
+      (
+        await pool.query(
+          "SELECT id FROM budget_planned_expenses WHERE dataset_id=$1 AND budget_id=$2",
+          [datasetId, value.id],
+        )
+      ).rows,
+    ).toEqual([]);
+    expect(
+      (
+        await pool.query(
+          "SELECT id FROM transactions WHERE dataset_id=$1 AND id=$2",
+          [datasetId, record.id],
+        )
+      ).rows,
+    ).toEqual([{ id: record.id }]);
+  });
+  it("rolls back a budget and its planned expenses together when a child insert fails", async () => {
+    const { owner, datasetId } = await fixture();
+    const value = budget();
+    const expense = plannedExpense("Synthetic rollback", "12");
+    const rollbackChange = mutation("budget", value.id, {
+      ...value,
+      plannedExpenses: [expense],
+    });
+    const functionName = `test_planned_expense_failure_${v7().replaceAll("-", "")}`;
+    const triggerName = `test_planned_expense_failure_${v7().replaceAll("-", "")}`;
+    await pool.query(
+      `CREATE FUNCTION ${functionName}() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN RAISE EXCEPTION 'synthetic planned expense insert failure'; END $$`,
+    );
+    await pool.query(
+      `CREATE TRIGGER ${triggerName} BEFORE INSERT ON budget_planned_expenses
+       FOR EACH ROW WHEN (NEW.dataset_id='${datasetId}'::uuid)
+       EXECUTE FUNCTION ${functionName}()`,
+    );
+    try {
+      await expect(
+        repository.push(owner, datasetId, [rollbackChange]),
+      ).rejects.toThrow("synthetic planned expense insert failure");
+    } finally {
+      await pool.query(`DROP TRIGGER ${triggerName} ON budget_planned_expenses`);
+      await pool.query(`DROP FUNCTION ${functionName}()`);
+    }
+    expect(
+      (
+        await pool.query("SELECT id FROM budgets WHERE dataset_id=$1 AND id=$2", [
+          datasetId,
+          value.id,
+        ])
+      ).rows,
+    ).toEqual([]);
+    expect(
+      (
+        await pool.query(
+          `SELECT revision FROM sync_records
+           WHERE dataset_id=$1 AND record_type='budget' AND record_id=$2`,
+          [datasetId, value.id],
+        )
+      ).rows,
+    ).toEqual([]);
+    expect(
+      (
+        await pool.query(
+          `SELECT mutation_id FROM mutation_requests
+           WHERE dataset_id=$1 AND mutation_id=$2`,
+          [datasetId, rollbackChange.mutationId],
+        )
+      ).rows,
+    ).toEqual([]);
   });
   it("serializes concurrent revisions independently of device clock and paginates without gaps", async () => {
     const { owner, datasetId } = await fixture();
@@ -311,7 +620,11 @@ describe("PostgreSQL sync", () => {
       mutation("category", category.id, category),
     ]);
     const record = transaction(v7(), category.id);
-    const limit = budget(v7(), category.id);
+    const plannedExpenses = [plannedExpense("Synthetic retained item", "18")];
+    const limit = {
+      ...budget(v7(), category.id),
+      plannedExpenses,
+    };
     await repository.push(owner, datasetId, [
       mutation("transaction", record.id, record),
       mutation("budget", limit.id, limit),
@@ -332,6 +645,7 @@ describe("PostgreSQL sync", () => {
     expect((changes[0]!.payload as { categoryId: string }).categoryId).toBe(
       "expense-uncategorized",
     );
+    expect(changes[1]!.payload).toMatchObject({ plannedExpenses });
     expect(changes[2]!.tombstone).toBe(true);
     expect(
       (await repository.push(owner, datasetId, [deleted])).acknowledgedChanges,
@@ -339,8 +653,10 @@ describe("PostgreSQL sync", () => {
   });
   it("publishes a tombstone for an unaccepted budget when keeping the cloud budget", async () => {
     const { owner, datasetId } = await fixture();
-    const cloud = budget();
-    const local = budget();
+    const cloudExpenses = [plannedExpense("Cloud plan", "20")];
+    const localExpenses = [plannedExpense("Discarded local plan", "30")];
+    const cloud = { ...budget(), plannedExpenses: cloudExpenses };
+    const local = { ...budget(), plannedExpenses: localExpenses };
     await repository.push(owner, datasetId, [
       mutation("budget", cloud.id, cloud),
     ]);
@@ -365,6 +681,26 @@ describe("PostgreSQL sync", () => {
       recordId: local.id,
       tombstone: true,
     });
+    expect(
+      (
+        await pool.query(
+          `SELECT id,description FROM budget_planned_expenses
+           WHERE dataset_id=$1 AND budget_id=$2 ORDER BY position`,
+          [datasetId, cloud.id],
+        )
+      ).rows,
+    ).toEqual(
+      cloudExpenses.map(({ id, description }) => ({ id, description })),
+    );
+    expect(
+      (
+        await pool.query(
+          `SELECT id FROM budget_planned_expenses
+           WHERE dataset_id=$1 AND budget_id=$2`,
+          [datasetId, local.id],
+        )
+      ).rows,
+    ).toEqual([]);
     expect(
       (
         await pool.query("SELECT id FROM budgets WHERE dataset_id=$1", [

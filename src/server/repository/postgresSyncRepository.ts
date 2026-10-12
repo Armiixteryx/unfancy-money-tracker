@@ -404,7 +404,7 @@ export class PostgresSyncRepository implements SyncRepository {
         : type === "transaction"
           ? `jsonb_build_object('id',id,'amount',amount::text,'currency',currency,'type',type,'categoryId',category_id,'description',description,'date',to_char(date,'YYYY-MM-DD'),'createdAt',created_at,'updatedAt',updated_at)`
           : type === "budget"
-            ? `jsonb_build_object('id',id,'amount',amount::text,'currency',currency,'categoryId',category_id,'month',to_char(month,'YYYY-MM'),'createdAt',created_at,'updatedAt',updated_at)`
+            ? `jsonb_build_object('id',id,'amount',amount::text,'currency',currency,'categoryId',category_id,'month',to_char(month,'YYYY-MM'),'plannedExpenses',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',p.id,'description',p.description,'amount',p.amount::text,'currency',p.currency) ORDER BY p.position) FROM budget_planned_expenses p WHERE p.dataset_id=budgets.dataset_id AND p.budget_id=budgets.id),'[]'::jsonb),'createdAt',created_at,'updatedAt',updated_at)`
             : `jsonb_build_object('baseCurrency',base_currency,'selectedCurrencies',selected_currencies)`;
     const result = await client.query<{ payload: unknown }>(
       `SELECT ${selection} AS payload FROM ${tables[type]} WHERE dataset_id=$1${type === "preference" ? "" : " AND id=$2"}`,
@@ -447,6 +447,22 @@ export class PostgresSyncRepository implements SyncRepository {
       resolution: "pending",
     };
   }
+  private withEffectiveBudgetExpenses(
+    change: SyncChange,
+    currentPayload: unknown | null,
+  ): SyncChange {
+    if (change.recordType !== "budget" || change.tombstone) return change;
+    const budget = change.payload as Budget;
+    if (budget.plannedExpenses !== undefined) return change;
+    const current = currentPayload as Budget | null;
+    return {
+      ...change,
+      payload: {
+        ...budget,
+        plannedExpenses: current?.plannedExpenses ?? [],
+      },
+    };
+  }
   private async apply(
     client: PoolClient,
     dataset: string,
@@ -479,6 +495,9 @@ export class PostgresSyncRepository implements SyncRepository {
       change.recordType,
       change.recordId,
     );
+    // Older clients omit plannedExpenses. Preserve the stored child list for an
+    // existing budget, and interpret omission on a new budget as an empty list.
+    change = this.withEffectiveBudgetExpenses(change, current.payload);
     if (Number(current.metadata?.revision ?? 0) !== change.baseRevision)
       return { conflict: this.conflict(change, current) };
     if (change.recordType === "budget" && !change.tombstone) {
@@ -576,9 +595,32 @@ export class PostgresSyncRepository implements SyncRepository {
         committedAt,
       ],
     );
+    let historyChange = change;
+    if (change.recordType === "budget" && !change.tombstone) {
+      const current = await this.current(
+        client,
+        dataset,
+        "budget",
+        change.recordId,
+      );
+      if (current.payload) {
+        historyChange = {
+          ...change,
+          payload: {
+            ...(change.payload as Budget),
+            plannedExpenses:
+              (current.payload as Budget).plannedExpenses ?? [],
+          },
+        };
+      }
+    }
     await client.query(
       "INSERT INTO sync_changes(dataset_id,revision,change) VALUES($1,$2,$3)",
-      [dataset, revision, JSON.stringify({ ...change, revision, committedAt })],
+      [
+        dataset,
+        revision,
+        JSON.stringify({ ...historyChange, revision, committedAt }),
+      ],
     );
     return {
       mutationId: change.mutationId,
@@ -738,6 +780,10 @@ export class PostgresSyncRepository implements SyncRepository {
         );
       } else {
         const budget = value as Budget;
+        const plannedExpenses =
+          budget.plannedExpenses ??
+          (previous as Budget | null)?.plannedExpenses ??
+          [];
         await client.query(
           "INSERT INTO budgets(dataset_id,id,category_id,month,amount,currency,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(dataset_id,id) DO UPDATE SET category_id=EXCLUDED.category_id,month=EXCLUDED.month,amount=EXCLUDED.amount,currency=EXCLUDED.currency,updated_at=EXCLUDED.updated_at",
           [
@@ -751,6 +797,26 @@ export class PostgresSyncRepository implements SyncRepository {
             budget.updatedAt,
           ],
         );
+        await client.query(
+          "DELETE FROM budget_planned_expenses WHERE dataset_id=$1 AND budget_id=$2",
+          [dataset, id],
+        );
+        for (const [position, expense] of plannedExpenses.entries()) {
+          await client.query(
+            `INSERT INTO budget_planned_expenses
+             (dataset_id,budget_id,id,position,description,amount,currency)
+             VALUES($1,$2,$3,$4,$5,$6,$7)`,
+            [
+              dataset,
+              id,
+              expense.id,
+              position,
+              expense.description,
+              expense.amount,
+              expense.currency,
+            ],
+          );
+        }
       }
     } else {
       const value = syncedPreferencesSchema.parse(change.payload);

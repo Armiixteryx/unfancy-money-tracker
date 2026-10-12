@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0025](0025-budget-planned-expenses.md) for reusable planned expenses within budgets, schema 10, and backward-compatible whole-budget synchronization.
+
 Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
 
 Superseded for the Expo client by [ADR 0016](0016-client-sync-suspension-and-local-cache-cleanup.md). The retained server protocol remains available for a future client reintroduction.

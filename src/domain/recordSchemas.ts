@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { currencyCodeSchema } from "./currency";
 import { normalizeMoneyAmount } from "./money";
-import { calendarDateSchema, calendarMonthSchema, categoryIdSchema, uuidSchema } from "./validation";
+import { calendarDateSchema, calendarMonthSchema, categoryIdSchema, uuidSchema, uuidV7Schema } from "./validation";
 
 const canonicalAmount = z.string().superRefine((value, context) => {
   if (/[eE]/.test(value)) {
@@ -60,6 +60,26 @@ export const categorySchema = z.object({
   }
 });
 
+export const budgetPlannedExpenseSchema = z.object({
+  id: uuidV7Schema,
+  description: z.string().min(1).max(200).refine((value) => value === value.trim(), "Persisted description must be trimmed"),
+  amount: canonicalAmount,
+  currency: currencyCodeSchema
+}).superRefine((expense, context) => {
+  try {
+    const normalized = normalizeMoneyAmount(expense.amount, expense.currency, { allowNegative: false, allowZero: false });
+    if (normalized !== expense.amount) {
+      context.addIssue({ code: "custom", path: ["amount"], message: "Persisted amount is not canonical" });
+    }
+  } catch (error) {
+    context.addIssue({
+      code: "custom",
+      path: ["amount"],
+      message: error instanceof Error ? error.message : "Persisted amount is invalid"
+    });
+  }
+});
+
 export const budgetSchema = z
   .object({
     id: uuidSchema,
@@ -67,10 +87,19 @@ export const budgetSchema = z
     month: calendarMonthSchema,
     amount: canonicalAmount,
     currency: currencyCodeSchema,
+    // Older cloud and local records legitimately omit this field.
+    plannedExpenses: z.array(budgetPlannedExpenseSchema).optional(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime()
   })
   .superRefine((budget, context) => {
+    const plannedExpenseIds = new Set<string>();
+    for (const [index, expense] of (budget.plannedExpenses ?? []).entries()) {
+      if (plannedExpenseIds.has(expense.id)) {
+        context.addIssue({ code: "custom", path: ["plannedExpenses", index, "id"], message: "Planned expense IDs must be unique" });
+      }
+      plannedExpenseIds.add(expense.id);
+    }
     try {
       const normalized = normalizeMoneyAmount(budget.amount, budget.currency, { allowNegative:false,allowZero:false });
       if (normalized !== budget.amount) {

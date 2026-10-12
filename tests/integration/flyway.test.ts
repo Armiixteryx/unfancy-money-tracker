@@ -46,6 +46,16 @@ it("validates Flyway repeatability, checksums, locking, rollback, and portable d
     const custom={ ...category,id:v7(),isSystem:false,defaultCategoryKey:undefined,name:"Synthetic portable category" };
     const added=await repository.push(owner,datasetId,[{ ...mutation,mutationId:v7(),recordId:custom.id,payload:custom }]);
     await repository.push(owner,datasetId,[{ ...mutation,mutationId:v7(),recordId:custom.id,payload:null,tombstone:true,operation:"delete",baseRevision:added.acknowledgedChanges[0]!.revision }]);
+    const expenseCategory=seedDefaultCategories().find(value => value.id === "expense-food")!;
+    await repository.push(owner,datasetId,[{ ...mutation,mutationId:v7(),recordId:expenseCategory.id,payload:expenseCategory }]);
+    const budgetId=v7();
+    const plannedExpenses=[
+      { id:v7(),description:"Synthetic portable plan A",amount:"12.5",currency:"USD" },
+      { id:v7(),description:"Synthetic portable plan B",amount:"8",currency:"EUR" }
+    ];
+    const plannedBudget={ id:budgetId,categoryId:expenseCategory.id,month:"2026-10",amount:"50",currency:"USD",plannedExpenses,createdAt:category.createdAt,updatedAt:category.updatedAt };
+    const budgetChange:SyncChange={ ...mutation,mutationId:v7(),recordType:"budget",recordId:budgetId,payload:plannedBudget };
+    const budgetResponse=await repository.push(owner,datasetId,[budgetChange]);
     const cursor=(await repository.pull(owner,datasetId,"0")).cursor;
     const dump=command(["exec",source,"pg_dump","-U","unfancy_migrations","-d","unfancy","--format=custom","--no-owner","--no-acl"]);
     second=await database(destination);
@@ -55,6 +65,9 @@ it("validates Flyway repeatability, checksums, locking, rollback, and portable d
     expect((await restored.bootstrap(owner)).datasetId).toBe(datasetId);
     expect(await restored.pull(owner,datasetId,"0")).toEqual(await repository.pull(owner,datasetId,"0"));
     expect(await restored.push(owner,datasetId,[mutation])).toEqual(response);
+    expect(await restored.push(owner,datasetId,[budgetChange])).toEqual(budgetResponse);
+    const restoredPlan=await second.query("SELECT id,description,amount::text AS amount,currency FROM budget_planned_expenses WHERE dataset_id=$1 AND budget_id=$2 ORDER BY position",[datasetId,budgetId]);
+    expect(restoredPlan.rows).toEqual(plannedExpenses);
     const continued=await restored.push(owner,datasetId,[{ ...mutation,mutationId:v7(),recordType:"preference",recordId:"currency",payload:{ baseCurrency:"USD",selectedCurrencies:["USD"] } }]);
     expect(continued.acknowledgedChanges[0]!.revision).toBe(Number(cursor)+1);
     expect((await restored.pull(owner,datasetId,cursor)).changes).toHaveLength(1);

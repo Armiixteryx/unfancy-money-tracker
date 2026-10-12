@@ -4,6 +4,8 @@
 
 Accepted.
 
+Accessibility-specific requirements and release checks are superseded by [ADR 0026](0026-deferred-accessibility-requirements.md), accepted October 12, 2026. Other decisions remain in effect.
+
 ## Context
 
 Unfancy Money Tracker targets web, iOS, and Android with one shared TypeScript codebase. Its local financial records, remote sync, exchange rates, authentication, forms, and cross-cutting readiness states have different lifecycles and must not become one undifferentiated store. The architecture should keep feature workflows cohesive while preserving shared domain behavior and thin platform-specific integrations.
