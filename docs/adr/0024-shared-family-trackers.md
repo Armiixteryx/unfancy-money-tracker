@@ -2,6 +2,8 @@
 
 ## Status
 
+Updated by [ADR 0025](0025-budget-planned-expenses.md) for reusable planned expenses within budgets, schema 10, and backward-compatible whole-budget synchronization.
+
 Accepted October 7, 2026. Updates ADRs 0001, 0003–0006, 0017, 0020, 0021, and 0023. Supersedes their single-dataset assumptions for shared trackers while preserving the personal tracker and its optional sync. Implementation and validation evidence belong in the tracker development runbook; this decision does not claim deployment or paired-device acceptance.
 
 ## Context

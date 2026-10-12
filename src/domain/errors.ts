@@ -14,6 +14,7 @@ export const errorCodes = {
   "Local save failed. Retry to save this record.": "local_save_failed_retry_to_save_this_record",
   "This transaction is no longer available.": "this_transaction_is_no_longer_available",
   "This budget is no longer available.": "this_budget_is_no_longer_available",
+  "This planned expense is no longer available.": "this_planned_expense_is_no_longer_available",
   "Choose valid calendar months to copy budgets.": "choose_valid_calendar_months_to_copy_budgets",
   "Source and target months must be different.": "source_and_target_months_must_be_different",
   "No budgets found in the source month.": "no_budgets_found_in_the_source_month",

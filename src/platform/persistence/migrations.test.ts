@@ -60,7 +60,7 @@ describe("schema 7 system categories", () => {
     const migrated = migrateSnapshot(raw, idFactory);
     expect(idFactory).not.toHaveBeenCalled();
     expect(JSON.stringify(raw)).toBe(snapshot);
-    expect(migrated).toMatchObject({ schemaVersion: 9, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
+    expect(migrated).toMatchObject({ schemaVersion: 10, datasetId: raw.datasetId, transactions: raw.transactions, budgets: raw.budgets, preferences: raw.preferences, categoryDeletionTombstones: raw.categoryDeletionTombstones });
     expect(migrated.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt])).toEqual(raw.categories.map(category => [category.id, category.name, category.createdAt, category.updatedAt]));
     expect(migrated.categories.find(category => category.id === food.id)).toMatchObject({ isSystem: true, isArchived: false, defaultCategoryKey: "food" });
     expect(migrated.categories.filter(category => category.defaultCategoryKey).every(category => category.isSystem && !category.isArchived)).toBe(true);
@@ -130,8 +130,35 @@ it("migrates a schema-8 tracker snapshot without changing submitted mutation dat
     sync: { ...emptySyncState(), enabled: true, binding: { owner: "synthetic-subject", datasetId: dataset.datasetId }, outbox },
   };
   const migrated = migrateSnapshot(raw);
-  expect(migrated.schemaVersion).toBe(9);
+  expect(migrated.schemaVersion).toBe(10);
   expect(migrated.sync?.outbox).toEqual(outbox);
   expect(JSON.stringify(migrated.sync?.outbox[0]?.change)).toBe(JSON.stringify(change));
   expect(migrated.transactions[0]).not.toHaveProperty("creator");
+});
+
+it("adds empty planned-expense lists to schema-9 budgets without changing submitted outbox payloads", () => {
+  const dataset = createEmptyDataset();
+  const food = dataset.categories.find((category) => category.defaultCategoryKey === "food")!;
+  const createdBudget = createBudget({ categoryId: food.id, amount: "120", currency: "USD", month: "2026-10" }, { categories: dataset.categories });
+  const legacyBudget = { ...createdBudget };
+  delete legacyBudget.plannedExpenses;
+  const change = {
+    mutationId: createUuid(), recordType: "budget" as const, recordId: legacyBudget.id,
+    operation: "upsert" as const, baseRevision: 7, payload: legacyBudget, tombstone: false,
+    editedAt: legacyBudget.updatedAt, revision: 0, committedAt: null,
+  };
+  const outbox = [{ change, submitted: true }];
+  const raw = {
+    ...dataset,
+    schemaVersion: 9,
+    budgets: [legacyBudget],
+    sync: { ...emptySyncState(), enabled: true, binding: { owner: "synthetic-subject", datasetId: dataset.datasetId }, outbox },
+  };
+
+  const migrated = migrateSnapshot(raw);
+
+  expect(migrated.schemaVersion).toBe(10);
+  expect(migrated.budgets[0]?.plannedExpenses).toEqual([]);
+  expect(migrated.sync?.outbox).toEqual(outbox);
+  expect(JSON.stringify(migrated.sync?.outbox[0]?.change)).toBe(JSON.stringify(change));
 });

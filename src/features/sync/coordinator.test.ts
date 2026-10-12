@@ -14,6 +14,7 @@ import {
   uploadAll,
 } from "./state";
 import { createUuid } from "../../platform/identifiers/createUuid";
+import { createBudget } from "../../domain/budgets";
 import {
   SyncClientError,
   type SyncClient,
@@ -105,6 +106,43 @@ async function enabled() {
 }
 
 describe("durable client sync", () => {
+  it("syncs planned expenses as part of the whole budget and preserves them from legacy pulls", () => {
+    const base = createEmptyDataset();
+    const category = base.categories.find((value) => value.defaultCategoryKey === "food")!;
+    const plannedExpense = {
+      id: "018f47b0-0000-7000-8000-000000000031",
+      description: "Monthly internet",
+      amount: "40",
+      currency: "USD" as const,
+    };
+    const budget = createBudget(
+      { categoryId: category.id, month: "2026-10", amount: "300", currency: "USD", plannedExpenses: [plannedExpense] },
+      { categories: base.categories },
+    );
+    const previous = {
+      ...base,
+      sync: { ...emptySyncState(), enabled: true, binding: { owner: "synthetic-owner", datasetId: createUuid() } },
+    };
+    const changed = trackLocalChanges(previous, { ...previous, budgets: [budget] }, now);
+    expect(changed.sync?.outbox).toHaveLength(1);
+    expect(changed.sync?.outbox[0]?.change.recordType).toBe("budget");
+    expect(changed.sync?.outbox[0]?.change.payload).toEqual(budget);
+
+    const legacyBudget = { ...budget };
+    delete legacyBudget.plannedExpenses;
+    const legacyChange: SyncChange = {
+      mutationId: createUuid(), recordType: "budget", recordId: budget.id,
+      operation: "upsert", baseRevision: 0, payload: legacyBudget, tombstone: false,
+      editedAt: now, revision: 1, committedAt: now,
+    };
+    const pulled = applyChanges({ ...base, budgets: [budget] }, [legacyChange], false);
+    expect(pulled.budgets[0]?.plannedExpenses).toEqual([plannedExpense]);
+
+    const explicitClear = { ...legacyChange, payload: { ...legacyBudget, plannedExpenses: [] }, revision: 2 };
+    const cleared = applyChanges({ ...base, budgets: [budget] }, [explicitClear], false);
+    expect(cleared.budgets[0]?.plannedExpenses).toEqual([]);
+  });
+
   it("uploads only after opt-in, keeps built-ins unique, and never advances the pull cursor from push", async () => {
     const { store, client, coordinator } = await setup();
     await store.getState().addTransaction(input);

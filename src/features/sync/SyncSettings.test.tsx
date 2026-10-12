@@ -230,3 +230,76 @@ it("uses a localized safe label when a transaction category is unavailable", asy
   expect(textContent).toContain("Confirmación del servidor: ");
   expect(textContent).not.toContain("Sin categoría");
 });
+
+function budgetConflict(localPayload: unknown, cloudPayload: unknown, reason: "concurrent_edit" | "duplicate_budget" = "duplicate_budget"): SyncConflict {
+  const editedAt = "2026-10-05T12:00:00.000Z";
+  const localId = "018f47b0-0000-7000-8000-000000000021";
+  const cloudId = "018f47b0-0000-7000-8000-000000000022";
+  return {
+    mutationId: "018f47b0-0000-7000-8000-000000000023",
+    recordType: "budget",
+    recordId: localId,
+    cloudRecordId: cloudId,
+    localRevision: 1,
+    cloudRevision: 2,
+    localPayload,
+    cloudPayload,
+    localDeleted: false,
+    cloudDeleted: false,
+    localEditedAt: editedAt,
+    cloudEditedAt: "2026-10-05T12:01:00.000Z",
+    cloudCommittedAt: "2026-10-05T12:02:00.000Z",
+    reason,
+    resolution: "pending",
+  };
+}
+
+async function openBudgetConflict(conflict: SyncConflict) {
+  const dataset = createEmptyDataset();
+  await act(async () => {
+    tree?.unmount();
+    useLocalDatasetStore.setState({
+      dataset: { ...dataset, sync: { ...dataset.sync!, conflicts: [conflict] } },
+    });
+    tree = create(
+      <I18nextProvider i18n={i18n}>
+        <SyncSettings />
+      </I18nextProvider>,
+    );
+  });
+  const reviewLabel = i18n.resolvedLanguage === "es"
+    ? "Revisar conflicto: budget"
+    : "Review budget conflict";
+  await act(async () => button(reviewLabel).props.onPress());
+}
+
+it("summarizes each planned expense in the original currency and warns that duplicate-budget resolution discards one full plan", async () => {
+  const timestamp = "2026-10-05T12:00:00.000Z";
+  const budget = (id: string, plannedExpenses?: unknown[]) => ({
+    id,
+    categoryId: "expense-food",
+    month: "2026-10",
+    amount: "300",
+    currency: "USD",
+    ...(plannedExpenses === undefined ? {} : { plannedExpenses }),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+  const local = budget("018f47b0-0000-7000-8000-000000000021", [
+    { id: "018f47b0-0000-7000-8000-000000000024", description: "Monthly internet", amount: "45", currency: "USD" },
+  ]);
+  const cloud = budget("018f47b0-0000-7000-8000-000000000022", [
+    { id: "018f47b0-0000-7000-8000-000000000025", description: "Streaming plan", amount: "12.5", currency: "EUR" },
+  ]);
+  await openBudgetConflict(budgetConflict(local, cloud));
+  const english = tree!.root.findAllByType("text").map((node) => node.children.join("")).join(" ");
+  expect(english).toContain("Monthly internet: 45.00 USD");
+  expect(english).toContain("Streaming plan: 12.50 EUR");
+  expect(english).toContain("The other budget and its planned expenses are removed.");
+
+  await act(async () => { await i18n.changeLanguage("es"); });
+  await openBudgetConflict(budgetConflict(local, budget("018f47b0-0000-7000-8000-000000000022")));
+  const spanish = tree!.root.findAllByType("text").map((node) => node.children.join("")).join(" ");
+  expect(spanish).toContain("Sin gastos previstos");
+  expect(spanish).toContain("Se eliminan el otro presupuesto y sus gastos previstos.");
+});

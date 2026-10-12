@@ -4,6 +4,8 @@
 
 Accepted.
 
+Accessibility-specific requirements and release checks are superseded by [ADR 0026](0026-deferred-accessibility-requirements.md), accepted October 12, 2026. Other decisions remain in effect.
+
 ## Context
 
 Unfancy Money Tracker persists a `system`, `light`, or `dark` appearance preference, but the interface currently renders one fixed light palette. Theme behavior must remain consistent across web, iOS, and Android without duplicating screens or storing platform-derived state.

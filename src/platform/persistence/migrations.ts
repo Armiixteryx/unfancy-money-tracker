@@ -186,5 +186,18 @@ export function migrateSnapshot(raw: unknown, idFactory: IdFactory = createUuid)
     // currency preferences, and every durable sync mutation byte-for-byte.
     migrated.schemaVersion = 9;
   }
+  if (version <= 9) {
+    // Schema 10 gives every legacy budget an empty local planned-expense list.
+    // The durable sync outbox is deliberately left untouched so submitted changes
+    // retain their original payloads and identities.
+    if (Array.isArray(migrated.budgets)) {
+      migrated.budgets = migrated.budgets.map((budget) =>
+        isRecord(budget) && !Object.prototype.hasOwnProperty.call(budget, "plannedExpenses")
+          ? { ...budget, plannedExpenses: [] }
+          : budget
+      );
+    }
+    migrated.schemaVersion = 10;
+  }
   return datasetEnvelopeSchema.parse(migrated) as Dataset;
 }

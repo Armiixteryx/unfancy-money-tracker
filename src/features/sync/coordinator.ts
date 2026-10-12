@@ -69,12 +69,19 @@ export function applyChanges(
           : change.recordType === "category"
             ? "categories"
             : "budgets";
+      let incomingPayload = change.payload;
+      if (change.recordType === "budget" && typeof change.payload === "object" && change.payload !== null && !Object.prototype.hasOwnProperty.call(change.payload, "plannedExpenses")) {
+        const current = next.budgets.find((value) => value.id === change.recordId);
+        // Older servers omit this field. Keep a locally known plan when one exists;
+        // otherwise expose the legacy budget with an empty plan.
+        incomingPayload = { ...change.payload, plannedExpenses: current?.plannedExpenses ?? [] };
+      }
       const values = next[field].filter(
         (value) => value.id !== change.recordId,
       );
       next = {
         ...next,
-        [field]: change.tombstone ? values : [...values, change.payload],
+        [field]: change.tombstone ? values : [...values, incomingPayload],
       };
       if (
         change.recordType === "category" &&

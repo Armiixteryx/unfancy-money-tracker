@@ -177,7 +177,8 @@ describe("local dataset store", () => {
     if (!addedCategory.ok) throw new Error("Expected a custom category");
     const expenseCategory = addedCategory.value;
 
-    const budget = await store.getState().addBudget({ categoryId: expenseCategory.id, month: "2026-07", amount: "100", currency: "USD" });
+    const plannedExpense = { id: "018f47b0-0000-7000-8000-000000000041", description: "Synthetic planned bill", amount: "25", currency: "EUR" as const };
+    const budget = await store.getState().addBudget({ categoryId: expenseCategory.id, month: "2026-07", amount: "100", currency: "USD", plannedExpenses: [plannedExpense] });
     expect(budget.ok).toBe(true);
     const preference = await store.getState().setPreferences({ baseCurrency: "EUR" });
     expect(preference.ok).toBe(true);
@@ -190,9 +191,57 @@ describe("local dataset store", () => {
     expect(deleted.ok).toBe(true);
     expect(store.getState().dataset?.categories.some((category) => category.id === expenseCategory.id)).toBe(false);
     expect(store.getState().dataset?.budgets[0]?.categoryId).toBe(deleted.ok ? deleted.value.id : "");
+    expect(store.getState().dataset?.budgets[0]?.plannedExpenses).toEqual([plannedExpense]);
     expect(store.getState().dataset?.preferences.baseCurrency).toBe("EUR");
     expect(store.getState().dataset?.categoryDeletionTombstones).toHaveLength(1);
 
+  });
+  it("adds, edits, and deletes planned expenses as atomic budget updates", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const category = store.getState().dataset!.categories.find((candidate) => candidate.kind === "expense" && !candidate.isArchived)!;
+    const createdBudget = await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "300", currency: "USD" });
+    expect(createdBudget.ok).toBe(true);
+    if (!createdBudget.ok) return;
+
+    const added = await store.getState().addPlannedExpense(createdBudget.value.id, { description: "  Monthly phone  ", amount: "45.00", currency: "USD" });
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+    expect(added.value).toMatchObject({ description: "Monthly phone", amount: "45", currency: "USD" });
+    expect(added.value.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(store.getState().dataset?.budgets.find((budget) => budget.id === createdBudget.value.id)?.plannedExpenses).toEqual([added.value]);
+
+    const edited = await store.getState().editPlannedExpense(createdBudget.value.id, added.value.id, { description: "Phone plan", amount: "50", currency: "EUR" });
+    expect(edited.ok).toBe(true);
+    if (!edited.ok) return;
+    expect(edited.value).toMatchObject({ id: added.value.id, description: "Phone plan", amount: "50", currency: "EUR" });
+    const changedLimit = await store.getState().editBudget(createdBudget.value.id, { categoryId: category.id, month: "2026-07", amount: "400", currency: "USD" });
+    expect(changedLimit).toMatchObject({ ok: true, value: { amount: "400", plannedExpenses: [edited.value] } });
+
+    const rehydrated = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await rehydrated.getState().initialize();
+    expect(rehydrated.getState().dataset?.budgets.find((budget) => budget.id === createdBudget.value.id)?.plannedExpenses).toEqual([edited.value]);
+
+    expect(await store.getState().deletePlannedExpense(createdBudget.value.id, added.value.id)).toEqual({ ok: true, value: null });
+    expect(store.getState().dataset?.budgets.find((budget) => budget.id === createdBudget.value.id)?.plannedExpenses).toEqual([]);
+    expect(await store.getState().deletePlannedExpense(createdBudget.value.id, added.value.id)).toEqual({ ok: false, message: "this_planned_expense_is_no_longer_available" });
+  });
+  it("returns the stable optimistic item ID after a planned-expense save failure", async () => {
+    const adapter = new MemoryPersistenceAdapter();
+    const store = createDatasetStore(new DatasetPersistence(adapter), async () => undefined);
+    await store.getState().initialize();
+    const category = store.getState().dataset!.categories.find((candidate) => candidate.kind === "expense" && !candidate.isArchived)!;
+    const budget = await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "300", currency: "USD" });
+    expect(budget.ok).toBe(true);
+    if (!budget.ok) return;
+    vi.spyOn(adapter, "writeSnapshot").mockRejectedValueOnce(new Error("synthetic persistence failure"));
+
+    const result = await store.getState().addPlannedExpense(budget.value.id, { description: "Rent", amount: "150", currency: "USD" });
+
+    expect(result).toMatchObject({ ok: false, message: "local_save_failed_retry_to_save_your_change", recordId: expect.any(String) });
+    if (result.ok) return;
+    expect(store.getState().dataset?.budgets.find((value) => value.id === budget.value.id)?.plannedExpenses?.[0]?.id).toBe(result.recordId);
   });
   it("rejects every system category mutation without changing records or writing a snapshot", async () => {
     const adapter = new MemoryPersistenceAdapter();
@@ -310,7 +359,8 @@ describe("local dataset store", () => {
     const category = store.getState().dataset?.categories.find((candidate) => candidate.kind === "expense" && !candidate.isArchived);
     if (!category) return;
 
-    const added = await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "125.00", currency: "USD" });
+    const plannedExpense = { id: "018f47b0-0000-7000-8000-000000000011", description: "Monthly insurance", amount: "45.5", currency: "EUR" as const };
+    const added = await store.getState().addBudget({ categoryId: category.id, month: "2026-07", amount: "125.00", currency: "USD", plannedExpenses: [plannedExpense] });
     expect(added.ok).toBe(true);
     if (!added.ok) return;
     const source = added.value;
@@ -322,6 +372,9 @@ describe("local dataset store", () => {
     expect(result.value.skipped).toBe(0);
     expect(result.value.created[0]).toMatchObject({ categoryId: source.categoryId, month: "2026-08", amount: source.amount, currency: source.currency });
     expect(result.value.created[0]?.id).not.toBe(source.id);
+    expect(result.value.created[0]?.plannedExpenses).toHaveLength(1);
+    expect(result.value.created[0]?.plannedExpenses?.[0]).toMatchObject({ description: plannedExpense.description, amount: plannedExpense.amount, currency: plannedExpense.currency });
+    expect(result.value.created[0]?.plannedExpenses?.[0]?.id).not.toBe(plannedExpense.id);
     expect(result.value.created[0]?.createdAt).toEqual(expect.any(String));
     expect(result.value.created[0]?.updatedAt).toEqual(expect.any(String));
     expect(store.getState().dataset?.budgets.find((budget) => budget.id === source.id)).toEqual(source);

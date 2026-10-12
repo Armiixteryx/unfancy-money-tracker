@@ -29,12 +29,12 @@ Do not introduce an alternative framework, state library, styling system, or per
 - CSV export is a non-functional Pro-feature preview in V1. Do not implement export, payments, or subscription enforcement unless the product definition changes.
 - Insights must be factual and descriptive; do not present financial advice.
 
-## UX and accessibility
+## UX
 
 - Design mobile-first, then use browser width for analysis rather than duplicated navigation.
 - Preserve the dashboard hierarchy: remaining budget is the primary current-month answer; income and expenses support it.
 - Implement complete loading, empty, validation, offline, destructive-confirmation, and error states.
-- Use accessible labels, focus behavior, touch targets, semantic controls, and color-independent status indicators.
+- Accessibility compliance, screen-reader/VoiceOver validation, focus audits, and accessibility-specific acceptance criteria are deferred and are not release requirements. Preserve existing support unless a product change requires otherwise; see ADR 0026.
 - Keep financial UI calm and legible: warm neutral surfaces, deep navy text, emerald positive states, coral overspending states, and high contrast.
 
 ## Data and privacy

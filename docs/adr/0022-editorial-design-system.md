@@ -4,6 +4,8 @@
 
 Accepted.
 
+Accessibility-specific requirements and release checks are superseded by [ADR 0026](0026-deferred-accessibility-requirements.md), accepted October 12, 2026. Other decisions remain in effect.
+
 ## Context
 
 The product is adopting an editorial interface inspired by Monarch’s Refero style reference while retaining its navy and emerald identity. Colors were already semantic and theme-aware, but typography, shape, and responsive thresholds varied between screens. Width-only form checks could render a desktop workspace on a native tablet.

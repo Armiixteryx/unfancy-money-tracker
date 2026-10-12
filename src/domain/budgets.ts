@@ -1,11 +1,12 @@
 import { DomainError } from "./errors";
 import Decimal from "decimal.js";
 
-import { addMoney, createMoney, normalizeMoneyAmount, subtractMoney, type Money } from "./money";
+import { addMoney, convertMoney, createMoney, normalizeMoneyAmount, subtractMoney, type Money } from "./money";
 import type { CurrencyCode } from "./currency";
-import { budgetInputSchema, type BudgetInput } from "./validation";
-import type { Budget, CalendarMonth, Category, Transaction, UUID } from "./types";
+import { budgetInputSchema, plannedExpenseInputSchema, type BudgetInput, type PlannedExpenseInput } from "./validation";
+import type { Budget, BudgetPlannedExpense, CalendarMonth, Category, Transaction, UUID } from "./types";
 import { createUuid } from "../platform/identifiers/createUuid";
+import type { RateRecord } from "../platform/exchange-rates/types";
 
 export type BudgetProgressStatus = "on_track" | "attention" | "over_budget";
 
@@ -18,6 +19,71 @@ export type BudgetProgress = {
   status: BudgetProgressStatus;
   otherCurrencySpending: readonly Money[];
 };
+
+export type PlannedExpenseTotals = {
+  currency: CurrencyCode;
+  total: Money | null;
+  originalTotals: readonly Money[];
+  unavailableCurrencies: readonly CurrencyCode[];
+  rates: readonly RateRecord[];
+};
+
+export function createBudgetPlannedExpense(
+  input: PlannedExpenseInput,
+  dependencies: { idFactory?: () => UUID } = {}
+): BudgetPlannedExpense {
+  const parsed = plannedExpenseInputSchema.parse(input);
+  return {
+    id: dependencies.idFactory?.() ?? createUuid(),
+    description: parsed.description,
+    amount: normalizeMoneyAmount(parsed.amount, parsed.currency, { allowNegative: false, allowZero: false }),
+    currency: parsed.currency
+  };
+}
+
+export function updateBudgetPlannedExpense(
+  existing: BudgetPlannedExpense,
+  input: PlannedExpenseInput
+): BudgetPlannedExpense {
+  return { ...createBudgetPlannedExpense(input, { idFactory: () => existing.id }), id: existing.id };
+}
+
+export function calculatePlannedExpenseTotals(
+  plannedExpenses: readonly BudgetPlannedExpense[] | undefined,
+  budgetCurrency: CurrencyCode,
+  getLatestRate: (sourceCurrency: CurrencyCode, targetCurrency: CurrencyCode) => RateRecord | undefined
+): PlannedExpenseTotals {
+  const originalTotals = new Map<CurrencyCode, Money>();
+  const rates = new Map<string, RateRecord>();
+  const unavailableCurrencies = new Set<CurrencyCode>();
+  let total = createMoney("0", budgetCurrency);
+
+  for (const expense of plannedExpenses ?? []) {
+    const original = createMoney(expense.amount, expense.currency);
+    originalTotals.set(expense.currency, addMoney(originalTotals.get(expense.currency) ?? createMoney("0", expense.currency), original));
+
+    if (expense.currency === budgetCurrency) {
+      total = addMoney(total, createMoney(expense.amount, budgetCurrency));
+      continue;
+    }
+
+    const rate = getLatestRate(expense.currency, budgetCurrency);
+    if (!rate || rate.base !== expense.currency || rate.quote !== budgetCurrency) {
+      unavailableCurrencies.add(expense.currency);
+      continue;
+    }
+    rates.set(`${rate.base}:${rate.quote}`, rate);
+    total = addMoney(total, convertMoney(original, budgetCurrency, rate.rate));
+  }
+
+  return {
+    currency: budgetCurrency,
+    total: unavailableCurrencies.size === 0 ? total : null,
+    originalTotals: [...originalTotals.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, money]) => money),
+    unavailableCurrencies: [...unavailableCurrencies].sort(),
+    rates: [...rates.values()]
+  };
+}
 
 export function createBudget(
   input: BudgetInput,
@@ -35,6 +101,10 @@ export function createBudget(
     month: parsed.month as CalendarMonth,
     amount: normalizeMoneyAmount(parsed.amount, parsed.currency, { allowNegative: false, allowZero: false }),
     currency: parsed.currency,
+    plannedExpenses: (parsed.plannedExpenses ?? []).map((expense) => ({
+      ...expense,
+      amount: normalizeMoneyAmount(expense.amount, expense.currency, { allowNegative: false, allowZero: false })
+    })),
     createdAt: now,
     updatedAt: now
   };
@@ -45,7 +115,10 @@ export function updateBudget(
   input: BudgetInput,
   dependencies: { now?: () => string; categories: readonly Category[] }
 ): Budget {
-  const next = createBudget(input, { ...dependencies, idFactory: () => existing.id });
+  const next = createBudget({
+    ...input,
+    plannedExpenses: [...(input.plannedExpenses ?? existing.plannedExpenses ?? [])]
+  }, { ...dependencies, idFactory: () => existing.id });
   return { ...next, id: existing.id, createdAt: existing.createdAt };
 }
 

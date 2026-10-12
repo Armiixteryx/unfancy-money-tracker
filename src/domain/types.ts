@@ -40,12 +40,21 @@ export type Transaction = {
   updatedAt: string;
 };
 
+export type BudgetPlannedExpense = {
+  id: UUID;
+  description: string;
+  amount: string;
+  currency: CurrencyCode;
+};
+
 export type Budget = {
   id: UUID;
   categoryId: CategoryId;
   month: CalendarMonth;
   amount: string;
   currency: CurrencyCode;
+  // Optional on the wire for compatibility with budgets created before planned expenses.
+  plannedExpenses?: readonly BudgetPlannedExpense[];
   createdAt: string;
   updatedAt: string;
 };
