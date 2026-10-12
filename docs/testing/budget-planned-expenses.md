@@ -27,3 +27,15 @@ Using synthetic local records in the desktop browser, verified planned item crea
 ## Testing priority change — October 12, 2026
 
 The owner stopped the follow-up device-test cycle and deferred accessibility requirements under [ADR 0026](../adr/0026-deferred-accessibility-requirements.md). VoiceOver and other accessibility audits are no longer release gates. The interrupted follow-up does not change the completed October 8 evidence above. The disposable development test account and its temporary credentials were removed without signing in or modifying user financial data or audio.
+
+## Release validation — October 12, 2026
+
+Version 1.1.0 (native build 4) passed strict TypeScript, lint, 462 unit/component tests, 29 PostgreSQL/Flyway/shared-tracker integration tests, SAM validation, four infrastructure assertions, and development/production synthesis.
+
+Both stages deployed database-first through the documented gated workflow. Production applied V005 once; development applied its pending V004 and V005. Both verified database role limits. Production diffs updated migration/service functions without resource replacements; existing database, Cognito and API identities were preserved. Deployment authorization came from the owner's explicit instruction to proceed with the proposed release.
+
+Authenticated synthetic API checks passed in both stages, including ordered USD/EUR plans, original amount/currency round trips, immutable mutation retries and budget deletion. Disposable authentication accounts were cleaned up. Production deployment smoke gates passed.
+
+Signed production phone and watch APKs share the existing production certificate, carry version 1.1.0/build 4, and installed in place on the physical SM_A546E and SM_L300. Both opened successfully with existing state retained. The phone was cold-launched through its native activity after Expo attempted a development-client link; no development server is required by the release bundle. No user financial records or audio were edited during release verification.
+
+A production iPad release remains blocked by provisioning: available profiles cover development and E2E bundle identifiers only. The prior physical iPad feature evidence remains valid. Production web routes remain password-protected; anonymous checks return HTTP 401, so public route assertions are not claimed as passing.
