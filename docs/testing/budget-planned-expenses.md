@@ -39,3 +39,7 @@ Authenticated synthetic API checks passed in both stages, including ordered USD/
 Signed production phone and watch APKs share the existing production certificate, carry version 1.1.0/build 4, and installed in place on the physical SM_A546E and SM_L300. Both opened successfully with existing state retained. The phone was cold-launched through its native activity after Expo attempted a development-client link; no development server is required by the release bundle. No user financial records or audio were edited during release verification.
 
 A production iPad release remains blocked by provisioning: available profiles cover development and E2E bundle identifiers only. The prior physical iPad feature evidence remains valid. Production web routes remain password-protected; anonymous checks return HTTP 401, so public route assertions are not claimed as passing.
+
+## Signed-in watch follow-up — October 12, 2026
+
+The [physical signed-in watch handoff and stable-ID redelivery check](budget-planned-expenses-watch.md#signed-in-target-aware-handoff--october-12-2026) passed on the isolated E2E phone/watch pair: exactly one expense in the originating shared tracker, none in the visible personal tracker, one voice request, and terminal watch queue drainage. This supersedes the earlier signed-in-handoff gap. Physical microphone capture and an initial successful transfer begun with the phone already backgrounded remain outside this follow-up. Temporary runtime helpers and the disposable account were removed; no runtime source changes were retained.
