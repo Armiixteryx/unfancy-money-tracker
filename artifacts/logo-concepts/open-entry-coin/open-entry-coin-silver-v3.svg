@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">Unfancy Money Tracker — upright silver coin with navy outline</title>
+  <ellipse cx="134" cy="128" rx="97.2" ry="108" fill="#102A43"/>
+  <ellipse cx="134" cy="128" rx="93.6" ry="104" fill="#9EA8B2"/>
+  <g transform="matrix(0.9 0 0 1 6.8 0)">
+    <circle cx="128" cy="128" r="108" fill="#102A43"/>
+    <circle cx="128" cy="128" r="104" fill="#D9DEE3"/>
+    <g fill="#102A43" transform="translate(46.08 48.64) scale(0.64)">
+      <path d="M40 36H80V140A32 32 0 0 0 112 172H144A32 32 0 0 0 176 140V100H216V140A72 72 0 0 1 144 212H112A72 72 0 0 1 40 140Z"/>
+      <path d="M128 36H216V76H128Z"/>
+    </g>
+  </g>
+</svg>

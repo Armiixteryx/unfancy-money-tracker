@@ -26,3 +26,9 @@ db/migration-lambda/target/
 .sync-smoke/
 
 .migration-result.*.json
+
+# Keep the brand kit's platform exports; these are assets, not Expo projects.
+!artifacts/brand-kit/platform/ios/
+!artifacts/brand-kit/platform/ios/**
+!artifacts/brand-kit/platform/android/
+!artifacts/brand-kit/platform/android/**

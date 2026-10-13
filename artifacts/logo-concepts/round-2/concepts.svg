@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1600" height="984" viewBox="0 0 1600 984"><defs><filter id="grey"><feColorMatrix type="saturate" values="0"/></filter></defs><rect width="1600" height="984" fill="#f7f7f4"/><text x="60" y="78" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="40" font-weight="700" fill="#161616">Unfancy Money Tracker / Round 2</text><text x="60" y="116" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="20" fill="#6b6b6b">New shapes, new voices / 64, 32 and 16 px</text><rect x="60" y="150" width="474.667" height="774" rx="18" fill="#fff" stroke="#e4e4e0" stroke-width="1"/><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="90" y="190" width="414.667" height="300" preserveAspectRatio="xMidYMid meet">
+  <title id="c0-title">Unfancy — Matter of fact, custom slab f, version 2</title>
+  <path fill="#111111" d="M84 216V124H48V92H84V80C84 44 108 24 148 24C184 24 208 44 208 80H168C168 60 160 56 148 56C136 56 128 64 128 80V92H184V124H128V184H156V216H56V184H84Z"/>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 912 256" x="90" y="514" width="414.667" height="120" preserveAspectRatio="xMidYMid meet">
+  <title id="l0-title">Unfancy — Matter of fact, custom-drawn wordmark, version 2</title>
+  <g fill="#111111" transform="translate(20 0)">
+    <path d="M8 80H32V136A24 24 0 0 0 80 136V80H104V176H80V164A48 48 0 0 1 8 136ZM0 80H40V92H0ZM72 80H112V92H72ZM72 164H112V176H72Z"/>
+    <path transform="translate(126 0)" d="M8 176V80H32V92A48 48 0 0 1 104 128V176H80V128A24 24 0 0 0 32 128V176ZM0 80H40V92H0ZM0 164H40V176H0ZM72 164H112V176H72Z"/>
+    <path transform="translate(252 0)" d="M20 176V104H0V80H20V64C20 36 40 24 68 24C88 24 104 42 104 64H80C80 48 78 48 68 48C52 48 44 51 44 64V80H88V104H44V164H64V176H8V164H20Z"/>
+    <path transform="translate(366 0)" d="M56 80A48 48 0 0 1 56 176A48 48 0 0 1 56 80ZM56 104A24 24 0 0 0 56 152A24 24 0 0 0 56 104ZM80 80H104V176H80ZM72 80H112V92H72ZM72 164H112V176H72Z"/>
+    <path transform="translate(492 0)" d="M8 176V80H32V92A48 48 0 0 1 104 128V176H80V128A24 24 0 0 0 32 128V176ZM0 80H40V92H0ZM0 164H40V176H0ZM72 164H112V176H72Z"/>
+    <path transform="translate(618 0)" d="M104 88V112H80V104H68C48 104 32 112 32 128C32 144 48 152 68 152H80V144H104V168C96 176 80 180 64 180C32 180 8 156 8 128C8 100 32 76 64 76C80 76 96 80 104 88Z"/>
+    <path transform="translate(744 0)" d="M8 80H36L64 136L92 80H120L60 200C48 224 36 228 16 228H0V204H16C28 204 32 196 40 180L8 116L0 92V80ZM0 80H44V92H0ZM84 80H128V92H84Z"/>
+  </g>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="90" y="660" width="64" height="64" preserveAspectRatio="xMidYMid meet">
+  <title id="s064-title">Unfancy — Matter of fact, custom slab f, version 2</title>
+  <path fill="#111111" d="M84 216V124H48V92H84V80C84 44 108 24 148 24C184 24 208 44 208 80H168C168 60 160 56 148 56C136 56 128 64 128 80V92H184V124H128V184H156V216H56V184H84Z"/>
+</svg>
+</g><text x="122" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">64px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="180" y="692" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <title id="s032-title">Unfancy — Matter of fact, custom slab f, version 2</title>
+  <path fill="#111111" d="M84 216V124H48V92H84V80C84 44 108 24 148 24C184 24 208 44 208 80H168C168 60 160 56 148 56C136 56 128 64 128 80V92H184V124H128V184H156V216H56V184H84Z"/>
+</svg>
+</g><text x="196" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">32px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="238" y="708" width="16" height="16" preserveAspectRatio="xMidYMid meet">
+  <title id="s016-title">Unfancy — Matter of fact, custom slab f, version 2</title>
+  <path fill="#111111" d="M84 216V124H48V92H84V80C84 44 108 24 148 24C184 24 208 44 208 80H168C168 60 160 56 148 56C136 56 128 64 128 80V92H184V124H128V184H156V216H56V184H84Z"/>
+</svg>
+</g><text x="246" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">16px</text><text x="90.0" y="780" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#161616">A · Matter of fact</text><text x="90.0" y="814" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#555">Plain print, with a little personality.</text><rect x="562.667" y="150" width="474.667" height="774" rx="18" fill="#fff" stroke="#161616" stroke-width="2"/><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="592.667" y="190" width="414.667" height="300" preserveAspectRatio="xMidYMid meet">
+  <title id="c1-title">Unfancy — Count on it, negative-space tally, version 2</title>
+  <path fill="#111111" d="M28 32A16 16 0 0 1 60 32V145.36L28 163.83ZM28 195.83L60 177.36V224A16 16 0 0 1 28 224ZM84 32A16 16 0 0 1 116 32V113.03L84 131.50ZM84 163.50L116 145.03V224A16 16 0 0 1 84 224ZM140 32A16 16 0 0 1 172 32V80.70L140 99.17ZM140 131.17L172 112.70V224A16 16 0 0 1 140 224ZM196 32A16 16 0 0 1 228 32V48.36L196 66.84ZM196 98.84L228 80.36V224A16 16 0 0 1 196 224Z"/>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 880 256" x="592.667" y="514" width="414.667" height="120" preserveAspectRatio="xMidYMid meet">
+  <title id="l1-title">Unfancy — Count on it lockup study, version 2; live type, not final</title>
+  <g fill="#111111">
+    <path d="M28 32A16 16 0 0 1 60 32V145.36L28 163.83ZM28 195.83L60 177.36V224A16 16 0 0 1 28 224ZM84 32A16 16 0 0 1 116 32V113.03L84 131.50ZM84 163.50L116 145.03V224A16 16 0 0 1 84 224ZM140 32A16 16 0 0 1 172 32V80.70L140 99.17ZM140 131.17L172 112.70V224A16 16 0 0 1 140 224ZM196 32A16 16 0 0 1 228 32V48.36L196 66.84ZM196 98.84L228 80.36V224A16 16 0 0 1 196 224Z"/>
+    <text x="286" y="145" font-family="Arial, Helvetica, sans-serif" font-size="100" font-weight="600" letter-spacing="-3">unfancy</text>
+    <text x="290" y="194" font-family="Arial, Helvetica, sans-serif" font-size="28" letter-spacing="2">MONEY TRACKER</text>
+  </g>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="592.667" y="660" width="64" height="64" preserveAspectRatio="xMidYMid meet">
+  <title id="s164-title">Unfancy — Count on it, negative-space tally, version 2</title>
+  <path fill="#111111" d="M28 32A16 16 0 0 1 60 32V145.36L28 163.83ZM28 195.83L60 177.36V224A16 16 0 0 1 28 224ZM84 32A16 16 0 0 1 116 32V113.03L84 131.50ZM84 163.50L116 145.03V224A16 16 0 0 1 84 224ZM140 32A16 16 0 0 1 172 32V80.70L140 99.17ZM140 131.17L172 112.70V224A16 16 0 0 1 140 224ZM196 32A16 16 0 0 1 228 32V48.36L196 66.84ZM196 98.84L228 80.36V224A16 16 0 0 1 196 224Z"/>
+</svg>
+</g><text x="624.667" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">64px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="682.667" y="692" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <title id="s132-title">Unfancy — Count on it, negative-space tally, version 2</title>
+  <path fill="#111111" d="M28 32A16 16 0 0 1 60 32V145.36L28 163.83ZM28 195.83L60 177.36V224A16 16 0 0 1 28 224ZM84 32A16 16 0 0 1 116 32V113.03L84 131.50ZM84 163.50L116 145.03V224A16 16 0 0 1 84 224ZM140 32A16 16 0 0 1 172 32V80.70L140 99.17ZM140 131.17L172 112.70V224A16 16 0 0 1 140 224ZM196 32A16 16 0 0 1 228 32V48.36L196 66.84ZM196 98.84L228 80.36V224A16 16 0 0 1 196 224Z"/>
+</svg>
+</g><text x="698.667" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">32px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="740.667" y="708" width="16" height="16" preserveAspectRatio="xMidYMid meet">
+  <title id="s116-title">Unfancy — Count on it, negative-space tally, version 2</title>
+  <path fill="#111111" d="M28 32A16 16 0 0 1 60 32V145.36L28 163.83ZM28 195.83L60 177.36V224A16 16 0 0 1 28 224ZM84 32A16 16 0 0 1 116 32V113.03L84 131.50ZM84 163.50L116 145.03V224A16 16 0 0 1 84 224ZM140 32A16 16 0 0 1 172 32V80.70L140 99.17ZM140 131.17L172 112.70V224A16 16 0 0 1 140 224ZM196 32A16 16 0 0 1 228 32V48.36L196 66.84ZM196 98.84L228 80.36V224A16 16 0 0 1 196 224Z"/>
+</svg>
+</g><text x="748.667" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">16px</text><text x="592.6666666666667" y="780" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#161616">B · Count on it</text><text x="592.6666666666667" y="808" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#161616" letter-spacing="1.5">RECOMMENDED</text><text x="592.6666666666667" y="842" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#555">Four strokes. A fifth in the space between.</text><rect x="1065.33" y="150" width="474.667" height="774" rx="18" fill="#fff" stroke="#e4e4e0" stroke-width="1"/><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1095.33" y="190" width="414.667" height="300" preserveAspectRatio="xMidYMid meet">
+  <title id="c2-title">Unfancy — Room left, asymmetric split block, version 2</title>
+  <path fill="#111111" d="M80 32H144V224H80A48 48 0 0 1 32 176V80A48 48 0 0 1 80 32ZM176 32A48 48 0 0 1 224 80V176A48 48 0 0 1 176 224Z"/>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 880 256" x="1095.33" y="514" width="414.667" height="120" preserveAspectRatio="xMidYMid meet">
+  <title id="l2-title">Unfancy — Room left lockup study, version 2; live type, not final</title>
+  <g fill="#111111">
+    <path d="M80 32H144V224H80A48 48 0 0 1 32 176V80A48 48 0 0 1 80 32ZM176 32A48 48 0 0 1 224 80V176A48 48 0 0 1 176 224Z"/>
+    <text x="286" y="145" font-family="Arial, Helvetica, sans-serif" font-size="100" font-weight="400" letter-spacing="-3">unfancy</text>
+    <text x="290" y="194" font-family="Arial, Helvetica, sans-serif" font-size="28" letter-spacing="2">MONEY TRACKER</text>
+  </g>
+</svg>
+</g><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1095.33" y="660" width="64" height="64" preserveAspectRatio="xMidYMid meet">
+  <title id="s264-title">Unfancy — Room left, asymmetric split block, version 2</title>
+  <path fill="#111111" d="M80 32H144V224H80A48 48 0 0 1 32 176V80A48 48 0 0 1 80 32ZM176 32A48 48 0 0 1 224 80V176A48 48 0 0 1 176 224Z"/>
+</svg>
+</g><text x="1127.33" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">64px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1185.33" y="692" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <title id="s232-title">Unfancy — Room left, asymmetric split block, version 2</title>
+  <path fill="#111111" d="M80 32H144V224H80A48 48 0 0 1 32 176V80A48 48 0 0 1 80 32ZM176 32A48 48 0 0 1 224 80V176A48 48 0 0 1 176 224Z"/>
+</svg>
+</g><text x="1201.33" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">32px</text><g filter="url(#grey)"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title" viewBox="0 0 256 256" x="1243.33" y="708" width="16" height="16" preserveAspectRatio="xMidYMid meet">
+  <title id="s216-title">Unfancy — Room left, asymmetric split block, version 2</title>
+  <path fill="#111111" d="M80 32H144V224H80A48 48 0 0 1 32 176V80A48 48 0 0 1 80 32ZM176 32A48 48 0 0 1 224 80V176A48 48 0 0 1 176 224Z"/>
+</svg>
+</g><text x="1251.33" y="744" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8a8a8a" text-anchor="middle">16px</text><text x="1095.3333333333335" y="780" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#161616">C · Room left</text><text x="1095.3333333333335" y="814" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#555">A broad body, a small reserve.</text></svg>

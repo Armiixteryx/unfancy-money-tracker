@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">Unfancy — Open entry concept, version 1</title>
+  <g fill="#111111">
+    <path d="M40 48H80V152A32 32 0 0 0 112 184H144A32 32 0 0 0 176 152V112H216V152A72 72 0 0 1 144 224H112A72 72 0 0 1 40 152Z"/>
+    <path d="M128 48H216V88H128Z"/>
+  </g>
+</svg>

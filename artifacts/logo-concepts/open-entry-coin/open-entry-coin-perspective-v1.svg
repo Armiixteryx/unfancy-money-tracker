@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">Unfancy Money Tracker — centered Open entry on a perspective coin</title>
+  <g transform="matrix(0.86077 -0.18296 0.20791 0.97815 -2.79 28.22)">
+    <circle cx="128" cy="128" r="108" fill="#B97827"/>
+  </g>
+  <g transform="matrix(0.86077 -0.18296 0.20791 0.97815 -14.79 22.22)">
+    <circle cx="128" cy="128" r="108" fill="#E3AD49"/>
+    <circle cx="128" cy="128" r="102" fill="#F6DA91"/>
+    <circle cx="128" cy="128" r="92" fill="#E3AD49"/>
+    <circle cx="128" cy="128" r="88" fill="#F6DA91"/>
+    <g fill="#102A43" transform="translate(46.08 48.64) scale(0.64)">
+      <path d="M40 36H80V140A32 32 0 0 0 112 172H144A32 32 0 0 0 176 140V100H216V140A72 72 0 0 1 144 212H112A72 72 0 0 1 40 140Z"/>
+      <path d="M128 36H216V76H128Z"/>
+    </g>
+  </g>
+</svg>
