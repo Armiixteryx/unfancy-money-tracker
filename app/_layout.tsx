@@ -1,8 +1,10 @@
 import { Stack } from "expo-router";
+import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 
 import { AppProviders } from "../src/providers/AppProviders";
 import { useAppTheme } from "../src/ui/theme";
+import { webBrandForEnvironment } from "../src/platform/runtime/webBrand";
 
 function ThemedApp() {
   const { colors, resolvedTheme } = useAppTheme();
@@ -18,9 +20,13 @@ function ThemedApp() {
 }
 
 export default function RootLayout() {
+  const brand = webBrandForEnvironment(process.env.EXPO_PUBLIC_ENV);
   return (
-    <AppProviders>
-      <ThemedApp />
-    </AppProviders>
+    <>
+      <Head><title>{brand.name}</title></Head>
+      <AppProviders>
+        <ThemedApp />
+      </AppProviders>
+    </>
   );
 }

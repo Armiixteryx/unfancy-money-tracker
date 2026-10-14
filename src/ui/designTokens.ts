@@ -16,8 +16,9 @@ export const typography = {
 export const layout = {
   railBreakpoint: 1024,
   workspaceBreakpoint: 1200,
-  railWidth: 232,
+  railWidth: 288,
   maxContentWidth: 1200,
+  formMaxWidth: 560,
   mobilePadding: 16,
   desktopPadding: 24,
   gap: 16,

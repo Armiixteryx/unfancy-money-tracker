@@ -1,6 +1,6 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../../ui/controls";
-import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { isWebWorkspace, layout, typography } from "../../../ui/designTokens";
 import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { translateMessage } from "../../../localization/i18n";
 import { categoryLabel } from "../../../localization/i18n";
@@ -23,6 +23,7 @@ import { useAnalytics } from "../../../providers/AnalyticsProvider";
 import { useActiveTrackerSummary, selectTracker } from "../../trackers/store";
 import { useAuth } from "../../auth/AuthProvider";
 import { canCreateTrackerTransaction, canManageTrackerTransaction } from "../../../domain/trackerPermissions";
+import { selectionStyles } from "../../../ui/selectionStyles";
 
 type FormState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
@@ -232,37 +233,40 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.filterChip, active && styles.activeFilterChip]}><Text style={[styles.filterText, active && styles.activeFilterText]}>{label}</Text></Pressable>;
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
-  searchWrap: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, flexDirection: "row", flex: 1, maxWidth: 640, minHeight: 48, paddingHorizontal: 12 },
-  searchIcon: { color: colors.muted, fontSize: 22, marginRight: 8 },
-  searchInput: { color: colors.text, flex: 1, fontSize: 15, minHeight: 44 },
-  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
-  addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
-  filterRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  advancedFilters: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 14, padding: 14 },
-  filterGroup: { gap: 8 },
-  filterLabel: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  filterScroll: { gap: 8, paddingRight: 8 },
-  dateFilters: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  dateField: { flex: 1, gap: 8, minWidth: 180 },
-  filterChip: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 13, paddingVertical: 9 },
-  activeFilterChip: { backgroundColor: colors.infoSubtle, borderColor: colors.border },
-  filterText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
-  activeFilterText: { color: colors.text },
-  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
-  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 12, color: colors.positive, fontSize: 14, padding: 12 },
-  workspace: { gap: 18 },
-  formPane: { flex: 1, minWidth: 0, maxWidth: 420, height: 720 },
-  browserWorkspace: { flexDirection: "row", alignItems: "flex-start" },
-  listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
-  listHeader: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 },
-  cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  resultCount: { color: colors.muted, fontSize: 14 },
-  emptyWrap: { alignItems: "center", paddingVertical: 8 },
-  emptyAction: { backgroundColor: colors.positive, borderRadius: 9999, marginTop: 24, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
-  noMatch: { alignItems: "center", padding: 42 },
-  noMatchTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  noMatchText: { color: colors.muted, fontSize: 14, marginTop: 7 },
-  mobileModal: { backgroundColor: colors.canvas, flex: 1, padding: 16 }
-});
+const createStyles = (colors: ThemeColors) => {
+  const selection = selectionStyles(colors);
+  return StyleSheet.create({
+    toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
+    searchWrap: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.inputRadius, borderWidth: 1, flexDirection: "row", flex: 1, maxWidth: 640, minHeight: layout.touchTarget, paddingHorizontal: 12 },
+    searchIcon: { color: colors.muted, fontSize: 22, marginRight: 8 },
+    searchInput: { color: colors.text, flex: 1, fontSize: 15, minHeight: 44 },
+    addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: layout.pillRadius, minHeight: layout.touchTarget, justifyContent: "center", paddingHorizontal: 16 },
+    addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
+    filterRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    advancedFilters: { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 14, padding: 14 },
+    filterGroup: { gap: 8 },
+    filterLabel: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    filterScroll: { gap: 8, paddingRight: 8 },
+    dateFilters: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    dateField: { flex: 1, gap: 8, minWidth: 180 },
+    filterChip: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 13, paddingVertical: 9 },
+    activeFilterChip: { ...selection.selectedControl },
+    filterText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
+    activeFilterText: { ...selection.selectedText },
+    errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, color: colors.negative, fontSize: 14, padding: 12 },
+    successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: layout.cardRadius, color: colors.positive, fontSize: 14, padding: 12 },
+    workspace: { gap: 18 },
+    formPane: { flex: 1, minWidth: 0, maxWidth: 420, height: 720 },
+    browserWorkspace: { flexDirection: "row", alignItems: "flex-start" },
+    listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
+    listHeader: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 },
+    cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+    resultCount: { color: colors.muted, fontSize: 14 },
+    emptyWrap: { alignItems: "center", paddingVertical: 8 },
+    emptyAction: { backgroundColor: colors.primary, borderRadius: layout.pillRadius, marginTop: 24, minHeight: layout.touchTarget, justifyContent: "center", paddingHorizontal: 16 },
+    noMatch: { alignItems: "center", padding: 42 },
+    noMatchTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+    noMatchText: { color: colors.muted, fontSize: 14, marginTop: 7 },
+    mobileModal: { backgroundColor: colors.canvas, flex: 1, padding: 16 }
+  });
+};

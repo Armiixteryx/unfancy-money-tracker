@@ -1,35 +1,49 @@
-import { typography } from "./designTokens";
-import { AppText as Text } from "./AppText";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { useState } from "react";
+import { Image, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 
-import { useThemedStyles, type ThemeColors } from "./theme";
+import { brandImages } from "./brandAssets";
+import { BRAND_HORIZONTAL_ASPECT_RATIO, BRAND_HORIZONTAL_HEIGHT, BRAND_HORIZONTAL_WIDTH, BRAND_SYMBOL_SIZE, resolveBrandAssetVariant, resolveBrandPresentation, type BrandPresentation } from "./brandIdentity";
+import { useAppTheme } from "./theme";
 
 type AppBrandProps = {
   accessibilityElementsHidden?: boolean;
+  presentation?: BrandPresentation;
   style?: StyleProp<ViewStyle>;
 };
 
-export function AppBrand({ accessibilityElementsHidden = false, style }: AppBrandProps) {
-  const styles = useThemedStyles(createStyles);
+export function AppBrand({ accessibilityElementsHidden = false, presentation = "auto", style }: AppBrandProps) {
+  const { resolvedTheme } = useAppTheme();
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const resolvedPresentation = resolveBrandPresentation(presentation, availableWidth);
+  const assetVariant = resolveBrandAssetVariant(resolvedPresentation, resolvedTheme);
+  const imageStyle = resolvedPresentation === "horizontal" ? styles.horizontal : styles.symbol;
+
+  const measureAvailableWidth = (event: LayoutChangeEvent) => {
+    const width = event.nativeEvent.layout.width;
+    setAvailableWidth((currentWidth) => currentWidth === width ? currentWidth : width);
+  };
 
   return (
     <View
       accessibilityElementsHidden={accessibilityElementsHidden}
       importantForAccessibility={accessibilityElementsHidden ? "no-hide-descendants" : undefined}
+      onLayout={measureAvailableWidth}
       style={[styles.container, style]}
     >
-      <Text style={styles.mark}>U</Text>
-      <View>
-        <Text style={styles.name}>Unfancy</Text>
-        <Text style={styles.subtitle}>Money tracker</Text>
-      </View>
+      <Image
+        accessible={!accessibilityElementsHidden}
+        accessibilityLabel="Unfancy Money Tracker"
+        accessibilityRole="image"
+        resizeMode="contain"
+        source={brandImages[assetVariant]}
+        style={imageStyle}
+      />
     </View>
   );
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { alignItems: "center", flexDirection: "row", gap: 10 },
-  mark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 12, color: colors.onPrimary, fontSize: 18, fontWeight: "500", height: 40, lineHeight: 40, textAlign: "center", width: 40 },
-  name: { ...typography.heading, color: colors.text, fontSize: 24, lineHeight: 28 },
-  subtitle: { color: colors.muted, fontSize: 12, fontWeight: "500", marginTop: 2 }
+const styles = StyleSheet.create({
+  container: { alignItems: "center", width: "100%" },
+  horizontal: { aspectRatio: BRAND_HORIZONTAL_ASPECT_RATIO, height: BRAND_HORIZONTAL_HEIGHT, width: BRAND_HORIZONTAL_WIDTH },
+  symbol: { aspectRatio: 1, height: BRAND_SYMBOL_SIZE, width: BRAND_SYMBOL_SIZE }
 });

@@ -1,4 +1,4 @@
-import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { isWebWorkspace, layout, typography } from "../../../ui/designTokens";
 import { AppText as Text } from "../../../ui/AppText";
 import { formatMonth } from "../../../localization/region";
 import { categoryLabel } from "../../../localization/i18n";
@@ -14,6 +14,7 @@ import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useAnalytics } from "../../../providers/AnalyticsProvider";
 import { useExchangeRates, rateRequestKey } from "../../exchange-rates/hooks/useExchangeRates";
+import { selectionStyles } from "../../../ui/selectionStyles";
 
 export function ReportsScreen() {
   useTranslation();
@@ -76,48 +77,51 @@ function CategoryList({ categories }: { categories: ReturnType<typeof categoryRe
   return <View style={styles.categoryList}>{categories.slice(0, 8).map((item) => <View key={`${item.categoryId}:${item.currency}`} style={styles.categoryRow}><View style={styles.categoryCopy}><Text style={styles.categoryName}>{categoryLabel(useLocalDatasetStore.getState().dataset?.categories.find(category => category.id === item.categoryId))}</Text><Text style={styles.categoryMeta}>{item.currency}</Text></View><View style={styles.categoryBarTrack}><View style={[styles.categoryBar, { width: `${max.isZero() ? 0 : Decimal(item.spent.amount).dividedBy(max).times(100).toNumber()}%` }]} /></View><Text style={styles.categoryAmount}>{formatMoneyForDisplay(item.spent)}</Text></View>)}</View>;
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between" },
-  toolbarTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  toolbarHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
-  periods: { flexDirection: "row", gap: 8 },
-  periodChip: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, minHeight: 48, justifyContent: "center", paddingHorizontal: 14 },
-  activePeriod: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
-  activePeriodText: { color: colors.onPrimary },
-  emptyCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1 },
-  notice: { backgroundColor: colors.infoSubtle, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 4, padding: 14 },
-  noticeTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  noticeText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  baseCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 14, padding: 20 },
-  baseRows: { gap: 10 },
-  baseRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, minHeight: 40 },
-  baseRowLabel: { color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 78 },
-  baseRowValue: { color: colors.muted, fontSize: 14, fontWeight: "500" },
-  grid: { gap: 16 },
-  wideGrid: { flexDirection: "row" },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, gap: 16, minWidth: 0, padding: 20 },
-  cardHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  cardHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
-  chart: { gap: 15 },
-  chartRow: { alignItems: "stretch", flexDirection: "column", gap: 12, minHeight: 28 },
-  chartLabel: { color: colors.muted, fontSize: 14, fontWeight: "500", minWidth: 76 },
-  bars: { width: "100%", gap: 7 },
-  currencyBarRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  currencyLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", width: 30 },
-  track: { backgroundColor: colors.track, borderRadius: 9999, flex: 1, height: 10, overflow: "hidden" },
-  expenseBar: { backgroundColor: colors.accent, borderRadius: 9999, height: 10, minWidth: 3 },
-  barValue: { ...typography.amount, maxWidth: "60%", color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 76, textAlign: "right" },
-  noActivity: { color: colors.muted, fontSize: 14 },
-  categoryList: { gap: 15 },
-  categoryRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  categoryCopy: { minWidth: 60, flex: 1 },
-  categoryName: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  categoryMeta: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  categoryBarTrack: { backgroundColor: colors.track, borderRadius: 9999, flex: 1, height: 8, overflow: "hidden" },
-  categoryBar: { backgroundColor: colors.accent, borderRadius: 9999, height: 8, minWidth: 3 },
-  categoryAmount: { ...typography.amount, maxWidth: "60%", color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 70, textAlign: "right" },
-  observation: { color: colors.text, fontSize: 17, fontWeight: "500", lineHeight: 25 },
-  muted: { color: colors.muted, fontSize: 14, lineHeight: 20 }
-});
+const createStyles = (colors: ThemeColors) => {
+  const selection = selectionStyles(colors);
+  return StyleSheet.create({
+    toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 16, justifyContent: "space-between" },
+    toolbarTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+    toolbarHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
+    periods: { flexDirection: "row", gap: 8 },
+    periodChip: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, minHeight: layout.touchTarget, justifyContent: "center", paddingHorizontal: 14 },
+    activePeriod: { ...selection.selectedControl },
+    periodText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
+    activePeriodText: { ...selection.selectedText },
+    emptyCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1 },
+    notice: { backgroundColor: colors.infoSubtle, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 4, padding: 14 },
+    noticeTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    noticeText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+    baseCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 14, padding: 20 },
+    baseRows: { gap: 10 },
+    baseRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, minHeight: 40 },
+    baseRowLabel: { color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 78 },
+    baseRowValue: { color: colors.muted, fontSize: 14, fontWeight: "500" },
+    grid: { gap: 16 },
+    wideGrid: { flexDirection: "row" },
+    card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, flex: 1, gap: 16, minWidth: 0, padding: 20 },
+    cardHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
+    cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+    cardHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
+    chart: { gap: 15 },
+    chartRow: { alignItems: "stretch", flexDirection: "column", gap: 12, minHeight: 28 },
+    chartLabel: { color: colors.muted, fontSize: 14, fontWeight: "500", minWidth: 76 },
+    bars: { width: "100%", gap: 7 },
+    currencyBarRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    currencyLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", width: 30 },
+    track: { backgroundColor: colors.track, borderRadius: layout.pillRadius, flex: 1, height: 10, overflow: "hidden" },
+    expenseBar: { backgroundColor: colors.accent, borderRadius: layout.pillRadius, height: 10, minWidth: 3 },
+    barValue: { ...typography.amount, maxWidth: "60%", color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 76, textAlign: "right" },
+    noActivity: { color: colors.muted, fontSize: 14 },
+    categoryList: { gap: 15 },
+    categoryRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    categoryCopy: { minWidth: 60, flex: 1 },
+    categoryName: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    categoryMeta: { color: colors.muted, fontSize: 11, marginTop: 2 },
+    categoryBarTrack: { backgroundColor: colors.track, borderRadius: layout.pillRadius, flex: 1, height: 8, overflow: "hidden" },
+    categoryBar: { backgroundColor: colors.accent, borderRadius: layout.pillRadius, height: 8, minWidth: 3 },
+    categoryAmount: { ...typography.amount, maxWidth: "60%", color: colors.text, fontSize: 14, fontWeight: "500", minWidth: 70, textAlign: "right" },
+    observation: { color: colors.text, fontSize: 17, fontWeight: "500", lineHeight: 25 },
+    muted: { color: colors.muted, fontSize: 14, lineHeight: 20 }
+  });
+};

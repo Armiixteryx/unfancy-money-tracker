@@ -5,6 +5,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { layout } from "../../../ui/designTokens";
 import { useThemedStyles } from "../../../ui/theme";
 import type { ThemeColors } from "../../../ui/theme";
 
@@ -84,11 +85,11 @@ export function DateFilterPicker({ accessibilityLabel, maximumDate, minimumDate,
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   controlRow: { alignItems: "center", flexDirection: "row", gap: 8 },
-  dateButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 9999, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 12 },
+  dateButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 12 },
   dateButtonPressed: { borderColor: colors.primary },
   dateButtonText: { color: colors.text, fontSize: 14 },
   placeholder: { color: colors.placeholder },
-  clearButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 10 },
+  clearButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 10 },
   clearButtonPressed: { backgroundColor: colors.infoSubtle },
   clearButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" }
 });

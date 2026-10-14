@@ -14,9 +14,10 @@ type AppScreenProps = {
   children: React.ReactNode;
   overlay?: React.ReactNode;
   actions?: React.ReactNode;
+  headerAccessory?: React.ReactNode;
 };
 
-export function AppScreen({ title, eyebrow, children, overlay, actions }: AppScreenProps) {
+export function AppScreen({ title, eyebrow, children, overlay, actions, headerAccessory }: AppScreenProps) {
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -48,6 +49,7 @@ export function AppScreen({ title, eyebrow, children, overlay, actions }: AppScr
           </View>
           {actions ? <View style={styles.headerActions}>{actions}</View> : null}
         </View>
+        {headerAccessory}
         <TrackerSwitcher />
         <TrackerSyncNotice />
         {children}

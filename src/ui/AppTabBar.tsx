@@ -65,7 +65,7 @@ function WebSideNav({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
-function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function MobileTabBar({ state, descriptors, navigation, compactTabs }: BottomTabBarProps & { compactTabs: boolean }) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -83,10 +83,10 @@ function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             accessibilityState={{ selected: isFocused }}
             key={route.key}
             onPress={() => selectRoute({ navigation, route, isFocused })}
-            style={[styles.mobileItem, isFocused && styles.mobileItemActive]}
+            style={[styles.mobileItem, compactTabs && { flex: Math.max(8, label.length) }, isFocused && styles.mobileItemActive]}
           >
             <Ionicons color={isFocused ? colors.positive : colors.muted} name={iconForRoute(route)} size={22} />
-            <Text style={[styles.mobileLabel, isFocused && styles.mobileLabelActive]}>{label}</Text>
+            <Text numberOfLines={compactTabs ? 1 : undefined} style={[styles.mobileLabel, compactTabs && styles.compactMobileLabel, isFocused && styles.mobileLabelActive]}>{label}</Text>
           </Pressable>
         );
       })}
@@ -98,7 +98,7 @@ export function AppTabBar(props: BottomTabBarProps) {
   const { width } = useWindowDimensions();
   const isDesktopWeb = isWebRail(Platform.OS, width);
 
-  return isDesktopWeb ? <WebSideNav {...props} /> : <MobileTabBar {...props} />;
+  return isDesktopWeb ? <WebSideNav {...props} /> : <MobileTabBar {...props} compactTabs={width < 360} />;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
@@ -115,7 +115,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     top: 0,
     width: layout.railWidth
   },
-  brandBlock: { marginBottom: 36, paddingHorizontal: 10 },
+  brandBlock: { alignItems: "center", marginBottom: 36 },
   webItems: { gap: 6 },
   webItem: { alignItems: "center", borderRadius: layout.pillRadius, flexDirection: "row", gap: 12, minHeight: 48, paddingHorizontal: 14 },
   webItemActive: { backgroundColor: colors.positiveSubtle },
@@ -125,5 +125,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   mobileItem: { alignItems: "center", flex: 1, minWidth: 0, paddingHorizontal: 2, gap: 6, justifyContent: "center", minHeight: 56 },
   mobileItemActive: { backgroundColor: colors.positiveSubtle, borderRadius: 12, marginHorizontal: 2 },
   mobileLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", textAlign: "center", maxWidth: "100%" },
+  compactMobileLabel: { fontSize: 10, lineHeight: 14 },
   mobileLabelActive: { color: colors.positive }
 });

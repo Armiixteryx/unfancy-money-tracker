@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../../ui/controls";
-import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { isWebWorkspace, layout, typography } from "../../../ui/designTokens";
 import { AppText as Text } from "../../../ui/AppText";
 import { formatMonth as formatMonthLabel } from "../../../localization/region";
 import type { Message } from "../../../localization/notices";
@@ -423,39 +423,39 @@ export function BudgetsScreen() {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   toolbar: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
   toolbarActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
+  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 14 },
   secondaryButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
   monthControl: { alignItems: "center", flexDirection: "row", gap: 10 },
-  monthButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
+  monthButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, height: layout.touchTarget, justifyContent: "center", width: layout.touchTarget },
   monthButtonText: { color: colors.text, fontSize: 28, fontWeight: "300", lineHeight: 30 },
   monthLabel: { color: colors.text, fontSize: 18, fontWeight: "500", minWidth: 118, textAlign: "center" },
-  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, justifyContent: "center", minHeight: 48, paddingHorizontal: 16 },
+  addButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: layout.pillRadius, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 16 },
   addButtonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
-  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
+  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, color: colors.negative, fontSize: 14, padding: 12 },
   saveErrorRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  retryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
+  retryButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 14 },
   retryButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
   disabledButton: { opacity: 0.5 },
-  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: 12, color: colors.positive, fontSize: 14, padding: 12 },
-  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 12, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between", padding: 16 },
+  successBanner: { backgroundColor: colors.positiveSubtle, borderRadius: layout.cardRadius, color: colors.positive, fontSize: 14, padding: 12 },
+  confirmation: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: layout.cardRadius, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between", padding: 16 },
   confirmationText: { color: colors.text, flex: 1, fontSize: 14, lineHeight: 20, minWidth: 220 },
   confirmationActions: { flexDirection: "row", gap: 8 },
-  cancelSmall: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 12 },
+  cancelSmall: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 12 },
   cancelSmallText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  deleteSmall: { backgroundColor: colors.negative, borderRadius: 9999, justifyContent: "center", minHeight: 48, paddingHorizontal: 12 },
+  deleteSmall: { backgroundColor: colors.negative, borderRadius: layout.pillRadius, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 12 },
   deleteSmallText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
   workspace: { gap: 18 },
   formPane: { flex: 1, minWidth: 0, maxWidth: 420, height: 720 },
   browserWorkspace: { alignItems: "flex-start", flexDirection: "row" },
-  listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
+  listCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, flex: 1, minWidth: 0, padding: 18 },
   listHeader: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 },
   cardTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
   cardHint: { color: colors.muted, fontSize: 14, marginTop: 4 },
   count: { color: colors.muted, fontSize: 14 },
   emptyWrap: { alignItems: "center", paddingVertical: 8 },
   emptyActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
-  emptyAction: { backgroundColor: colors.positive, borderRadius: 9999, marginTop: 24, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
-  emptyCopyAction: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, marginTop: 24, minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
+  emptyAction: { backgroundColor: colors.primary, borderRadius: layout.pillRadius, marginTop: 24, minHeight: layout.touchTarget, justifyContent: "center", paddingHorizontal: 16 },
+  emptyCopyAction: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, marginTop: 24, minHeight: layout.touchTarget, justifyContent: "center", paddingHorizontal: 16 },
   cards: { gap: 12, paddingTop: 14 },
   mobileModal: { backgroundColor: colors.canvas, flex: 1, padding: 16 }
 });

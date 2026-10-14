@@ -1,4 +1,4 @@
-import { typography } from "../../../ui/designTokens";
+import { layout, typography } from "../../../ui/designTokens";
 import { AppText as Text } from "../../../ui/AppText";
 import { formatMonth as formatMonthLabel } from "../../../localization/region";
 import { translateMessage } from "../../../localization/i18n";
@@ -93,26 +93,26 @@ export function CopyBudgetsForm({ budgets, categories, targetMonth, initialSourc
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minHeight: 0, padding: 20 },
+  container: { alignSelf: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, flex: 1, maxWidth: layout.formMaxWidth, minHeight: 0, padding: 20, width: "100%" },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
   eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "500", marginBottom: 4 },
   title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
+  closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, height: layout.touchTarget, justifyContent: "center", width: layout.touchTarget },
   closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
   fields: { gap: 18, paddingBottom: 8 },
   field: { gap: 8 },
   label: { color: colors.text, fontSize: 14, fontWeight: "500" },
   monthControl: { alignItems: "center", flexDirection: "row", gap: 10 },
-  monthButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
+  monthButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, height: layout.touchTarget, justifyContent: "center", width: layout.touchTarget },
   monthButtonText: { color: colors.text, fontSize: 28, fontWeight: "300", lineHeight: 30 },
   monthLabel: { color: colors.text, flex: 1, fontSize: 18, fontWeight: "500", textAlign: "center" },
   helper: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  preview: { backgroundColor: colors.canvas, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 6, padding: 14 },
+  preview: { backgroundColor: colors.canvas, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 6, padding: 14 },
   previewTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
   previewText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   warning: { color: colors.warning, fontSize: 14, fontWeight: "500" },
-  error: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
-  copyButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, justifyContent: "center", minHeight: 50 },
+  error: { backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, color: colors.negative, fontSize: 14, padding: 12 },
+  copyButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: layout.pillRadius, justifyContent: "center", minHeight: 50 },
   disabledButton: { opacity: 0.5 },
   copyText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
   cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 48 },

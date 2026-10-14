@@ -20,6 +20,16 @@ Extend the runtime theme to provide inherited text color independently of featur
 
 Use centralized, platform-aware thresholds: web rail at 1024px and web list/form workspace at 1200px. Native forms remain full-screen regardless of device width. Include safe areas and keyboard avoidance. Keep the content workspace centered within 1200px, independently of the rail.
 
+### Brand alignment extension — October 14, 2026
+
+Use the approved U + treasure kit as the identity source of truth. Bundle its existing PNG lockups and square icon through React Native Image, without a runtime graphics dependency or remote fetch. The light full-colour and dark reverse treatments retain their fixed brand colours; semantic palette resolution applies to UI controls rather than recolouring the logo. Outlined Inter logo lettering is independent of Fraunces interface headings.
+
+The web rail is 288px wide so the 240px horizontal lockup and its clear space fit. Keep the existing 1024px rail and 1200px workspace thresholds. The shared brand component measures its container and falls back to a 48px approved square icon below the horizontal minimum, including narrow authentication cards. Native tablets keep bottom navigation and full-screen forms regardless of width; center form columns with a 560px maximum. Add one Settings identity anchor directly below the heading on native and narrow web, before tracker controls; omit it when the web rail already displays the logo.
+
+Centralize emerald selected-control styles independently of filled primary-action colours. Bring inconsistent Account/shared-tracker panels and dialogs onto the existing typography and geometry tokens without changing their permissions, consent, async lifecycle, or confirmation behavior.
+
+Publish checked-in, reproducibly generated browser assets under separate production/development paths and select HTML metadata using the existing `EXPO_PUBLIC_ENV=prod` gate. Production PNGs remain byte-for-byte copies of approved exports. DEV touch/install icons derive from the approved DEV SVG, with navy padding for maskable safe areas. Use distinct stable manifest IDs, root start URL/scope, and standalone display; no service worker or background/offline data capability is introduced. Normal builds require no image-generation tooling.
+
 Dashboard remaining-budget presentation uses a feature-local selector over existing money helpers. Include the union of current-month transaction and budget currencies, retaining per-currency subtraction without introducing another conversion policy. New-transaction and new-budget CTAs use the existing forms through consumed route parameters.
 
 ## Consequences
@@ -37,3 +47,4 @@ Dashboard remaining-budget presentation uses a feature-local selector over exist
 - Test dashboard budget-only currencies, missing limits, income exclusion, overspending, and monthly isolation.
 - Retain localization, transaction form, voice lifecycle, recovery, and category protection tests.
 - Verify web compilation and prefer attached physical Android and Apple devices for native checks. Visual verification requires a working browser or desktop capture connection.
+- Verify logo fit/resizing, both themes, phone/tablet layouts, and clean-versus-DEV metadata and exported assets. Use synthetic records and preserve existing datasets during visual checks.
