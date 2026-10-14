@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 256" width="880" height="256" role="img" aria-labelledby="title">
+  <title id="title">Unfancy — Plainspoken exploratory lockup; live type, not a master</title>
+  <g fill="#111111">
+    <path d="M18 64H46V144A20 20 0 0 0 86 144V64H114V68A48 48 0 0 1 210 68V192H182V68A20 20 0 0 0 142 68V192H114V178A48 48 0 0 1 18 144Z"/>
+    <text x="280" y="148" font-family="Arial, Helvetica, sans-serif" font-size="104" font-weight="600" letter-spacing="-3">Unfancy</text>
+    <text x="286" y="195" font-family="Arial, Helvetica, sans-serif" font-size="28" letter-spacing="3">MONEY TRACKER</text>
+  </g>
+</svg>

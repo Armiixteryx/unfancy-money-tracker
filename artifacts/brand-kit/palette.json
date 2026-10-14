@@ -1,0 +1,38 @@
+{
+  "brand": "Unfancy Money Tracker",
+  "colors": [
+    {
+      "name": "Deep navy",
+      "role": "Primary icon background and wordmark",
+      "hex": "#102A43",
+      "rgb": [16, 42, 67],
+      "cmyk_approximate": [76, 37, 0, 74],
+      "pantone_approximate": "7546 C"
+    },
+    {
+      "name": "Warm cream",
+      "role": "Open-entry U and reversed logo",
+      "hex": "#F7F5F0",
+      "rgb": [247, 245, 240],
+      "cmyk_approximate": [0, 1, 3, 3],
+      "pantone_approximate": "7527 C"
+    },
+    {
+      "name": "Coin top gold",
+      "role": "Coin faces",
+      "hex": "#F0CA72",
+      "rgb": [240, 202, 114],
+      "cmyk_approximate": [0, 16, 53, 6],
+      "pantone_approximate": "7409 C"
+    },
+    {
+      "name": "Coin side gold",
+      "role": "Coin sides",
+      "hex": "#B9802D",
+      "rgb": [185, 128, 45],
+      "cmyk_approximate": [0, 31, 76, 27],
+      "pantone_approximate": "7563 C"
+    }
+  ],
+  "print_note": "CMYK and Pantone values are approximate, not ICC conversions or verified spot matches. Proof against a physical guide and printer profile."
+}

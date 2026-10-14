@@ -1,0 +1,36 @@
+{
+  "brand": "Unfancy Money Tracker",
+  "brief": "A calm, practical and approachable personal-finance tracker for people who want a clear monthly view without banking complexity.",
+  "adjectives": ["calm", "practical", "approachable", "clear", "understated"],
+  "criteria": "Keep the approved U + treasure icon recognizable at small sizes, preserve its navy/cream/gold geometry, and provide one-colour and reverse uses without implying bank accounts or payment products.",
+  "industry": "finance",
+  "mockups": ["app-icon", "website", "favicon-tab", "social", "readme", "sticker"],
+  "nav": ["Overview", "Budgets", "Transactions"],
+  "brand_color": "#102A43",
+  "tile_color": "#102A43",
+  "greyscale": false,
+  "final": true,
+  "round": 2,
+  "concepts": [
+    {
+      "name": "U + Treasure",
+      "symbol": "../masters/primary-icon.svg",
+      "lockup": "../masters/logo-horizontal-color.svg",
+      "stacked": "../masters/logo-stacked-color.svg",
+      "avatar": "../masters/primary-icon.svg",
+      "symbol_on_tile": "../masters/primary-icon.svg",
+      "lockup_on_dark": "../masters/logo-horizontal-reverse.svg",
+      "idea": "The open-entry U sits above a small pile of flat gold coins, pairing the approved letterform with a quiet cue of everyday money.",
+      "rationale": [
+        "The icon preserves the already approved full-bleed navy, cream U, and original gold coin geometry.",
+        "Outlined Inter lettering gives the identity a clear app-header lockup without requiring an installed font.",
+        "Single-colour and reverse marks provide practical print and dark-surface alternatives."
+      ]
+    }
+  ],
+  "recommendation": "Use the full-colour primary icon for launchers; use the outlined horizontal lockup for product headers and the one-colour reverse where a dark background requires it.",
+  "next_steps": [
+    "Use the relevant platform export from platform/ without changing the approved primary icon.",
+    "Complete trademark search and print colour proofing before public brand use."
+  ]
+}

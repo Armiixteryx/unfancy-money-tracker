@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title">
+  <title id="title">Unfancy Money Tracker — Open entry inside a coin</title>
+  <circle cx="128" cy="128" r="112" fill="#102A43"/>
+  <circle cx="128" cy="128" r="96" fill="#EBCB86"/>
+  <g fill="#102A43" transform="translate(38.4 36.4) scale(0.7)">
+    <path d="M40 36H80V140A32 32 0 0 0 112 172H144A32 32 0 0 0 176 140V100H216V140A72 72 0 0 1 144 212H112A72 72 0 0 1 40 140Z"/>
+    <path d="M128 36H216V76H128Z"/>
+  </g>
+</svg>
