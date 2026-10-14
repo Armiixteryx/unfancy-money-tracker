@@ -41,7 +41,7 @@ export function AuthForm({ onComplete, onCancel }: { onComplete: () => Promise<v
   const titles = { login: label("Sign in", "Iniciar sesión"), register: label("Create account", "Crear cuenta"), confirm: label("Confirm email", "Confirmar correo"), recover: label("Recover password", "Recuperar contraseña"), reset: label("Reset password", "Restablecer contraseña") };
   const button = (text: string, action: () => void, variant: "primary" | "secondary" | "ghost" = "secondary") => <Button label={text} variant={variant} accessibilityState={{ busy }} disabled={busy} onPress={action} />;
   return <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24, backgroundColor: colors.canvas }}><SensitiveContent><View style={{ width: "100%", maxWidth: 480, alignSelf: "center", gap: 16, backgroundColor: colors.surface, padding: 24, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
-    <AppBrand accessibilityElementsHidden />
+    <AppBrand accessibilityElementsHidden presentation="auto" />
     <Text accessibilityRole="header" style={{ ...typography.heading, color: colors.text, fontSize: 32, lineHeight: 40 }}>{titles[mode]}</Text>
     <Text style={{ color: colors.muted }}>{label("Login is optional. Your records stay on this device. Sign in to use voice entry.", "La sesión es opcional. Tus registros permanecen en este dispositivo. Inicia sesión para usar la voz.")}</Text>
     {(["email", ...(passwordRequired ? ["password"] : []), ...(codeRequired ? ["code"] : [])] as ("email" | "password" | "code")[]).map(name => {

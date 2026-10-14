@@ -22,7 +22,7 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     ...config,
     name: isE2E ? "Unfancy Money Tracker (E2E)" : isProduction ? "Unfancy Money Tracker" : "Unfancy Money Tracker (Dev)",
     slug: "unfancy-money-tracker",
-    version: "1.1.0",
+    version: "1.1.2",
     orientation: "portrait",
     userInterfaceStyle: "automatic",
     scheme: "unfancy-money-tracker",
@@ -33,13 +33,13 @@ export function buildAppConfig(config: ExpoConfig, env: Record<string, string | 
     },
     ios: {
       supportsTablet: true,
-      buildNumber: "4",
+      buildNumber: "6",
       bundleIdentifier: applicationId,
       ...(!isProduction ? { infoPlist: { NSLocalNetworkUsageDescription: "Connect to the local development server to test Unfancy Money Tracker." } } : {})
     },
     android: {
       package: applicationId,
-      versionCode: 4,
+      versionCode: 6,
       adaptiveIcon: {
         backgroundColor: "#102A43",
         foregroundImage: iconAssets.androidForeground,

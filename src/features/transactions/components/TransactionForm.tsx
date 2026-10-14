@@ -1,4 +1,4 @@
-import { typography } from "../../../ui/designTokens";
+import { layout, typography } from "../../../ui/designTokens";
 import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { normalizeAmountDraft } from "../../../localization/amountInput";
 import { errorToken, DomainError } from "../../../domain/errors";
@@ -17,6 +17,7 @@ import { normalizeSelectedCurrencies, type CurrencyCode } from "../../../domain/
 import type { Category, Transaction } from "../../../domain/types";
 import { transactionInputSchema, type TransactionInput } from "../../../domain/validation";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
+import { selectionStyles } from "../../../ui/selectionStyles";
 
 export type TransactionFormResult = { ok: true } | { ok: false; message: string };
 
@@ -118,7 +119,7 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
               accessibilityState={{ selected: type === option }}
               key={option}
               onPress={() => setValue("type", option, { shouldValidate: true })}
-              style={[styles.segment, type === option && (option === "expense" ? styles.expenseSelected : styles.incomeSelected)]}
+              style={[styles.segment, type === option && styles.selectedSegment]}
             >
               <Text style={[styles.segmentText, type === option && styles.selectedSegmentText]}>
                 {option === "expense" ? i18n.t($ => $.ui.transactionsExpense) : i18n.t($ => $.ui.dashboardIncome)}
@@ -156,9 +157,9 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
                 accessibilityState={{ selected: selectedCategoryId === category.id }}
                 key={category.id}
                 onPress={() => setValue("categoryId", category.id, { shouldValidate: true })}
-                style={[styles.categoryChip, selectedCategoryId === category.id && styles.selectedChip]}
+                style={[styles.categoryChip, selectedCategoryId === category.id && styles.selectedControl]}
               >
-                <Text style={[styles.categoryChipText, selectedCategoryId === category.id && styles.selectedChipText]}>
+                <Text style={[styles.categoryChipText, selectedCategoryId === category.id && styles.selectedText]}>
                   {categoryLabel(category)}
                 </Text>
               </Pressable>
@@ -219,9 +220,9 @@ export function TransactionForm({ categories, selectedCurrencies, baseCurrency, 
                       accessibilityState={{ selected: value === currency }}
                       key={currency}
                       onPress={() => setValue("currency", currency, { shouldValidate: true })}
-                      style={[styles.currencyChip, value === currency && styles.selectedChip]}
+                      style={[styles.currencyChip, value === currency && styles.selectedControl]}
                     >
-                      <Text style={[styles.categoryChipText, value === currency && styles.selectedChipText]}>{currency}</Text>
+                      <Text style={[styles.categoryChipText, value === currency && styles.selectedText]}>{currency}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -255,38 +256,40 @@ function FieldLabel({ label, error, children }: { label: string; error?: string;
   );
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minHeight: 0, padding: 20 },
-  formHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
-  eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "500", marginBottom: 4 },
-  title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
-  closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
-  fields: { gap: 18, paddingBottom: 8 },
-  segmentedControl: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, flexDirection: "row", overflow: "hidden" },
-  segment: { alignItems: "center", flex: 1, minHeight: 48, justifyContent: "center" },
-  expenseSelected: { backgroundColor: colors.negativeSubtle },
-  incomeSelected: { backgroundColor: colors.positiveSubtle },
-  segmentText: { color: colors.muted, fontSize: 15, fontWeight: "500" },
-  selectedSegmentText: { color: colors.text },
-  field: { gap: 7 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
-  chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryChip: { minHeight: 48, justifyContent: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  currencyRow: { flexDirection: "row", gap: 8 },
-  currencyChip: { minHeight: 48, justifyContent: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  selectedChip: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryChipText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  selectedChipText: { color: colors.onPrimary },
-  helper: { color: colors.muted, fontSize: 14 },
-  fieldError: { color: colors.negative, fontSize: 14 },
-  formError: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
-  saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, minHeight: 50, justifyContent: "center", marginTop: 4 },
-  disabledSaveButton: { opacity: 0.5 },
-  retryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
-  retryButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  saveButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
-  cancelButton: { alignItems: "center", minHeight: 48, justifyContent: "center" },
-  cancelButtonText: { color: colors.muted, fontSize: 14, fontWeight: "500" }
-});
+const createStyles = (colors: ThemeColors) => {
+  const selection = selectionStyles(colors);
+  return StyleSheet.create({
+    container: { alignSelf: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, flex: 1, maxWidth: layout.formMaxWidth, minHeight: 0, padding: 20, width: "100%" },
+    formHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
+    eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "500", marginBottom: 4 },
+    title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+    closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, height: layout.touchTarget, justifyContent: "center", width: layout.touchTarget },
+    closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
+    fields: { gap: 18, paddingBottom: 8 },
+    segmentedControl: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, flexDirection: "row", overflow: "hidden" },
+    segment: { alignItems: "center", borderColor: "transparent", borderRadius: layout.pillRadius, borderWidth: 1, flex: 1, minHeight: layout.touchTarget, justifyContent: "center" },
+    selectedSegment: { ...selection.selectedControl },
+    segmentText: { color: colors.muted, fontSize: 15, fontWeight: "500" },
+    selectedSegmentText: { ...selection.selectedText },
+    field: { gap: 7 },
+    label: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.inputRadius, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: layout.touchTarget, paddingHorizontal: 14 },
+    chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    categoryChip: { minHeight: layout.touchTarget, justifyContent: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+    currencyRow: { flexDirection: "row", gap: 8 },
+    currencyChip: { minHeight: layout.touchTarget, justifyContent: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+    selectedControl: { ...selection.selectedControl },
+    categoryChipText: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    selectedText: { ...selection.selectedText },
+    helper: { color: colors.muted, fontSize: 14 },
+    fieldError: { color: colors.negative, fontSize: 14 },
+    formError: { backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, color: colors.negative, fontSize: 14, padding: 12 },
+    saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: layout.pillRadius, minHeight: 50, justifyContent: "center", marginTop: 4 },
+    disabledSaveButton: { opacity: 0.5 },
+    retryButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 14 },
+    retryButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    saveButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
+    cancelButton: { alignItems: "center", minHeight: 48, justifyContent: "center" },
+    cancelButtonText: { color: colors.muted, fontSize: 14, fontWeight: "500" }
+  });
+};

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { createElement, type ChangeEvent, type CSSProperties } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { layout } from "../../../ui/designTokens";
 import { useThemedStyles, type ThemeColors } from "../../../ui/theme";
 
 type DateFilterPickerProps = {
@@ -47,7 +48,7 @@ export function DateFilterPicker({ accessibilityLabel, maximumDate, minimumDate,
 const createStyles = (colors: ThemeColors) => ({
   ...StyleSheet.create({
     controlRow: { alignItems: "center", flexDirection: "row", gap: 8 },
-    clearButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 10 },
+    clearButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 10 },
     clearButtonPressed: { backgroundColor: colors.infoSubtle },
     clearButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" }
   }),
@@ -59,13 +60,13 @@ function createInputStyle(colors: ThemeColors): CSSProperties {
     appearance: "none",
     backgroundColor: colors.surface,
     border: `1px solid ${colors.border}`,
-    borderRadius: 8,
+    borderRadius: layout.inputRadius,
     boxSizing: "border-box",
     color: colors.text,
     flex: 1,
     fontFamily: "Inter_400Regular, system-ui, sans-serif",
     fontSize: 14,
-    minHeight: 48,
+    minHeight: layout.touchTarget,
     minWidth: 0,
     padding: "0 12px",
     width: "100%"

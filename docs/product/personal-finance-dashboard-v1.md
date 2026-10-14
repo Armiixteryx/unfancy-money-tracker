@@ -110,6 +110,8 @@ Accepted October 12, 2026: accessibility is deferred as a project focus. Accessi
 
 Use a warm editorial fintech system inspired by the Monarch Refero style reference, retaining Unfancy’s navy and emerald identity. Light mode uses a linen canvas, white cards, and warm gray hairline borders; dark mode uses navy surfaces and high-contrast warm text. Use Fraunces Regular for page and section headings, Inter for UI copy and tabular financial amounts, pill controls, 12px card corners, 8px input corners, and restrained elevation. Navy is the light-mode primary action; emerald supplies selection, positive states, charts, and the dark-mode primary action. Coral indicates errors and overspending. See [editorial redesign](editorial-redesign.md) and ADR 0021.
 
+Use the approved U + treasure artwork and outlined Inter wordmark in navigation, authentication, and loading. Preserve its fixed navy/cream/gold palette and supplied reverse treatment in dark mode. Horizontal logos are 240px wide; narrower containers use the approved 48px square icon. Native and narrow-web Settings include one brand anchor below the page heading, with no duplicate under the desktop rail. Browser title, touch/install icons, and manifest use clean production artwork only for `EXPO_PUBLIC_ENV=prod`, otherwise DEV artwork. Install metadata introduces no service worker or offline caching. See ADR 0022 and the [brand usage guide](../../artifacts/brand-kit/usage-guide.md).
+
 ### Mobile
 
 - Bottom tabs: Dashboard, Transactions, Budgets, Reports, Settings.
@@ -119,7 +121,7 @@ Use a warm editorial fintech system inspired by the Monarch Refero style referen
 
 ### Browser
 
-- Compact left navigation from 1024px and a header action for adding a transaction. Below that width, use bottom tabs.
+- A 288px left navigation rail from 1024px accommodates the approved 240px horizontal logo, with a header action for adding a transaction. Below that width, use bottom tabs. Native phones and tablets retain bottom tabs and full-screen forms at all widths.
 - Preserve dashboard hierarchy while using the wider layout for a side-by-side spending trend, category breakdown, recent activity, and budget attention.
 - Do not duplicate mobile navigation patterns merely to fill space.
 - Use a persistent split-pane workspace for Transactions: the list remains visible while the selected transaction or new-transaction form occupies the detail pane. Web from 1200px uses the split pane. Smaller browser widths and all native sizes use a full-screen form.

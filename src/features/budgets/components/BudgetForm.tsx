@@ -1,4 +1,4 @@
-import { typography } from "../../../ui/designTokens";
+import { layout, typography } from "../../../ui/designTokens";
 import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { normalizeAmountDraft } from "../../../localization/amountInput";
 import { errorToken, DomainError } from "../../../domain/errors";
@@ -17,6 +17,7 @@ import { normalizeSelectedCurrencies, type CurrencyCode } from "../../../domain/
 import type { Budget, Category } from "../../../domain/types";
 import { budgetInputSchema, type BudgetInput } from "../../../domain/validation";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
+import { selectionStyles } from "../../../ui/selectionStyles";
 
 export type BudgetFormResult = { ok: true } | { ok: false; message: string };
 
@@ -109,8 +110,8 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
         <FieldLabel label={i18n.t($ => $.ui.transactionsCategory)} error={formState.errors.categoryId?.message}>
           <View style={styles.chips}>
             {expenseCategories.map((category) => (
-              <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryId === category.id }} key={category.id} onPress={() => setValue("categoryId", category.id, { shouldValidate: true })} style={[styles.chip, selectedCategoryId === category.id && styles.selectedChip]}>
-                <Text style={[styles.chipText, selectedCategoryId === category.id && styles.selectedChipText]}>{categoryLabel(category)}</Text>
+              <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryId === category.id }} key={category.id} onPress={() => setValue("categoryId", category.id, { shouldValidate: true })} style={[styles.chip, selectedCategoryId === category.id && styles.selectedControl]}>
+                <Text style={[styles.chipText, selectedCategoryId === category.id && styles.selectedText]}>{categoryLabel(category)}</Text>
               </Pressable>
             ))}
           </View>
@@ -129,8 +130,8 @@ export function BudgetForm({ categories, budgets, selectedCurrencies, budget, de
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.currencyRow}>
               {currencies.map((currency) => (
-                <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCurrency === currency }} key={currency} onPress={() => setValue("currency", currency, { shouldValidate: true })} style={[styles.chip, selectedCurrency === currency && styles.selectedChip]}>
-                  <Text style={[styles.chipText, selectedCurrency === currency && styles.selectedChipText]}>{currency}</Text>
+                <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCurrency === currency }} key={currency} onPress={() => setValue("currency", currency, { shouldValidate: true })} style={[styles.chip, selectedCurrency === currency && styles.selectedControl]}>
+                  <Text style={[styles.chipText, selectedCurrency === currency && styles.selectedText]}>{currency}</Text>
                 </Pressable>
               ))}
             </View>
@@ -153,29 +154,32 @@ function FieldLabel({ label, error, children }: { label: string; error?: string;
   return <View style={styles.field}><Text style={styles.label}>{label}</Text>{children}{error ? <Text style={styles.fieldError}>{translateMessage(error, true)}</Text> : null}</View>;
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, flex: 1, minHeight: 0, padding: 20 },
-  header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
-  eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "500", marginBottom: 4 },
-  title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
-  closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
-  closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
-  fields: { gap: 18, paddingBottom: 8 },
-  field: { gap: 7 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: 48, paddingHorizontal: 14 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { minHeight: 48, justifyContent: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  selectedChip: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  selectedChipText: { color: colors.onPrimary },
-  currencyRow: { flexDirection: "row", gap: 8 },
-  helper: { color: colors.muted, fontSize: 14 },
-  fieldError: { color: colors.negative, fontSize: 14 },
-  error: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
-  saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, justifyContent: "center", minHeight: 50 },
-  disabledSaveButton: { opacity: 0.5 },
-  saveText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
-  cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 48 },
-  cancelText: { color: colors.muted, fontSize: 14, fontWeight: "500" }
-});
+const createStyles = (colors: ThemeColors) => {
+  const selection = selectionStyles(colors);
+  return StyleSheet.create({
+    container: { alignSelf: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, flex: 1, maxWidth: layout.formMaxWidth, minHeight: 0, padding: 20, width: "100%" },
+    header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
+    eyebrow: { color: colors.muted, fontSize: 14, fontWeight: "500", marginBottom: 4 },
+    title: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
+    closeButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, height: layout.touchTarget, justifyContent: "center", width: layout.touchTarget },
+    closeText: { color: colors.text, fontSize: 26, fontWeight: "300", lineHeight: 28 },
+    fields: { gap: 18, paddingBottom: 8 },
+    field: { gap: 7 },
+    label: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.inputRadius, borderWidth: 1, color: colors.text, fontSize: 16, minHeight: layout.touchTarget, paddingHorizontal: 14 },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: { minHeight: layout.touchTarget, justifyContent: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+    selectedControl: { ...selection.selectedControl },
+    chipText: { color: colors.text, fontSize: 14, fontWeight: "500" },
+    selectedText: { ...selection.selectedText },
+    currencyRow: { flexDirection: "row", gap: 8 },
+    helper: { color: colors.muted, fontSize: 14 },
+    fieldError: { color: colors.negative, fontSize: 14 },
+    error: { backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, color: colors.negative, fontSize: 14, padding: 12 },
+    saveButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: layout.pillRadius, justifyContent: "center", minHeight: 50 },
+    disabledSaveButton: { opacity: 0.5 },
+    saveText: { color: colors.onPrimary, fontSize: 15, fontWeight: "500" },
+    cancelButton: { alignItems: "center", justifyContent: "center", minHeight: 48 },
+    cancelText: { color: colors.muted, fontSize: 14, fontWeight: "500" }
+  });
+};

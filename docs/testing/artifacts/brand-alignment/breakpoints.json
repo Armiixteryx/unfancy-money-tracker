@@ -1,0 +1,50 @@
+{
+  "navigation": [
+    {
+      "viewport": 1023,
+      "nav": {
+        "height": 76,
+        "width": 1023
+      }
+    },
+    {
+      "viewport": 1024,
+      "nav": {
+        "height": 1000,
+        "width": 288
+      }
+    },
+    {
+      "viewport": 1199,
+      "nav": {
+        "height": 1000,
+        "width": 288
+      }
+    },
+    {
+      "viewport": 1200,
+      "nav": {
+        "height": 1000,
+        "width": 288
+      }
+    }
+  ],
+  "forms": [
+    {
+      "viewport": 1199,
+      "form": {
+        "height": 968,
+        "left": 319.5,
+        "width": 560
+      }
+    },
+    {
+      "viewport": 1200,
+      "form": {
+        "height": 720,
+        "left": 764.5,
+        "width": 396.5
+      }
+    }
+  ]
+}

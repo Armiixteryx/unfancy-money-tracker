@@ -1,5 +1,5 @@
 import { SyncSettings } from "../../sync/SyncSettings";
-import { isWebWorkspace, typography } from "../../../ui/designTokens";
+import { isWebRail, isWebWorkspace, layout, typography } from "../../../ui/designTokens";
 import { AppText as Text, AppTextInput as TextInput } from "../../../ui/AppText";
 import { SensitiveContent } from "../../../platform/analytics/SensitiveContent";
 import { useAuth } from "../../auth/AuthProvider";
@@ -16,6 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { SUPPORTED_CURRENCIES } from "../../../domain/currency";
 import type { CategoryKind } from "../../../domain/types";
 import { AppScreen } from "../../../ui/AppScreen";
+import { AppBrand } from "../../../ui/AppBrand";
+import { selectionStyles } from "../../../ui/selectionStyles";
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../../../ui/theme";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { useExchangeRates } from "../../exchange-rates/hooks/useExchangeRates";
@@ -35,6 +37,7 @@ export function SettingsScreen() {
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
   const isMobile = !isWebWorkspace(Platform.OS, width);
+  const showBrandAnchor = !isWebRail(Platform.OS, width);
   const dataset = useLocalDatasetStore((state) => state.dataset);
   const setPreferences = useLocalDatasetStore((state) => state.setPreferences);
   const resetLocalData = useLocalDatasetStore((state) => state.resetLocalData);
@@ -68,8 +71,8 @@ export function SettingsScreen() {
   const activeSection = isMobile ? mobileSection : desktopSection;
 
   return (
-    <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)}>
-      <SensitiveContent><View style={styles.card}><Text style={{ color: colors.text, fontWeight: "500" }}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
+    <AppScreen eyebrow={i18n.t($ => $.ui.settingsPreferencesAndPrivacy)} title={i18n.t($ => $.ui.navigationSettings)} headerAccessory={showBrandAnchor ? <AppBrand presentation="auto" /> : undefined}>
+      <SensitiveContent><View style={styles.card}><Text style={styles.sectionTitle}>{language.resolvedLanguage === "es" ? "Cuenta" : "Account"}</Text><Text style={{ color: colors.muted }}>{auth.identity ?? (language.resolvedLanguage === "es" ? "Invitado" : "Guest")}</Text><Pressable accessibilityRole="button" style={styles.secondaryButton} disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={() => { setAccountError(false); return auth.identity ? void auth.signOut().catch(() => setAccountError(true)) : auth.open(); }}><Text style={styles.secondaryText}>{auth.busy ? (language.resolvedLanguage === "es" ? "Espera…" : "Please wait…") : auth.identity ? (language.resolvedLanguage === "es" ? "Cerrar sesión" : "Sign out") : (language.resolvedLanguage === "es" ? "Iniciar sesión" : "Sign in")}</Text></Pressable>{accountError ? <Text accessibilityRole="alert">{language.resolvedLanguage === "es" ? "La sesión se cerró localmente. No se pudo confirmar el cierre remoto." : "Signed out locally. Remote sign-out could not be confirmed."}</Text> : null}</View></SensitiveContent>
       <TrackerManagement />
       <SyncSettings />
       {saveError ? <Text accessibilityRole="alert" style={styles.errorBanner}>{translateMessage(saveError, true)}</Text> : null}
@@ -277,22 +280,22 @@ function CategoryManager({ onMessage }: { onMessage: (message: Message) => void 
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   grid: { gap: 16, minWidth: 0, width: "100%" },
-  watchCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 14, padding: 16 },
+  watchCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 14, padding: 16 },
   watchRow: { alignItems: "center", borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 12 },
   watchConfirm: { flexBasis: "100%", gap: 8 },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 18, padding: 24 },
-  categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 18, padding: 20 },
+  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 18, padding: 24 },
+  categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 18, padding: 20 },
   sectionHeader: { gap: 5 },
   sectionTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
   sectionDescription: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   label: { color: colors.text, fontSize: 14, fontWeight: "500" },
   helper: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  choiceChip: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 13 },
-  choiceChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  choiceChip: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 13 },
+  choiceChipActive: selectionStyles(colors).selectedControl,
   choiceChipDisabled: { opacity: 0.55 },
   choiceText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
-  choiceTextActive: { color: colors.onPrimary },
+  choiceTextActive: selectionStyles(colors).selectedText,
   statusRow: { alignItems: "flex-start", flexDirection: "row", gap: 10 },
   statusDot: { borderRadius: 12, height: 10, marginTop: 5, width: 10 },
   statusDotGood: { backgroundColor: colors.positive },
@@ -300,60 +303,60 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   statusDotBad: { backgroundColor: colors.negative },
   statusCopy: { flex: 1, gap: 3 },
   statusTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  infoBox: { backgroundColor: colors.infoSubtle, borderRadius: 12, gap: 4, padding: 13 },
+  infoBox: { backgroundColor: colors.infoSubtle, borderRadius: layout.cardRadius, gap: 4, padding: 13 },
   infoTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: 12, color: colors.negative, fontSize: 14, padding: 12 },
-  successBanner: { alignItems: "center", backgroundColor: colors.positiveSubtle, borderRadius: 12, flexDirection: "row", gap: 8, paddingLeft: 12, paddingVertical: 8 },
+  errorBanner: { backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, color: colors.negative, fontSize: 14, padding: 12 },
+  successBanner: { alignItems: "center", backgroundColor: colors.positiveSubtle, borderRadius: layout.cardRadius, flexDirection: "row", gap: 8, paddingLeft: 12, paddingVertical: 8 },
   successBannerText: { color: colors.positive, flex: 1, fontSize: 14, paddingVertical: 4 },
-  dismissBannerButton: { alignItems: "center", justifyContent: "center", minHeight: 48, minWidth: 36 },
+  dismissBannerButton: { alignItems: "center", justifyContent: "center", minHeight: layout.touchTarget, minWidth: 36 },
   toggleRow: { alignItems: "center", flexDirection: "row", gap: 11 },
-  toggle: { backgroundColor: colors.border, borderRadius: 9999, height: 26, justifyContent: "center", padding: 3, width: 46 },
+  toggle: { backgroundColor: colors.border, borderRadius: layout.pillRadius, height: 26, justifyContent: "center", padding: 3, width: 46 },
   toggleOn: { backgroundColor: colors.positive },
-  toggleKnob: { backgroundColor: colors.surface, borderRadius: 9999, height: 20, width: 20 },
+  toggleKnob: { backgroundColor: colors.surface, borderRadius: layout.pillRadius, height: 20, width: 20 },
   toggleKnobOn: { alignSelf: "flex-end" },
-  dangerBox: { backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: 12, borderWidth: 1, gap: 10, padding: 14 },
+  dangerBox: { backgroundColor: colors.negativeSubtle, borderColor: colors.negative, borderRadius: layout.cardRadius, borderWidth: 1, gap: 10, padding: 14 },
   dangerTitle: { color: colors.text, fontSize: 14, fontWeight: "500" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9999, justifyContent: "center", minHeight: 48, paddingHorizontal: 15 },
+  primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: layout.pillRadius, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 15 },
   primaryText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
-  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 14 },
+  secondaryButton: { alignItems: "center", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 14 },
   secondaryText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: 9999, justifyContent: "center", minHeight: 48, paddingHorizontal: 13 },
+  dangerButton: { alignItems: "center", backgroundColor: colors.negative, borderRadius: layout.pillRadius, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 13 },
   dangerText: { color: colors.onPrimary, fontSize: 14, fontWeight: "500" },
-  outlineDanger: { alignItems: "center", alignSelf: "flex-start", borderColor: colors.negative, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 13 },
+  outlineDanger: { alignItems: "center", alignSelf: "flex-start", borderColor: colors.negative, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 13 },
   outlineDangerText: { color: colors.negative, fontSize: 14, fontWeight: "500" },
-  proBox: { backgroundColor: colors.proSubtle, borderColor: colors.pro, borderRadius: 12, gap: 8, padding: 16 },
+  proBox: { backgroundColor: colors.proSubtle, borderColor: colors.pro, borderRadius: layout.cardRadius, gap: 8, padding: 16 },
   proBadge: { color: colors.pro, fontSize: 11, fontWeight: "500", letterSpacing: 0.8 },
   proTitle: { ...typography.heading, color: colors.text, fontSize: 24, fontWeight: "400" },
   addCategoryRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryInput: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, flex: 1, minHeight: 48, minWidth: 180, paddingHorizontal: 13 },
+  categoryInput: { borderColor: colors.border, borderRadius: layout.inputRadius, borderWidth: 1, color: colors.text, flex: 1, minHeight: layout.touchTarget, minWidth: 180, paddingHorizontal: 13 },
   categoryList: { gap: 10 },
   categoryRow: { alignItems: "center", borderBottomColor: colors.divider, borderBottomWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 12, paddingVertical: 12 },
   categoryCopy: { flex: 1, gap: 3, minWidth: 150 },
   categoryName: { color: colors.text, fontSize: 14, fontWeight: "500" },
   categoryActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  tinyButton: { borderColor: colors.border, borderRadius: 9999, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 10 },
+  tinyButton: { borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 10 },
   tinyButtonText: { color: colors.text, fontSize: 14, fontWeight: "500" },
-  textButton: { justifyContent: "center", minHeight: 48, paddingHorizontal: 7 },
+  textButton: { justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 7 },
   textButtonText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   dangerTextSmall: { color: colors.negative, fontSize: 14, fontWeight: "500" },
   editRow: { alignItems: "center", flexDirection: "row", gap: 6 },
-  editInput: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, color: colors.text, minHeight: 48, paddingHorizontal: 9, width: 140 },
-  categoryConfirm: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderRadius: 12, flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 8, width: "100%" },
+  editInput: { borderColor: colors.border, borderRadius: layout.inputRadius, borderWidth: 1, color: colors.text, minHeight: layout.touchTarget, paddingHorizontal: 9, width: 140 },
+  categoryConfirm: { alignItems: "center", backgroundColor: colors.negativeSubtle, borderRadius: layout.cardRadius, flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 8, width: "100%" },
   mobileIndex: { gap: 24 },
   mobileGroupWrap: { gap: 8 },
   mobileGroupTitle: { color: colors.muted, fontSize: 14, fontWeight: "500", letterSpacing: 0.6, paddingHorizontal: 4, textTransform: "uppercase" },
-  mobileGroup: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+  mobileGroup: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, overflow: "hidden" },
   mobileRow: { alignItems: "center", flexDirection: "row", gap: 12, minHeight: 72, paddingHorizontal: 16, paddingVertical: 12 },
   mobileRowBorder: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
   mobileIcon: { alignItems: "center", borderRadius: 12, height: 38, justifyContent: "center", width: 38 },
   mobileRowCopy: { flex: 1, gap: 2 },
   mobileRowTitle: { color: colors.text, fontSize: 16, fontWeight: "500" },
   mobileRowDescription: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  mobileBack: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, minHeight: 48, paddingRight: 12 },
+  mobileBack: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, minHeight: layout.touchTarget, paddingRight: 12 },
   mobileBackText: { color: colors.text, fontSize: 14, fontWeight: "500" },
   desktopWorkspace: { alignItems: "flex-start", flexDirection: "row", gap: 24 },
-  desktopSidebar: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 22, padding: 14, width: 240 },
+  desktopSidebar: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 22, padding: 14, width: 240 },
   desktopNavGroup: { gap: 5 },
   desktopNavLabel: { color: colors.muted, fontSize: 11, fontWeight: "500", letterSpacing: 0.7, paddingBottom: 4, paddingHorizontal: 10, textTransform: "uppercase" },
   desktopNavRow: { alignItems: "center", borderRadius: 12, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 11, paddingVertical: 9 },

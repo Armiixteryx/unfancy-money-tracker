@@ -2,6 +2,7 @@ import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { AppText as Text } from "../../ui/AppText";
+import { layout } from "../../ui/designTokens";
 import { useAppTheme } from "../../ui/theme";
 import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
 import { useActiveTrackerSummary } from "../trackers/store";
@@ -26,10 +27,10 @@ export function TrackerSyncNotice() {
     : status === "error" ? i18n.t($ => $.ui.syncTrackerError)
     : i18n.t($ => $.ui.syncTrackerUpToDate);
   const needsRetry = ["offline", "error", "rejected", "conflicts"].includes(status);
-  return <View accessibilityLiveRegion="polite" style={{ backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 6, padding: 12 }}>
+  return <View accessibilityLiveRegion="polite" style={{ backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: layout.cardRadius, borderWidth: 1, gap: 6, padding: 12 }}>
     <Text style={{ color: colors.text, fontWeight: "600" }}>{i18n.t($ => $.ui.syncTrackerCloudSyncRequired)}</Text>
     <Text accessibilityRole={status === "error" || status === "rejected" ? "alert" : "text"} style={{ color: colors.muted }}>{label}</Text>
     {pending > 0 ? <Text style={{ color: colors.muted }}>{i18n.t($ => $.ui.syncTrackerPendingChanges, { count: pending })}</Text> : null}
-    {needsRetry ? <Pressable accessibilityRole="button" disabled={!coordinator} onPress={() => void coordinator?.run(true)} style={{ alignSelf: "flex-start", borderColor: colors.border, borderRadius: 999, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: 14 }}><Text style={{ color: colors.text }}>{i18n.t($ => $.ui.syncTrackerRetry)}</Text></Pressable> : null}
+    {needsRetry ? <Pressable accessibilityRole="button" disabled={!coordinator} onPress={() => void coordinator?.run(true)} style={{ alignSelf: "flex-start", borderColor: colors.border, borderRadius: layout.pillRadius, borderWidth: 1, justifyContent: "center", minHeight: layout.touchTarget, paddingHorizontal: 14 }}><Text style={{ color: colors.text }}>{i18n.t($ => $.ui.syncTrackerRetry)}</Text></Pressable> : null}
   </View>;
 }

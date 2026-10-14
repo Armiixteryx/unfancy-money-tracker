@@ -6,6 +6,7 @@ import { createTransaction } from "../../../domain/transactions";
 import { useLocalDatasetStore } from "../../local-data/store/useLocalDatasetStore";
 import { TransactionForm } from "../components/TransactionForm";
 import { TransactionsScreen } from "./TransactionsScreen";
+vi.mock("../../../ui/AppBrand", () => ({ AppBrand: () => null }));
 const navigation = vi.hoisted(() => ({
   params: {} as { edit?: string; new?: string },
   width: 1200,

@@ -1,4 +1,5 @@
 import { AppText } from "../../../ui/AppText";
+import { createElement, Fragment } from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nextProvider } from "react-i18next";
@@ -10,6 +11,7 @@ import { SettingsScreen } from "./SettingsScreen";
 import { SyncSettings } from "../../sync/SyncSettings";
 
 vi.mock("../../sync/SyncSettings", () => ({ SyncSettings: () => null }));
+vi.mock("../../../ui/AppBrand", () => ({ AppBrand: () => createElement("div", { "data-testid": "brand" }) }));
 const surface = vi.hoisted(() => ({ width: 400, os: "web", identity: "synthetic@example.invalid" as string | null }));
 const trackerProvider = vi.hoisted(() => ({ client: {}, createShared: vi.fn(), acceptShared: vi.fn(), refresh: vi.fn(async () => undefined), isRefreshing: false, error: null }));
 const watchMocks = vi.hoisted(() => ({
@@ -36,7 +38,7 @@ vi.mock("../../../ui/theme", () => ({
   useAppTheme: () => ({ colors: {} }),
   useThemedStyles: (factory: (colors: object) => unknown) => factory({})
 }));
-vi.mock("../../../ui/AppScreen", () => ({ AppScreen: ({ children }: { children: React.ReactNode }) => children }));
+vi.mock("../../../ui/AppScreen", () => ({ AppScreen: ({ children, headerAccessory }: { children: React.ReactNode; headerAccessory?: React.ReactNode }) => createElement(Fragment, null, headerAccessory, children) }));
 vi.mock("../../../providers/AnalyticsProvider", () => ({ useAnalytics: () => ({ setConsent: vi.fn(), capture: vi.fn() }) }));
 vi.mock("../../exchange-rates/hooks/useExchangeRates", () => ({ useExchangeRates: () => ({ latestRates: new Map(), unavailableCurrencies: [], hasError: false, isLoading: false }) }));
 
@@ -135,5 +137,20 @@ describe("protected categories in Settings", () => {
     const finalPause = tree!.root.findAllByType("button").find(node => node.props.accessibilityLabel === i18n.t($ => $.ui.settingsPauseRecording));
     await act(async () => { await finalPause!.props.onPress(); });
     expect(watchMocks.pause).toHaveBeenCalledWith("018f0fcb-76a9-7000-8000-000000000002");
+  });
+});
+
+describe("Settings brand anchor", () => {
+  it.each([
+    ["ios", 1440, 1],
+    ["android", 1440, 1],
+    ["web", 1023, 1],
+    ["web", 1024, 0],
+    ["web", 1440, 0],
+  ] as const)("shows the expected number of anchors on %s at width %s", async (os, width, expectedCount) => {
+    surface.os = os;
+    surface.width = width;
+    await act(async () => { tree = create(<I18nextProvider i18n={i18n}><SettingsScreen /></I18nextProvider>); });
+    expect(tree!.root.findAllByProps({ "data-testid": "brand" })).toHaveLength(expectedCount);
   });
 });

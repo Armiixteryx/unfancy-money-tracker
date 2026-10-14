@@ -16,7 +16,7 @@ function HydrationScreen() {
   const { colors } = useAppTheme();
   return (
     <View style={styles.centered}>
-      <AppBrand accessibilityElementsHidden />
+      <AppBrand accessibilityElementsHidden presentation="auto" />
       <ActivityIndicator accessibilityLabel={i18n.t($ => $.ui.commonLoadingUnfancyMoneyTracker)} accessibilityRole="progressbar" color={colors.positive} size="large" style={styles.activityIndicator} />
     </View>
   );
