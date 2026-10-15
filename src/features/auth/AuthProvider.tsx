@@ -7,6 +7,7 @@ import { ActivityIndicator, Modal, Pressable, View } from "react-native";
 import { authClient, getAuthenticatedIdentity } from "../../platform/auth/client";
 import { createPersistenceAdapter } from "../../platform/persistence";
 import { AuthForm } from "./AuthForm";
+import { WelcomeScreen } from "./WelcomeScreen";
 const introduction = createPersistenceAdapter("introduction");
 const dataset = createPersistenceAdapter("anonymous");
 const Context = createContext({ identity: null as string | null, subject: null as string | null, epoch: 0, busy: false, open: () => {}, signOut: async () => {} });
@@ -34,13 +35,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } catch { setFailed(true); }
   };
   useEffect(() => { void initialize(); }, []);
-  const complete = async () => {
+  const completeIntroduction = async () => {
     await introduction.writeSnapshot("completed");
+    setIntroduced(true);
+  };
+  const completeAuthentication = async () => {
     invalidateAuthentication();
     const [restored, authenticated] = await Promise.all([authClient.restore(), getAuthenticatedIdentity()]);
     setIdentity(restored ?? authenticated?.email ?? null);
     setSubject(authenticated?.subject ?? null);
-    setIntroduced(true);
     setVisible(false);
     setEpoch(value => value + 1);
   };
@@ -53,7 +56,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIdentity(null); setSubject(null); setEpoch(value => value + 1);
     try { await authClient.signOut(); } finally { signingOut.current = false; setBusy(false); }
   } }}>
-    {introduced ? children : <AuthForm onComplete={complete} />}
-    {visible ? <Modal visible={visible} onRequestClose={() => setVisible(false)} animationType="slide"><AuthForm onComplete={complete} onCancel={() => setVisible(false)} /></Modal> : null}
+    {introduced ? children : <WelcomeScreen onComplete={completeIntroduction} />}
+    {visible ? <Modal visible={visible} onRequestClose={() => setVisible(false)} animationType="slide"><AuthForm onComplete={completeAuthentication} onCancel={() => setVisible(false)} /></Modal> : null}
   </Context.Provider>;
 }

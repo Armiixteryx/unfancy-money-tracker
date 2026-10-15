@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Image, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 
-import { brandImages } from "./brandAssets";
+import { resolveBrandImage } from "./brandAssets";
 import { BRAND_HORIZONTAL_ASPECT_RATIO, BRAND_HORIZONTAL_HEIGHT, BRAND_HORIZONTAL_WIDTH, BRAND_SYMBOL_SIZE, resolveBrandAssetVariant, resolveBrandPresentation, type BrandPresentation } from "./brandIdentity";
 import { useAppTheme } from "./theme";
 
@@ -9,9 +9,10 @@ type AppBrandProps = {
   accessibilityElementsHidden?: boolean;
   presentation?: BrandPresentation;
   style?: StyleProp<ViewStyle>;
+  transparent?: boolean;
 };
 
-export function AppBrand({ accessibilityElementsHidden = false, presentation = "auto", style }: AppBrandProps) {
+export function AppBrand({ accessibilityElementsHidden = false, presentation = "auto", style, transparent = false }: AppBrandProps) {
   const { resolvedTheme } = useAppTheme();
   const [availableWidth, setAvailableWidth] = useState(0);
   const resolvedPresentation = resolveBrandPresentation(presentation, availableWidth);
@@ -35,7 +36,7 @@ export function AppBrand({ accessibilityElementsHidden = false, presentation = "
         accessibilityLabel="Unfancy Money Tracker"
         accessibilityRole="image"
         resizeMode="contain"
-        source={brandImages[assetVariant]}
+        source={resolveBrandImage(assetVariant, resolvedTheme, transparent)}
         style={imageStyle}
       />
     </View>

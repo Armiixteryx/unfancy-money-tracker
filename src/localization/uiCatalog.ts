@@ -7,6 +7,7 @@ import { budgetsEn, budgetsEs } from "./catalogs/budgets";
 import { voiceEn, voiceEs } from "./catalogs/voice";
 import { reportsEn, reportsEs } from "./catalogs/reports";
 import { syncEn, syncEs } from "./catalogs/sync";
+import { onboardingEn, onboardingEs } from "./catalogs/onboarding";
 
-export const uiEn = { ...commonEn, ...navigationEn, ...dashboardEn, ...settingsEn, ...transactionsEn, ...budgetsEn, ...voiceEn, ...reportsEn, ...syncEn } as const;
-export const uiEs: Record<keyof typeof uiEn, string> = { ...commonEs, ...navigationEs, ...dashboardEs, ...settingsEs, ...transactionsEs, ...budgetsEs, ...voiceEs, ...reportsEs, ...syncEs };
+export const uiEn = { ...commonEn, ...navigationEn, ...dashboardEn, ...settingsEn, ...transactionsEn, ...budgetsEn, ...voiceEn, ...reportsEn, ...syncEn, ...onboardingEn } as const;
+export const uiEs: Record<keyof typeof uiEn, string> = { ...commonEs, ...navigationEs, ...dashboardEs, ...settingsEs, ...transactionsEs, ...budgetsEs, ...voiceEs, ...reportsEs, ...syncEs, ...onboardingEs };

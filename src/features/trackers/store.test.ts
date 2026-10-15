@@ -188,4 +188,38 @@ describe("tracker store hydration publication", () => {
     expect(store.trackerRegistryStore.getState().activeSummary?.kind).toBe("personal");
     expect(store.trackerRegistryStore.getState().activeStore.getState().hydration.status).toBe("ready");
   });
+
+  it("keeps a welcome theme in memory, then persists it with the first registry and dataset", async () => {
+    const store = await import("./store");
+
+    expect(await store.saveThemePreference("dark")).toBe(true);
+    expect(store.trackerRegistryStore.getState().devicePreferences.theme).toBe("dark");
+    expect(persistenceMemory.adapterFor("anonymous").snapshot).toBeNull();
+    expect(persistenceMemory.adapterFor("tracker-registry").snapshot).toBeNull();
+
+    await store.initializeTrackerRegistry();
+
+    const registry = store.trackerRegistryStore.getState().registry;
+    expect(registry?.devicePreferences.theme).toBe("dark");
+    expect(JSON.parse(persistenceMemory.adapterFor("tracker-registry").snapshot ?? "{}").devicePreferences.theme).toBe("dark");
+    expect(store.getActiveTrackerStore().getState().dataset?.preferences.theme).toBe("dark");
+  });
+
+  it("keeps an existing registry theme when a pre-hydration preference is pending", async () => {
+    const firstStore = await import("./store");
+    await firstStore.initializeTrackerRegistry();
+    expect(await firstStore.saveDevicePreferences({ ...firstStore.trackerRegistryStore.getState().devicePreferences, theme: "light" })).toBe(true);
+
+    vi.resetModules();
+    const nextStore = await import("./store");
+    expect(await nextStore.saveThemePreference("dark")).toBe(true);
+    expect(nextStore.trackerRegistryStore.getState().devicePreferences.theme).toBe("dark");
+
+    await nextStore.initializeTrackerRegistry();
+
+    expect(nextStore.trackerRegistryStore.getState().registry?.devicePreferences.theme).toBe("light");
+    expect(nextStore.trackerRegistryStore.getState().devicePreferences.theme).toBe("light");
+    expect(nextStore.getActiveTrackerStore().getState().dataset?.preferences.theme).toBe("light");
+    expect(JSON.parse(persistenceMemory.adapterFor("tracker-registry").snapshot ?? "{}").devicePreferences.theme).toBe("light");
+  });
 });
