@@ -24,8 +24,17 @@ afterEach(async () => {
   vi.clearAllMocks();
   voice.phase = "idle";
   authentication.identity = "synthetic@example.invalid";
+  vi.unstubAllEnvs();
 });
 describe("hold and accessible recording controls", () => {
+  it("offers no sign-in or recording controls in the isolated demo", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV", "demo");
+    authentication.identity = null;
+    await act(async () => { tree = create(<VoiceEntryButton />); });
+    expect(tree.toJSON()).toBeNull();
+    expect(authentication.open).not.toHaveBeenCalled();
+    expect(voice.start).not.toHaveBeenCalled();
+  });
   it("offers login to guests without requesting the microphone", async () => {
     authentication.identity = null;
     await act(async () => { tree = create(<VoiceEntryButton />); });

@@ -7,12 +7,14 @@ import { Pressable, View } from "react-native";
 import { useAppTheme } from "../../ui/theme";
 import { useVoice } from "./VoiceProvider";
 import { useLocalDatasetStore } from "../local-data/store/useLocalDatasetStore";
+import { isDemoRuntime } from "../../platform/runtime/demo";
 export function VoiceEntryButton() {
   useTranslation();
   const { phase, start, stop } = useVoice();
   const { colors } = useAppTheme();
   const auth = useAuth();
   const shared = useLocalDatasetStore(state => state.dataset?.tracker?.kind === "shared");
+  if (isDemoRuntime()) return null;
   if (!auth.identity) return <Pressable accessibilityRole="button" disabled={auth.busy} accessibilityState={{ disabled: auth.busy }} onPress={auth.open} style={{ minHeight: 48, justifyContent: "center" }}><Text style={{ color: colors.primary }}>{i18n.resolvedLanguage === "es" ? "Inicia sesión para usar la voz" : "Sign in to use voice"}</Text></Pressable>;
   const disabled = ["processing", "saving", "save_failed"].includes(phase);
   const toggleDisabled =
