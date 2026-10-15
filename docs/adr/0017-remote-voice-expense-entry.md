@@ -6,7 +6,7 @@ Updated by [ADR 0024](0024-shared-family-trackers.md) for independent shared tra
 
 Updated by [ADR 0021](0021-portable-postgresql-sync.md), which is authoritative for restored opt-in sync, PostgreSQL/Flyway, schema 8, and system category slugs. Earlier suspended/DynamoDB/UUID-default decisions below are historical.
 
-Accepted. AWS development backend deployed October 3, 2026; production backend deployed October 5, 2026 with owner authorization. Amplify main was released against production. Live recognition validation remains delegated to the user; provider-rate-limit testing exclusions remain in force.
+Accepted. AWS development backend deployed October 3, 2026; production backend deployed October 5, 2026 with owner authorization. Amplify main was released against production. ADR 0027 subsequently maps main to development, production to production, and demo to no remote services. Live recognition validation remains delegated to the user; provider-rate-limit testing exclusions remain in force.
 
 Accessibility-specific requirements and release checks are superseded by [ADR 0026](0026-deferred-accessibility-requirements.md), accepted October 12, 2026. Other decisions remain in effect.
 

@@ -1,6 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 import { rateRecordSchema, type RateCache, type RateRecord } from "./types";
+import { isDemoRuntime } from "../runtime/demo";
+import { MemoryRateCache } from "./memoryRateCache";
 
 interface RateDatabase extends DBSchema {
   rates: { key: string; value: RateRecord };
@@ -34,5 +36,6 @@ class IndexedDbRateCache implements RateCache {
 }
 
 export function createRateCache(): RateCache {
+  if (isDemoRuntime()) return new MemoryRateCache();
   return new IndexedDbRateCache();
 }

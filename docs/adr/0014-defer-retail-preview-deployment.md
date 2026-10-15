@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded October 15, 2026 by [ADR 0027](0027-web-environments-and-isolated-demo.md), which accepts a public, isolated synthetic demo. The original deferral below is historical.
 
 ## Context
 

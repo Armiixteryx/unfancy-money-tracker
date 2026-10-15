@@ -8,6 +8,7 @@ import { authClient, getAuthenticatedIdentity } from "../../platform/auth/client
 import { createPersistenceAdapter } from "../../platform/persistence";
 import { AuthForm } from "./AuthForm";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { isDemoRuntime } from "../../platform/runtime/demo";
 const introduction = createPersistenceAdapter("introduction");
 const dataset = createPersistenceAdapter("anonymous");
 const Context = createContext({ identity: null as string | null, subject: null as string | null, epoch: 0, busy: false, open: () => {}, signOut: async () => {} });
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [failed, setFailed] = useState(false);
   const initialize = async () => {
     setFailed(false);
+    if (isDemoRuntime()) { setIntroduced(true); setReady(true); return; }
     try {
       const existing = await detectIntroduction(introduction, dataset);
       setIntroduced(existing);
@@ -57,6 +59,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try { await authClient.signOut(); } finally { signingOut.current = false; setBusy(false); }
   } }}>
     {introduced ? children : <WelcomeScreen onComplete={completeIntroduction} />}
-    {visible ? <Modal visible={visible} onRequestClose={() => setVisible(false)} animationType="slide"><AuthForm onComplete={completeAuthentication} onCancel={() => setVisible(false)} /></Modal> : null}
+    {visible ? <Modal visible={visible} onRequestClose={() => setVisible(false)} animationType="slide">{isDemoRuntime() ? <View style={{ flex: 1, justifyContent: "center", padding: 32, gap: 20 }}><Text>{i18n.resolvedLanguage === "es" ? "Esta demostración usa datos de ejemplo. Las cuentas, la sincronización, los grupos y la voz están desactivados." : "This demo uses sample data. Accounts, sync, shared trackers, and voice are disabled."}</Text><Pressable accessibilityRole="button" onPress={() => setVisible(false)}><Text>{i18n.resolvedLanguage === "es" ? "Volver a la demo" : "Back to demo"}</Text></Pressable></View> : <AuthForm onComplete={completeAuthentication} onCancel={() => setVisible(false)} />}</Modal> : null}
   </Context.Provider>;
 }

@@ -23,6 +23,7 @@ The app supports optional email/password Cognito login. The private personal dat
 | Insights | Descriptive reporting only; no financial advice |
 | Monetization experiment | CSV export is a non-functional Pro-feature preview; record CTA interest without payment or export |
 | First-use welcome | New installations see a four-chapter welcome before the financial app. Skipping goes to its required final warning; Start exploring records completion in the existing independent introduction marker before the financial app mounts. Login is optional. |
+| Public web environments | Production from `production`; development from `main`; isolated synthetic demo from `demo`. Hosting has no site password. See ADR 0027. |
 | Portfolio safety notice | The final welcome chapter warns that this portfolio application is not for storing real financial data. The existing dismissible in-app first-run warning remains a separate dataset preference and can still appear after welcome. |
 
 ### First-use welcome
@@ -34,6 +35,12 @@ The first-use welcome replaces the initial authentication form for new installat
 Existing introduction detection is preserved: a completion marker, local financial snapshot, or recovery copy bypasses welcome. An unreadable active snapshot continues through the existing hydration recovery flow. The welcome uses the existing introduction marker and adds no financial-data schema or migration. Any example amounts shown in the illustrations are explanatory only and are never saved as transactions, budgets, or other records.
 
 Use a stacked card with compact progress on mobile. Tablets use a centered card and a horizontal chapter strip; landscape may place the illustration beside its copy in two columns. Desktop uses a chapter rail. Keep all four chapters available in English and Spanish and in light and dark themes.
+
+## Public web deployments
+
+Accepted October 15, 2026. `production` serves https://unfancymoneytracker.camperos.me against production services. `main` serves https://development.unfancymoneytracker.camperos.me against development services. `demo` serves https://demo.unfancymoneytracker.camperos.me with bundled synthetic USD data and no backend. All three are public without an Amplify site password; normal optional product authentication remains on development/production.
+
+The demo opens directly on sample data, prominently identifies itself in English/Spanish, and warns against real financial data. Manual edits and preferences last only until page reload/close. A confirmed Reset demo restores the samples. Accounts, sync, shared trackers, voice, analytics, and currency conversion are unavailable in demo; no simulated cloud backup or fake accounts are offered. Development and production still start empty and preserve their existing storage and welcome behavior. See [ADR 0027](../adr/0027-web-environments-and-isolated-demo.md).
 
 ## Personas
 
@@ -194,7 +201,7 @@ Allowed event properties are limited to platform, app version, surface, action r
 - Financial-account balances, source/destination details, and transfers.
 - Investments, loans, debt tracking, or financial advice.
 - CSV download, payments, and subscription enforcement.
-- Pre-populated end-user demo data and demo-data reset. Development-only local fixture tooling is documented separately and is not product UI.
+- Pre-populated data or demo-data reset in production/development. The separately selected, public demo deployment uses temporary synthetic data as specified in ADR 0027; local fixture tooling remains separate.
 
 ## Voice expense entry
 

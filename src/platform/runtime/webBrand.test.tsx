@@ -27,7 +27,7 @@ afterEach(async () => {
 });
 
 describe("browser brand handoff", () => {
-  it.each([undefined, "local", "dev", "prod"])("keeps the HTML and all install assets in one environment for %s", async environment => {
+  it.each([undefined, "local", "dev", "prod", "demo"])("keeps the HTML and all install assets in one environment for %s", async environment => {
     if (environment === undefined) vi.stubEnv("EXPO_PUBLIC_ENV", undefined);
     else vi.stubEnv("EXPO_PUBLIC_ENV", environment);
     const brand = webBrandForEnvironment(environment);
@@ -45,13 +45,16 @@ describe("browser brand handoff", () => {
     expect(root.findByProps({ id: "root" }).children).toEqual(["Application"]);
     const manifest = manifestSchema.parse(JSON.parse(asset(brand.manifest).toString("utf8")) as unknown);
     expect(manifest.name).toBe(brand.name);
-    expect(manifest.id).toBe(environment === "prod" ? "/unfancy-money-tracker" : "/unfancy-money-tracker-dev");
+    expect(manifest.id).toBe(environment === "demo" ? "/unfancy-money-tracker-demo" : environment === "prod" ? "/unfancy-money-tracker" : "/unfancy-money-tracker-dev");
+    const policies = root.findAllByType("meta").filter(meta => meta.props.httpEquiv === "Content-Security-Policy");
+    expect(policies).toHaveLength(environment === "demo" ? 1 : 0);
+    if (environment === "demo") expect(policies[0]?.props.content).toContain("connect-src 'none'");
     expect(manifest.icons.map(icon => [icon.sizes, icon.purpose])).toEqual([
       ["192x192", "any"], ["512x512", "any"], ["512x512", "maskable"],
     ]);
-    for (const icon of [...manifest.icons, { src: "apple-touch-icon.png", sizes: "180x180" }]) {
+    for (const icon of [...manifest.icons, { src: brand.appleTouchIcon, sizes: "180x180" }]) {
       const directory = brand.manifest.slice(0, brand.manifest.lastIndexOf("/"));
-      const png = asset(`${directory}/${icon.src}`);
+      const png = asset(icon.src.startsWith("/") ? icon.src : `${directory}/${icon.src}`);
       expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
       expect(`${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`).toBe(icon.sizes);
     }

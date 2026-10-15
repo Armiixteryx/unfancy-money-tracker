@@ -1,9 +1,5 @@
 version: 1
 
-env:
-  variables:
-    EXPO_PUBLIC_ENV: prod
-
 frontend:
   phases:
     preBuild:
@@ -13,7 +9,7 @@ frontend:
         - pnpm install --frozen-lockfile
     build:
       commands:
-        - pnpm exec expo export --platform web --clear
+        - bash scripts/build-amplify-web.sh
   artifacts:
     baseDirectory: dist
     files:

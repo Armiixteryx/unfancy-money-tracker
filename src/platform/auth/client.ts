@@ -4,9 +4,10 @@ import { cognitoUserPoolsTokenProvider } from "aws-amplify/auth/cognito";
 import * as auth from "aws-amplify/auth";
 import { authConfig } from "./config";
 import { credentialStorage } from "./storage";
+import { isDemoRuntime } from "../runtime/demo";
 let configured = false;
 try {
-  if (/^[a-z]{2}-[a-z]+-\d_[A-Za-z0-9]+$/.test(authConfig.userPoolId) && /^[A-Za-z0-9]+$/.test(authConfig.userPoolClientId)) {
+  if (!isDemoRuntime() && /^[a-z]{2}-[a-z]+-\d_[A-Za-z0-9]+$/.test(authConfig.userPoolId) && /^[A-Za-z0-9]+$/.test(authConfig.userPoolClientId)) {
     Amplify.configure({ Auth: { Cognito: authConfig } });
     cognitoUserPoolsTokenProvider.setKeyValueStorage(credentialStorage);
     configured = true;
@@ -39,7 +40,7 @@ export const authClient: AuthClient = {
   async recover(email) { requireConfiguration(); await auth.resetPassword({ username: email }); },
   async reset(email, code, password) { requireConfiguration(); await auth.confirmResetPassword({ username: email, confirmationCode: code, newPassword: password }); },
   async restore() { if (!configured) return null; try { return (await auth.getCurrentUser()).signInDetails?.loginId ?? null; } catch { return null; } },
-  async signOut() { try { await auth.signOut(); } finally { await credentialStorage.clear(); } },
+  async signOut() { if (isDemoRuntime()) return; try { await auth.signOut(); } finally { await credentialStorage.clear(); } },
   async accessToken(options) {
     requireConfiguration();
     try {

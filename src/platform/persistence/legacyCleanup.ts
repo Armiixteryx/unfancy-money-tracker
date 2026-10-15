@@ -1,4 +1,5 @@
 import { createPersistenceAdapter } from "./createPersistenceAdapter";
+import { isDemoRuntime } from "../runtime/demo";
 
 const LEGACY_SESSION_STAGES = ["dev", "prod"] as const;
 const LEGACY_SESSION_KEY_PREFIX = "unfancy.auth.session:";
@@ -117,5 +118,6 @@ const defaultAdapter: LegacyCleanupAdapter = {
 };
 
 export function runLegacyAccountCacheCleanup(): Promise<void> {
+  if (isDemoRuntime()) return Promise.resolve();
   return cleanupLegacyAccountCaches(defaultAdapter);
 }

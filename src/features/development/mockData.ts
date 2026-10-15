@@ -2,7 +2,7 @@ import { archiveCategory, createCategory, findUncategorizedCategory } from "../.
 import { createBudget } from "../../domain/budgets";
 import { createTransaction } from "../../domain/transactions";
 import type { Budget, Category, CategoryDeletionTombstone, Dataset, DefaultCategoryKey, Transaction, UUID } from "../../domain/types";
-import { createEmptyDataset } from "../../platform/persistence";
+import { createEmptyDataset } from "../../platform/persistence/datasetPersistence";
 import { createUuid } from "../../platform/identifiers/createUuid";
 
 export const mockDatasetPresets = ["dashboard", "edge-cases"] as const;

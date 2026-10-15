@@ -1,5 +1,5 @@
 import { authClient, getAuthenticatedAccountId } from "./client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const sdk = vi.hoisted(() => ({
   configure: vi.fn(), setStorage: vi.fn(), signUp: vi.fn(), confirmSignUp: vi.fn(), resendSignUpCode: vi.fn(), signIn: vi.fn(), resetPassword: vi.fn(), confirmResetPassword: vi.fn(), getCurrentUser: vi.fn(), fetchAuthSession: vi.fn(), signOut: vi.fn(), clear: vi.fn(),
 }));
@@ -7,6 +7,7 @@ vi.mock("aws-amplify", () => ({ Amplify: { configure: sdk.configure } }));
 vi.mock("aws-amplify/auth/cognito", () => ({ cognitoUserPoolsTokenProvider: { setKeyValueStorage: sdk.setStorage } }));
 vi.mock("aws-amplify/auth", () => sdk);
 vi.mock("./storage", () => ({ credentialStorage: { clear: sdk.clear } }));
+afterEach(() => vi.unstubAllEnvs());
 describe("AuthClient lifecycle", () => {
   beforeEach(() => vi.clearAllMocks());
   it("preserves email spelling and uses direct SRP", async () => {
@@ -59,5 +60,18 @@ describe("AuthClient lifecycle", () => {
     sdk.signOut.mockRejectedValue(new Error("offline"));
     await expect(authClient.signOut()).rejects.toThrow("offline");
     expect(sdk.clear).toHaveBeenCalledOnce();
+  });
+  it("cannot configure Cognito or access existing credentials in a demo build", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV", "demo");
+    vi.resetModules();
+    const demo = await import("./client");
+    expect(sdk.configure).not.toHaveBeenCalled();
+    expect(sdk.setStorage).not.toHaveBeenCalled();
+    expect(await demo.authClient.restore()).toBeNull();
+    expect(await demo.getAuthenticatedIdentity()).toBeNull();
+    await expect(demo.authClient.login("sample@example.invalid", "synthetic")).rejects.toThrow("Authentication is unavailable");
+    await expect(demo.authClient.accessToken()).rejects.toThrow("Authentication is unavailable");
+    await demo.authClient.signOut();
+    for (const method of [sdk.signIn, sdk.getCurrentUser, sdk.fetchAuthSession, sdk.signOut, sdk.clear]) expect(method).not.toHaveBeenCalled();
   });
 });

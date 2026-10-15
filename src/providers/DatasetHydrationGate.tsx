@@ -9,6 +9,8 @@ import { useLocalDatasetStore } from "../features/local-data/store/useLocalDatas
 import { useAppTheme, useThemedStyles, type ThemeColors } from "../ui/theme";
 import { AppBrand } from "../ui/AppBrand";
 import { FirstRunWarning } from "../ui/FirstRunWarning";
+import { isDemoRuntime } from "../platform/runtime/demo";
+import { DemoBanner } from "../features/demo/DemoBanner";
 
 function HydrationScreen() {
   useTranslation();
@@ -78,7 +80,7 @@ export function DatasetHydrationGate({ children }: PropsWithChildren) {
 
   if (hydration.status === "loading") return <HydrationScreen />;
   if (hydration.status === "recovery") return <RecoveryScreen />;
-  return <View style={{ flex: 1 }}><FirstRunWarning />{children}</View>;
+  return <View style={{ flex: 1 }}>{isDemoRuntime() ? <DemoBanner /> : <FirstRunWarning />}{children}</View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

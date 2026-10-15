@@ -27,6 +27,7 @@ import { voiceErrorMessages, type VoiceRequest } from "../../contracts/voice";
 import { requestVoiceExpense, VoiceAuthenticationError, VoiceClientError } from "./api";
 import { createRecorder, type Recorder } from "./recording";
 import { VoiceFeedback } from "./VoiceFeedback";
+import { isDemoRuntime } from "../../platform/runtime/demo";
 
 export type VoicePhase =
   | "idle"
@@ -280,6 +281,7 @@ export function VoiceProvider({ children }: PropsWithChildren) {
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const start = async () => {
+    if (isDemoRuntime()) { setMessage(i18n.resolvedLanguage === "es" ? "La voz está desactivada en la demo. Ingresa un ejemplo manualmente." : "Voice is disabled in the demo. Enter a sample manually."); return; }
     if (!auth.identity) { auth.open(); return; }
     if (phaseRef.current !== "idle") return;
     const trackerId = activeTracker.datasetId;

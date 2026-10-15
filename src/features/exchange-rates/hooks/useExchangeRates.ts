@@ -7,9 +7,11 @@ import { HttpExchangeRateProvider } from "../../../platform/exchange-rates/httpE
 import { resolveLocalApiUrl } from "../../../platform/runtime/localApiUrl";
 import { createRateCache } from "../../../platform/exchange-rates/createRateCache";
 import { ExchangeRateError, type ExchangeRateProvider, type RateRecord } from "../../../platform/exchange-rates/types";
+import { isDemoRuntime } from "../../../platform/runtime/demo";
+import { demoExchangeRateProvider } from "../../demo/rates";
 
 const rateCache = createRateCache();
-const exchangeRateProvider: ExchangeRateProvider = new HttpExchangeRateProvider(
+const exchangeRateProvider: ExchangeRateProvider = isDemoRuntime() ? demoExchangeRateProvider : new HttpExchangeRateProvider(
   resolveLocalApiUrl(process.env.EXPO_PUBLIC_EXCHANGE_RATE_API_URL || "https://pjac53rgd3.execute-api.us-east-1.amazonaws.com/rates"),
   fetch,
   rateCache

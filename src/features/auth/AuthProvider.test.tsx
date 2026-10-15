@@ -71,6 +71,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   if (tree) await act(async () => tree.unmount());
+  vi.unstubAllEnvs();
 });
 
 async function mount() {
@@ -80,6 +81,18 @@ async function mount() {
 }
 
 describe("optional first-use introduction", () => {
+  it("opens demo directly as a guest and never shows a credential form", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ENV", "demo");
+    state.identity = "existing@example.invalid";
+    state.failDatasetRead = true;
+    await mount();
+    expect(state.financialMounts).toBeGreaterThan(0);
+    expect(controls.identity).toBeNull();
+    expect(controls.subject).toBeNull();
+    await act(async () => controls.open());
+    expect(tree.root.findAllByType("form")).toHaveLength(0);
+    expect(state.marker).toBeNull();
+  });
   it("shows welcome without putting a new user behind an authentication form", async () => {
     await mount();
 

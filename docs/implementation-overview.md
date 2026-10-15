@@ -75,7 +75,7 @@ The dashboard currently renders a converted base-currency income/expenses/net sn
 - Investments, loans, debt tracking, shared household finances, or financial advice.
 - Actual CSV downloads, payments, subscriptions, or Pro enforcement.
 - Account deletion.
-- End-user demo data. Mock data exists only as local development tooling.
+- End-user demo data in production/development. ADR 0027 adds a separate synthetic demo deployment with temporary page-memory data and no backend.
 
 ## Validation and verification
 

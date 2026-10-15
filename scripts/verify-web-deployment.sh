@@ -82,7 +82,7 @@ require_html "/budgets" budgets
 require_html "/reports" reports
 require_html "/settings" settings
 
-BUNDLE_PATH="$(grep -Eo '/_expo/static/js/[^"[:space:]]*/entry-[[:alnum:]_-]+\.js' "$TEMP_DIR/root.body" | head -n 1 || true)"
+BUNDLE_PATH="$(grep -Eo '/_expo/static/js/[^"[:space:]]*/(entry|index)-[[:alnum:]_-]+\.js' "$TEMP_DIR/root.body" | head -n 1 || true)"
 if [[ -z "$BUNDLE_PATH" ]]; then
   echo "Could not find a hashed Expo entry bundle in the root document." >&2
   exit 1
