@@ -20,6 +20,13 @@ describe("independent introduction choice", () => {
     const marker = new MemoryPersistenceAdapter(); const data = new MemoryPersistenceAdapter();
     data.readSnapshot = async () => { throw new Error("unreadable"); };
     expect(await detectIntroduction(marker, data)).toBe(true);
+    expect(await marker.readSnapshot()).toBe("completed");
+  });
+  it("honors an existing introduction marker without depending on financial storage", async () => {
+    const marker = new MemoryPersistenceAdapter(); const data = new MemoryPersistenceAdapter();
+    await marker.writeSnapshot("completed");
+    data.readSnapshot = async () => { throw new Error("financial store should not be read"); };
+    expect(await detectIntroduction(marker, data)).toBe(true);
   });
   it("does not pretend a failed marker write succeeded", async () => {
     const marker = new MemoryPersistenceAdapter(); const data = new MemoryPersistenceAdapter();

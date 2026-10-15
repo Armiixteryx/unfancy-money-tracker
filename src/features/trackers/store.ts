@@ -1,7 +1,7 @@
 import { create, useStore, type StoreApi, type UseBoundStore } from "zustand";
 import { z } from "zod";
 
-import type { Dataset, Preferences, Transaction } from "../../domain/types";
+import type { Dataset, Preferences, Theme, Transaction } from "../../domain/types";
 import { createEmptyDataset, DatasetPersistence } from "../../platform/persistence/datasetPersistence";
 import { syncState } from "../sync/state";
 import { createPersistenceAdapter, runLegacyAccountCacheCleanup } from "../../platform/persistence";
@@ -56,6 +56,7 @@ const anonymousAdapter = createPersistenceAdapter("anonymous");
 let account: TrackerPrincipal = null;
 let initPromise: Promise<void> | null = null;
 let cleanupPromise: Promise<void> | null = null;
+let pendingInitialTheme: Theme | null = null;
 const storeRecords = new Map<string, StoreRecord>();
 const summaryRecords = new Map<string, TrackerSummary>();
 const defaultDevicePreferences: DevicePreferences = {
@@ -94,7 +95,7 @@ function personalSummary(datasetId: string): TrackerSummary {
 
 const uninitializedPersonalSummary = personalSummary("00000000-0000-7000-8000-000000000000");
 
-function initialRegistry(dataset: Dataset): TrackerRegistry {
+function initialRegistry(dataset: Dataset, theme: Theme = dataset.preferences.theme): TrackerRegistry {
   return registrySchema.parse({
     schemaVersion: 1,
     personalDatasetId: dataset.datasetId,
@@ -108,7 +109,7 @@ function initialRegistry(dataset: Dataset): TrackerRegistry {
     ownerSubject: null,
     devicePreferences: {
       language: dataset.preferences.language,
-      theme: dataset.preferences.theme,
+      theme,
       analyticsConsent: dataset.preferences.analyticsConsent,
       firstRunNoticeDismissed: dataset.preferences.firstRunNoticeDismissed,
     },
@@ -333,27 +334,33 @@ export async function initializeTrackerRegistry(): Promise<void> {
         return;
       }
       if (!registry) {
-        registry = initialRegistry(personalDataset);
+        registry = initialRegistry(personalDataset, pendingInitialTheme ?? personalDataset.preferences.theme);
         if (!await persistRegistry(registry)) {
           trackerRegistryStore.setState({ hydration: "recovery" });
           return;
         }
-      } else if (registry.personalDatasetId !== personalDataset.datasetId) {
-        // Personal sync's explicit replace may legitimately adopt the cloud dataset ID.
-        // Repair only when the persisted binding proves that exact identity.
-        if (personalDataset.sync?.binding?.datasetId === personalDataset.datasetId) {
-          registry = {
-            ...registry,
-            personalDatasetId: personalDataset.datasetId,
-            activeDatasetId: registry.activeMembershipId ? registry.activeDatasetId : personalDataset.datasetId,
-          };
-          if (!await persistRegistry(registry)) {
+        pendingInitialTheme = null;
+      } else {
+        // A welcome preference is only a fallback for the first registry. A saved registry
+        // remains authoritative for users who already have device preferences.
+        pendingInitialTheme = null;
+        if (registry.personalDatasetId !== personalDataset.datasetId) {
+          // Personal sync's explicit replace may legitimately adopt the cloud dataset ID.
+          // Repair only when the persisted binding proves that exact identity.
+          if (personalDataset.sync?.binding?.datasetId === personalDataset.datasetId) {
+            registry = {
+              ...registry,
+              personalDatasetId: personalDataset.datasetId,
+              activeDatasetId: registry.activeMembershipId ? registry.activeDatasetId : personalDataset.datasetId,
+            };
+            if (!await persistRegistry(registry)) {
+              trackerRegistryStore.setState({ hydration: "recovery", error: "tracker_registry_personal_dataset_mismatch" });
+              return;
+            }
+          } else {
             trackerRegistryStore.setState({ hydration: "recovery", error: "tracker_registry_personal_dataset_mismatch" });
             return;
           }
-        } else {
-          trackerRegistryStore.setState({ hydration: "recovery", error: "tracker_registry_personal_dataset_mismatch" });
-          return;
         }
       }
       const prefs = registry.devicePreferences;
@@ -470,6 +477,16 @@ export async function saveDevicePreferences(value: DevicePreferences): Promise<b
   if (!await persistRegistry({ ...state.registry, devicePreferences: value })) return false;
   trackerRegistryStore.setState({ devicePreferences: value });
   return true;
+}
+
+export async function saveThemePreference(theme: Theme): Promise<boolean> {
+  const state = trackerRegistryStore.getState();
+  if (!state.registry) {
+    pendingInitialTheme = theme;
+    trackerRegistryStore.setState({ devicePreferences: { ...state.devicePreferences, theme } });
+    return true;
+  }
+  return saveDevicePreferences({ ...state.devicePreferences, theme });
 }
 
 export async function acceptSharedSyncNotice(): Promise<boolean> {

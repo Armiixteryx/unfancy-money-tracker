@@ -6,8 +6,12 @@ import { AppBrand } from "./AppBrand";
 const theme = vi.hoisted(() => ({ resolvedTheme: "light" as "light" | "dark" }));
 const assets = vi.hoisted(() => ({
   horizontalColor: { name: "horizontal-color" },
+  horizontalColorTransparent: { name: "horizontal-color-transparent" },
   horizontalReverse: { name: "horizontal-reverse" },
-  symbol: { name: "symbol" }
+  horizontalReverseTransparent: { name: "horizontal-reverse-transparent" },
+  symbol: { name: "symbol" },
+  symbolNavyTransparent: { name: "symbol-navy-transparent" },
+  symbolColorTransparent: { name: "symbol-color-transparent" }
 }));
 
 vi.mock("react-native", () => ({
@@ -22,6 +26,11 @@ vi.mock("./brandAssets", () => ({
     "horizontal-color": assets.horizontalColor,
     "horizontal-reverse": assets.horizontalReverse,
     symbol: assets.symbol
+  },
+  resolveBrandImage: (variant: string, resolvedTheme: "light" | "dark", transparent: boolean) => {
+    if (!transparent) return ({ "horizontal-color": assets.horizontalColor, "horizontal-reverse": assets.horizontalReverse, symbol: assets.symbol } as const)[variant as "horizontal-color" | "horizontal-reverse" | "symbol"];
+    if (variant === "symbol") return resolvedTheme === "dark" ? assets.symbolColorTransparent : assets.symbolNavyTransparent;
+    return variant === "horizontal-color" ? assets.horizontalColorTransparent : assets.horizontalReverseTransparent;
   }
 }));
 
@@ -65,5 +74,23 @@ describe("AppBrand", () => {
     await act(async () => { container().props.onLayout({ nativeEvent: { layout: { width: 224 } } }); });
     expect(image().props.style).toMatchObject({ width: 48, height: 48 });
     expect(image().props.source).toBe(assets.symbol);
+  });
+
+  it("selects transparent lockups and theme-appropriate transparent symbols only on request", async () => {
+    await act(async () => { tree = create(<AppBrand presentation="horizontal" transparent />); });
+    const image = () => tree!.root.findByType("img");
+    expect(image().props.source).toBe(assets.horizontalColorTransparent);
+
+    theme.resolvedTheme = "dark";
+    await act(async () => { tree!.update(<AppBrand presentation="horizontal" transparent />); });
+    expect(image().props.source).toBe(assets.horizontalReverseTransparent);
+
+    theme.resolvedTheme = "light";
+    await act(async () => { tree!.update(<AppBrand presentation="symbol" transparent />); });
+    expect(image().props.source).toBe(assets.symbolNavyTransparent);
+
+    theme.resolvedTheme = "dark";
+    await act(async () => { tree!.update(<AppBrand presentation="symbol" transparent />); });
+    expect(image().props.source).toBe(assets.symbolColorTransparent);
   });
 });

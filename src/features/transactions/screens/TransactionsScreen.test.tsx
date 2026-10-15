@@ -42,6 +42,7 @@ vi.mock("../../../ui/Snackbar", () => ({ Snackbar: () => null }));
 vi.mock("../../../providers/AnalyticsProvider", () => ({
   useAnalytics: () => ({ capture: vi.fn() }),
 }));
+vi.mock("../../auth/AuthProvider", () => ({ useAuth: () => ({ subject: null }) }));
 vi.mock("../../voice/VoiceEntryButton", () => ({
   VoiceEntryButton: () => null,
 }));
